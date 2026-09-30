@@ -21,9 +21,11 @@ optional same-origin clock check.
 
 ## Features
 
-- **Five modes**, from fast to deep: A (normal, 15 s slots), B (medium, 10 s),
-  C (fast, 5 s), L (long, 30 s) and D (deep, 60 s). Slower modes are more
-  sensitive, down to about −23 dB for mode D. All stations must use the same mode.
+- **Six modes**, from fast to deep: T (turbo, 2.5 s slots), C (fast, 5 s),
+  B (medium, 10 s), A (normal, 15 s), L (long, 30 s) and D (deep, 60 s). Slower
+  modes are more sensitive, down to about −23 dB for mode D; mode T only reaches
+  about −9 dB and is meant for testing between nearby devices. All stations must
+  use the same mode.
 - **Three bands** with fixed channel numbering: low (100–300 Hz), audible
   (300–10000 Hz) and ultrasonic (17.5–21 kHz, needs a 48 kHz sound card).
 - **Chat**: broadcast and directed messages up to 142 characters, acknowledged and

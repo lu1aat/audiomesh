@@ -21,10 +21,11 @@ una verificación opcional de hora contra el mismo origen.
 
 ## Características
 
-- **Cinco modos**, de rápido a profundo: A (normal, ranuras de 15 s), B (medio,
-  10 s), C (rápido, 5 s), L (largo, 30 s) y D (profundo, 60 s). Los modos más lentos
-  son más sensibles, hasta unos −23 dB en el modo D. Todas las estaciones tienen que
-  usar el mismo modo.
+- **Seis modos**, de rápido a profundo: T (turbo, ranuras de 2,5 s), C (rápido,
+  5 s), B (medio, 10 s), A (normal, 15 s), L (largo, 30 s) y D (profundo, 60 s). Los
+  modos más lentos son más sensibles, hasta unos −23 dB en el modo D; el modo T solo
+  llega a unos −9 dB y está pensado para pruebas entre dispositivos cercanos. Todas
+  las estaciones tienen que usar el mismo modo.
 - **Tres bandas** con numeración fija de canales: baja (100–300 Hz), audible
   (300–10000 Hz) y ultrasónica (17,5–21 kHz, necesita una placa de sonido de 48 kHz).
 - **Chat**: mensajes generales y dirigidos de hasta 142 caracteres; los dirigidos se
