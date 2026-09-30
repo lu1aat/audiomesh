@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIBLE_BAND, LOW_BAND, ULTRASONIC_BAND, bandFits, bandsFor, listChannels } from '../src/band/band-plan';
+import { AUDIBLE_BAND, LOW_BAND, ULTRASONIC_BAND, bandFits, bandsFor, effectiveChannelCount, listChannels } from '../src/band/band-plan';
 import { Gfsk8Codec, PAYLOAD_BITS } from '../src/protocol/gfsk8/codec';
 import { Gfsk8Demodulator } from '../src/protocol/gfsk8/demodulator';
 import { synthesizeFrame } from '../src/protocol/gfsk8/modulator';
@@ -39,13 +39,20 @@ describe('gfsk8-turbo', () => {
     expect(spec.maxTimeOffsetSec).toBeLessThan(GFSK8_FAST.maxTimeOffsetSec);
   });
 
-  it('is too wide for the low band or the ultrasonic band\'s fixed channel count - audible only', () => {
+  it('is too wide for even one low-band channel, but fits 8 of the ultrasonic band\'s 10', () => {
+    // 400 Hz alone exceeds the low band's entire 200 Hz width: no channel count helps here.
     expect(bandFits(spec, LOW_BAND)).toBe(false);
-    expect(bandFits(spec, ULTRASONIC_BAND)).toBe(false);
-    expect(bandsFor(spec)).toEqual([AUDIBLE_BAND]);
-    const ch = listChannels(spec, AUDIBLE_BAND);
-    expect(ch).toHaveLength(4);
-    expect(ch[1]!.baseHz - (ch[0]!.baseHz + bandwidthHz(spec))).toBeGreaterThan(2500);
+    expect(effectiveChannelCount(spec, LOW_BAND)).toBe(0);
+    expect(bandFits(spec, ULTRASONIC_BAND)).toBe(true);
+    expect(effectiveChannelCount(spec, ULTRASONIC_BAND)).toBe(8);
+    expect(bandsFor(spec)).toEqual([AUDIBLE_BAND, ULTRASONIC_BAND]);
+    const audible = listChannels(spec, AUDIBLE_BAND);
+    expect(audible).toHaveLength(4);
+    expect(audible[1]!.baseHz - (audible[0]!.baseHz + bandwidthHz(spec))).toBeGreaterThan(2500);
+    const ultra = listChannels(spec, ULTRASONIC_BAND);
+    expect(ultra).toHaveLength(8);
+    expect(ultra.map((c) => c.number)).toEqual([8, 9, 10, 11, 12, 13, 14, 15]); // 16 and 17 don't exist for this protocol
+    expect(ultra[1]!.baseHz - (ultra[0]!.baseHz + bandwidthHz(spec))).toBeGreaterThan(0);
   });
 
   it('decodes anywhere in the +-0.45 s clock allowance', () => {
@@ -73,11 +80,13 @@ describe('gfsk8-turbo', () => {
     }
   });
 
-  it('decodes every audible channel', () => {
+  it('decodes every audible and ultrasonic channel', () => {
     const random = rng(303);
-    for (const ch of listChannels(spec, AUDIBLE_BAND)) {
-      const payload = payloadOf(random);
-      expect(demod.decode(makeWindow(payload, random, 0, undefined, ch.baseHz), ch.baseHz)[0]?.payload, `channel ${ch.number}`).toEqual(payload);
+    for (const band of [AUDIBLE_BAND, ULTRASONIC_BAND]) {
+      for (const ch of listChannels(spec, band)) {
+        const payload = payloadOf(random);
+        expect(demod.decode(makeWindow(payload, random, 0, undefined, ch.baseHz), ch.baseHz)[0]?.payload, `channel ${ch.number}`).toEqual(payload);
+      }
     }
   });
 });

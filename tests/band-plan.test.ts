@@ -9,6 +9,7 @@ import {
   channelCount,
   channelForFrequency,
   channelSpacingHz,
+  effectiveChannelCount,
   listChannels,
   referenceTonesHz,
 } from '../src/band/band-plan';
@@ -76,9 +77,15 @@ describe('band plan (gfsk8-normal)', () => {
     expect(channelForFrequency(GFSK8_NORMAL, 21500)).toBeNull();
   });
 
-  it('refuses a band whose channels would overlap', () => {
+  it('uses fewer channels, not an error, when not all of a band\'s fit - only refuses when not even one does', () => {
+    // 300 Hz asked to carry 16 channels of 50 Hz: not all fit, but 6 narrower-spread do.
     const crowded = { name: 'crowded', lowHz: 0, highHz: 300, firstNumber: 1, channelCount: 16 };
-    expect(() => channelSpacingHz(GFSK8_NORMAL, crowded)).toThrow(RangeError);
+    expect(effectiveChannelCount(GFSK8_NORMAL, crowded)).toBe(6);
+    expect(() => channelSpacingHz(GFSK8_NORMAL, crowded)).not.toThrow();
+    // 10 Hz can't carry even one 50 Hz channel.
+    const tiny = { name: 'tiny', lowHz: 0, highHz: 10, firstNumber: 1, channelCount: 5 };
+    expect(effectiveChannelCount(GFSK8_NORMAL, tiny)).toBe(0);
+    expect(() => channelSpacingHz(GFSK8_NORMAL, tiny)).toThrow(RangeError);
   });
 
   it('places reference tones at each bands edges and centre', () => {

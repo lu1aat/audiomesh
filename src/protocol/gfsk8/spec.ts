@@ -38,9 +38,12 @@ export const GFSK8_NORMAL: ProtocolSpec = {
  * The clock allowance shrinks with the slot: +-0.9 s, the most a 5 s slot leaves.
  * It has to cover both stations' clocks AND the audio latency of the speaker and
  * microphone paths (tens to a few hundred ms each; Bluetooth much more), so it is
- * as wide as it can be. The 100..300 Hz band cannot hold a 200 Hz channel, so this
- * protocol has no low band. 0.04 s symbols are also short against room echo, which
- * smears one tone into the next; if that hurts, use Medium.
+ * as wide as it can be. The 100..300 Hz band only just holds one 200 Hz channel
+ * (edge to edge, no guard margin at all - `effectiveChannelCount` reduces a band's
+ * channel count rather than dropping it outright, only excluding a band once not
+ * even one channel fits), so this protocol's low band is that single channel, not
+ * the usual three. 0.04 s symbols are also short against room echo, which smears
+ * one tone into the next; if that hurts, use Medium.
  */
 export const GFSK8_FAST: ProtocolSpec = {
   ...GFSK8_NORMAL,
@@ -56,8 +59,9 @@ export const GFSK8_FAST: ProtocolSpec = {
 /**
  * Between the two: 12.5 baud, 0.08 s symbols, 6.32 s on air in a 10 s slot, 100 Hz
  * occupied, +-1.5 s clock allowance. 1.5x the throughput of Normal and about 3 dB
- * more sensitive than Fast. Symbols twice as long as Fast's ride out more room echo. No low band either (100 Hz channels do not fit
- * three times into 200 Hz).
+ * more sensitive than Fast. Symbols twice as long as Fast's ride out more room
+ * echo. Its low band is 2 channels, not the usual 3 (100 Hz channels only fit
+ * twice into 200 Hz), packed edge to edge with no guard margin between them either.
  */
 export const GFSK8_MEDIUM: ProtocolSpec = {
   ...GFSK8_NORMAL,
@@ -77,8 +81,9 @@ export const GFSK8_MEDIUM: ProtocolSpec = {
  * bandwidth as JS8's own Slow submode. Same clock allowance as Normal (+-2 s):
  * halving the baud without widening the allowance keeps the frame's share of the
  * slot the same (84%) as Normal's, rather than wasting the extra time as guard.
- * Half Normal's throughput; expected a few dB more sensitive (halving the baud
- * roughly doubles the energy per symbol, worth about 3 dB) - not yet measured.
+ * Half Normal's throughput; measured reliable to -21 dB (19/24 at -22, 3/12 at
+ * -23, 0/24 at -24, never a wrong payload) - exactly the 3 dB predicted from
+ * halving the baud (roughly doubling the energy per symbol).
  */
 export const GFSK8_LONG: ProtocolSpec = {
   ...GFSK8_NORMAL,
@@ -92,27 +97,22 @@ export const GFSK8_LONG: ProtocolSpec = {
 };
 
 /**
- * A quarter of Normal's baud: further than JS8 goes. 1.5625 baud, 0.64 s
- * symbols, 50.56 s on air in a 60 s slot, 12.5 Hz occupied. Clock allowance +-3 s
- * (deepExtraSec's own cap, reused here as the baseline allowance - the most
- * forgiving of clocks disagreeing among these protocols, useful for a link with
- * no other timing reference). A quarter of Normal's throughput; expected a few
- * more dB of sensitivity than Long - not yet measured. Meant for a link too weak
- * or too poorly timed for anything else, not for chat: a message takes minutes.
- */
-/**
  * 8x Normal's baud: further than JS8 goes (JS8's own fastest, Turbo, is roughly
  * 4x its Normal - about our own Fast). 50 baud, 0.02 s symbols, 1.58 s on air,
- * 400 Hz occupied - too wide for the low band (200 Hz total) or the ultrasonic
- * band's fixed 10 channels (spacing would need to be >=400 Hz across 3500 Hz,
- * which only 9 channels allow; `bandsFor` drops it, leaving only the audible
- * band). A protocol this fast is squarely audible there (its lowest channel
- * starts right at the band's 300 Hz floor), so this is a testing tool for
- * nearby devices, not a mode meant for daily use. Clock allowance +-0.45 s,
- * half of Fast's - the tightest of any protocol here, likely tighter even than
- * the +-0.5 s Fast originally shipped with before its own real-world decode
- * problems led to widening it to +-0.9 s. Expect this one to need both
- * stations' clocks closely synced to decode at all.
+ * 400 Hz occupied - genuinely too wide for the low band (its entire 200 Hz width
+ * is half this protocol's own bandwidth; no channel count helps), but the
+ * ultrasonic band still holds 8 of its usual 10 channels at ~442 Hz spacing
+ * (`effectiveChannelCount`, not `bandsFor` dropping the band outright: only the
+ * low band is excluded here). Still audible in its other usable band - the
+ * lowest audible channel starts right at the 300 Hz floor - so this is a
+ * testing tool for nearby devices, not a mode meant for daily use. Clock
+ * allowance +-0.45 s, half of Fast's - the tightest of any protocol here,
+ * likely tighter even than the +-0.5 s Fast originally shipped with before its
+ * own real-world decode problems led to widening it to +-0.9 s. Expect this one
+ * to need both stations' clocks closely synced to decode at all. Measured
+ * reliable to -9 dB (15/24 at -10, 2/24 at -11, 0/24 at -12, never a wrong
+ * payload) - a smaller loss than the Medium/Fast trend predicted (~-7 to -8 dB
+ * expected).
  */
 export const GFSK8_TURBO: ProtocolSpec = {
   ...GFSK8_NORMAL,
@@ -125,6 +125,17 @@ export const GFSK8_TURBO: ProtocolSpec = {
   maxTimeOffsetSec: 0.45,
 };
 
+/**
+ * A quarter of Normal's baud: further than JS8 goes. 1.5625 baud, 0.64 s
+ * symbols, 50.56 s on air in a 60 s slot, 12.5 Hz occupied. Clock allowance +-3 s
+ * (deepExtraSec's own cap, reused here as the baseline allowance - the most
+ * forgiving of clocks disagreeing among these protocols, useful for a link with
+ * no other timing reference). A quarter of Normal's throughput; measured
+ * reliable to -23 dB (23/24 at -24, 8/12 at -25, 4/24 at -26, 0/24 at -28, never
+ * a wrong payload) - close to the ~6 dB predicted from two halvings of Normal's
+ * -18 dB. Meant for a link too weak or too poorly timed for anything else, not
+ * for chat: a message takes minutes.
+ */
 export const GFSK8_DEEP: ProtocolSpec = {
   ...GFSK8_NORMAL,
   id: 'gfsk8-deep',

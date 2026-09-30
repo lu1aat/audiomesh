@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AUDIBLE_BAND, LOW_BAND, ULTRASONIC_BAND, bandFits, bandsFor, channelAt, channelForFrequency, listChannels,
+  AUDIBLE_BAND, LOW_BAND, ULTRASONIC_BAND, bandFits, bandsFor, channelAt, channelForFrequency, effectiveChannelCount, listChannels,
 } from '../src/band/band-plan';
 import { Gfsk8Codec, PAYLOAD_BITS } from '../src/protocol/gfsk8/codec';
 import { Gfsk8Demodulator } from '../src/protocol/gfsk8/demodulator';
@@ -70,12 +70,17 @@ describe('gfsk8-fast spec and registry', () => {
 });
 
 describe('band plan for gfsk8-fast', () => {
-  it('drops the low band, which cannot hold a 200 Hz channel, and keeps the rest', () => {
-    expect(bandFits(spec, LOW_BAND)).toBe(false);
-    expect(bandsFor(spec)).toEqual([AUDIBLE_BAND, ULTRASONIC_BAND]);
+  it('fits only 1 of the low band\'s 3 channels (edge to edge, no guard margin), and keeps the rest whole', () => {
+    expect(bandFits(spec, LOW_BAND)).toBe(true);
+    expect(effectiveChannelCount(spec, LOW_BAND)).toBe(1);
+    expect(bandsFor(spec)).toEqual([LOW_BAND, AUDIBLE_BAND, ULTRASONIC_BAND]);
     expect(bandsFor(GFSK8_NORMAL)).toHaveLength(3);
-    expect(() => channelAt(spec, 1)).toThrow(RangeError);
-    expect(listChannels(spec).map((c) => c.number)).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+    const ch1 = channelAt(spec, 1);
+    expect(ch1.baseHz).toBe(100);
+    expect(ch1.baseHz + bandwidthHz(spec)).toBe(300); // fills the whole 200 Hz band, no margin
+    expect(() => channelAt(spec, 2)).toThrow(RangeError); // channels 2 and 3 don't exist for this protocol
+    expect(() => channelAt(spec, 3)).toThrow(RangeError);
+    expect(listChannels(spec).map((c) => c.number)).toEqual([1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
   });
 
   it('keeps channels apart with room to spare', () => {
@@ -161,9 +166,9 @@ describe('Gfsk8Demodulator at 25 baud', () => {
     for (let t = 0; t < 10; t++) expect(demod.decode(silence.map(() => gaussian(random)), BASE_HZ)).toEqual([]);
   });
 
-  it('decodes every audible and ultrasonic channel', () => {
+  it('decodes every low, audible and ultrasonic channel, including the low band\'s single edge-to-edge one', () => {
     const random = rng(24);
-    for (const band of [AUDIBLE_BAND, ULTRASONIC_BAND]) {
+    for (const band of [LOW_BAND, AUDIBLE_BAND, ULTRASONIC_BAND]) {
       for (const ch of listChannels(spec, band)) {
         const payload = payloadOf(random);
         const frames = demod.decode(makeWindow({ rate, payload, baseHz: ch.baseHz, random }), ch.baseHz);

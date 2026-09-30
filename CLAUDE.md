@@ -52,8 +52,12 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
   `processorOptions` (structured clone). Derived values are free functions in
   `protocol/spec.ts`, never methods. All numbers live in the spec.
 - `src/band/band-plan.ts` is **fixed channel numbering**: a pure function of
-  (band, spec). A band carries a fixed `channelCount` spread evenly across it;
-  channel n (plan-wide, 1-based, ascending in frequency across `BANDS`) starts at
+  (band, spec). A band carries *up to* a fixed `channelCount` spread evenly
+  across it; a protocol too wide for all of them still gets as many as fit
+  (`effectiveChannelCount`), spread the same way - a band disappears for a
+  protocol (`bandFits`/`bandsFor`) only once not even one channel fits, not
+  merely because it can't fit all of them. Channel n (plan-wide, 1-based,
+  ascending in frequency across `BANDS`) starts at
   `bandLowHz + (n - firstNumber) * channelSpacingHz(spec, band)`. No sample rate or runtime state, so every client agrees. Channel numbers
   from different protocols do not line up; a number only means something together
   with a protocol id.
@@ -71,17 +75,19 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
   0.3+). Three times the throughput, about 6 dB less sensitive (measured, 48 kHz,
   unknown timing: reliable to -11 dB in 2500 Hz, 11/12 at -12 and -13, 4/12 at -14,
   never a wrong payload; ~150 ms to decode a window). The
-  low band (100..300 Hz) cannot hold a 200 Hz channel, so `bandsFor(spec)` drops it and
-  its channel numbers are skipped. The user picks the protocol in Settings; it applies
-  after a page reload, and both stations must match.
+  low band (100..300 Hz) only just holds one 200 Hz channel (edge to edge, no guard
+  margin at all), so `bandsFor(spec)` keeps the band but with 1 channel instead of 3;
+  its other two channel numbers are skipped. The user picks the protocol in Settings;
+  it applies after a page reload, and both stations must match.
   The demodulator keeps 32 baseband samples per symbol and scales its filter, frequency
   grid and suppression window with the baud rate, so its cost per window is the same
   going faster than Normal. Two protocols go the other way, slower and more sensitive:
   `gfsk8-long` (Mode L, half Normal's baud: 3.125, 25.28 s frames in 30 s slots, 25 Hz
   channels, same +-2 s clock allowance as Normal) and `gfsk8-deep` (Mode D, a quarter of
   Normal's baud: 1.5625, 50.56 s frames in 60 s slots, 12.5 Hz channels, +-3 s clock
-  allowance, the widest of any protocol here). Both are narrow enough to fit every band,
-  including the low one Medium/Fast can't reach. Measured (48 kHz, unknown timing, nominal
+  allowance, the widest of any protocol here). Both are narrow enough to fit every band
+  at its full channel count, unlike Medium and Fast (2 and 1 low-band channels rather
+  than 3). Measured (48 kHz, unknown timing, nominal
   frequency, never a wrong payload): Long reliable to -21 dB in 2500 Hz (19/24 at -22, 3/12
   at -23, 0/24 at -24), Deep reliable to -23 dB (23/24 at -24, 8/12 at -25, 4/24 at -26,
   0/24 at -28) - both track the ~3 dB-per-halved-baud prediction closely. Going below
@@ -94,9 +100,11 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
   `FREQ_SEARCH_HZ`'s scaling if the cost becomes a real problem (e.g. for an always-on
   control channel). Not yet tried over the air.
   A sixth, `gfsk8-turbo` (Mode T, 8x Normal's baud: 50, 1.58 s frames in a 2.5 s slot,
-  400 Hz channels), goes faster than Fast - too wide for the low band or the
-  ultrasonic band's fixed 10 channels (`bandsFor` leaves only the audible band, where
-  its lowest channel starts right at the 300 Hz floor: squarely audible). A testing
+  400 Hz channels), goes faster than Fast - genuinely too wide for the low band (its
+  entire 200 Hz width is half this protocol's own bandwidth; no channel-count trick
+  helps), but the ultrasonic band still holds 8 of its usual 10 channels at ~442 Hz
+  spacing, and the audible band keeps all 4 (its lowest channel starts right at the
+  300 Hz floor, squarely audible). A testing
   tool for nearby devices, not a mode meant for daily use, both because of that and
   because its clock allowance (+-0.45 s) is the tightest here, likely tighter than the
   +-0.5 s Fast itself originally shipped with before real-world problems widened it to

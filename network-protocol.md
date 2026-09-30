@@ -127,8 +127,8 @@ baud, and everything else (frame duration, slot length, sensitivity) follows.
 | Receive window (frame + 2×allowance) | 16.64 s | 9.32 s | 4.96 s | 29.28 s | 56.56 s | 2.48 s |
 | Deep-decode extra each side | 3 s | 3 s | 1.35 s | 3 s | 3 s | 0.55 s |
 | Occupied bandwidth (8 tones) | 50 Hz | 100 Hz | 200 Hz | 25 Hz | 12.5 Hz | 400 Hz |
-| Channel spacing (ultrasonic band) | ~383 Hz | ~377 Hz | ~366 Hz | ~386 Hz | ~387 Hz | doesn't fit |
-| Bands it fits | all 3 | audible, ultrasonic | audible, ultrasonic | all 3 | all 3 | **audible only** |
+| Channel spacing (ultrasonic band) | ~383 Hz | ~377 Hz | ~366 Hz | ~386 Hz | ~387 Hz | ~442 Hz |
+| Bands it fits (of 3·4·10 low·audible·ultrasonic) | all, full count | low 2/3, rest full | low 1/3, rest full | all, full count | all, full count | **no low; ultrasonic 8/10** |
 | Throughput vs Normal | 1× | 1.5× | 3× | 0.5× | 0.25× | 6× |
 | Sensitivity vs Normal | baseline (-18 dB reliable) | ~3 dB better than Fast | ~6 dB worse (measured: reliable to -11 dB in 2500 Hz; 11/12 at -12/-13 dB, 4/12 at -14 dB; never a wrong payload) | ~3 dB better (measured: reliable to -21 dB; 19/24 at -22, 3/12 at -23, 0/24 at -24; never a wrong payload) | ~5-6 dB better (measured: reliable to -23 dB; 23/24 at -24, 8/12 at -25, 4/24 at -26, 0/24 at -28; never a wrong payload) | ~9 dB worse (measured: reliable to -9 dB; 15/24 at -10, 2/24 at -11, 0/24 at -12; never a wrong payload) |
 
@@ -138,22 +138,26 @@ clock allowance and channel width) changes. `deepExtraSec(spec)` =
 `max(0, min(3, slotSec/2 − 0.25 − maxTimeOffsetSec))` — the search of one slot
 must never reach into the next one's.
 
-**Turbo is audible, and is a testing tool, not a daily-use mode.** At 400 Hz
-occupied bandwidth it's too wide for the low band (200 Hz total) and — the more
-consequential limit — too wide for the ultrasonic band's *fixed* 10-channel
-plan (`channelCount` is a property of the band, not the protocol, so a wider
-protocol can't just get fewer, wider channels there automatically; `bandsFor`
-simply drops the band once its channels no longer fit). That leaves only the
-audible band, where Turbo's lowest channel starts right at the 300 Hz floor —
-squarely in the middle of human hearing, not the inaudible-in-practice top of
-the ultrasonic band the rest of this project is built around. It's also the
-only protocol whose clock allowance (±0.45 s) is *tighter* than the ±0.5 s Fast
-originally shipped with before real-world decode problems led to widening Fast
-to ±0.9 s (§4's over-the-air notes) — Turbo should be expected to need both
-stations' clocks closely synced (e.g. via the Sync feature) to decode at all,
-more so than any protocol below it. Intended use: verifying the physical layer
-at high speed between two nearby, easily-synced devices, not a mode for actual
-deployment.
+**A band's channel count bends before it breaks** (`effectiveChannelCount`,
+§5): a protocol too wide for all of a band's channels still gets as many as
+actually fit, evenly spread the same way — the band only disappears entirely
+(`bandFits`/`bandsFor`) once not even one channel fits. This is why Medium (2)
+and Fast (1) get a shrunken low band instead of none at all, and why Turbo
+fits the ultrasonic band with 8 of its usual 10 channels (~442 Hz spacing)
+even though its 400 Hz bandwidth is 8× the low band's own total width — that
+one really is impossible regardless of channel count, since a single Turbo
+channel alone needs twice the entire low band.
+
+**Turbo is still a testing tool, not a daily-use mode**, despite fitting the
+ultrasonic band: its *audible*-band channels remain genuinely audible (the
+lowest starts right at the 300 Hz floor, squarely in the middle of human
+hearing), and it's the only protocol whose clock allowance (±0.45 s) is
+*tighter* than the ±0.5 s Fast originally shipped with before real-world
+decode problems led to widening Fast to ±0.9 s (§4's over-the-air notes) —
+Turbo should be expected to need both stations' clocks closely synced (e.g.
+via the Sync feature) to decode at all, more so than any protocol below it.
+Intended use: verifying the physical layer at high speed between two nearby,
+easily-synced devices, not a mode for actual deployment.
 
 Long and Deep keep Normal's frame-to-slot ratio (~84% frame, ~16% guard) by
 scaling the clock allowance up roughly in step with the slot rather than
@@ -197,27 +201,49 @@ client agrees without negotiation (`src/band/band-plan.ts`). Channel numbers
 are 1-based, plan-wide (ascending in frequency across all bands), fixed per
 protocol. **Channel numbers from different protocols do not correspond** — a
 number only means something together with a protocol id, since a wider
-protocol needs wider spacing.
+protocol needs wider spacing — and even *which numbers exist* is protocol-
+dependent: `channelCount` below is each band's maximum, offered in full only to
+protocols narrow enough for all of it (§4 has the per-protocol actual counts).
 
-| Band | Range | Channels | Numbers | Notes |
+| Band | Range | Channels (max) | Numbers (max) | Notes |
 |---|---|---|---|---|
-| low | 100–300 Hz | 3 | 1–3 | sparsest; small speakers barely reproduce it; excluded for Medium/Fast (their channels don't fit) |
-| audible | 300–10000 Hz | 4 | 4–7 | audible to everyone; highest channels weakest (speaker/mic rolloff toward 10 kHz) |
-| ultrasonic | 17500–21000 Hz | 10 | 8–17 | main band: inaudible, works well over the air; needs ≥~47 kHz audio context (48 kHz+); out of reach at 44.1 kHz |
+| low | 100–300 Hz | 3 | 1–3 | sparsest; small speakers barely reproduce it; only Normal/Long/Deep get all 3 — Medium 2, Fast 1, Turbo none (too wide even for one) |
+| audible | 300–10000 Hz | 4 | 4–7 | audible to everyone; highest channels weakest (speaker/mic rolloff toward 10 kHz); every protocol gets all 4 |
+| ultrasonic | 17500–21000 Hz | 10 | 8–17 | main band: inaudible, works well over the air; needs ≥~47 kHz audio context (48 kHz+); out of reach at 44.1 kHz; every protocol but Turbo (8 of 10) gets all 10 |
 
 - A station listens to and transmits on **one band at a time**, chosen by the
   user; the waterfall shows that band.
+- **Effective channel count**: `effectiveChannelCount(spec, band)` is the most
+  channels of the band's own maximum that still spread out at least
+  `bandwidthHz(spec)` apart — `min(channelCount, the largest count that fits)`,
+  found by counting down from `channelCount` (fewer channels only ever fit more
+  easily than more, since each gets a bigger share of a fixed width). 0 when not
+  even one channel fits.
 - **Channel spacing**: `channelSpacingHz = floor((bandHighHz − bandLowHz −
-  bandwidthHz) / (channelCount − 1))`, thrown as a `RangeError` if that's
-  narrower than the protocol's own bandwidth. Channels are spread evenly with
-  gaps between them (not packed edge to edge) — deliberate, to tolerate the poor
-  filtering and strong nearby signals of a speaker/mic path.
+  bandwidthHz) / (effectiveChannelCount − 1))` — using the *effective* count,
+  not necessarily the band's full one. `channelSpacingHz` throws a `RangeError`
+  only when the effective count is 0 (not even one channel fits); when it's 1,
+  spacing is 0 (nothing to space against) and that single channel may fill the
+  band edge to edge with zero guard margin (Fast's low-band channel does
+  exactly this; Medium's two low-band channels are packed edge to edge against
+  each other too). Channels are otherwise spread evenly with gaps between them
+  (not packed edge to edge) — deliberate, to tolerate the poor filtering and
+  strong nearby signals of a speaker/mic path; the tight low-band cases are a
+  physical consequence of the band being narrower than usual, not a departure
+  from that design.
 - **Channel n's base frequency** (tone 0): `bandLowHz + (n − firstNumber) ×
   channelSpacingHz`. The channel occupies `baseHz .. baseHz + bandwidthHz`.
-- **`bandsFor(spec)`**: filters `BANDS` to the ones wide enough for a given
-  protocol's channel count and bandwidth — this is how the low band gets
-  dropped for Medium/Fast, and its channel numbers 1–3 are simply skipped
-  (never reused for another band).
+  `channelAt` rejects a channel number once its index into the band exceeds
+  `effectiveChannelCount` for that protocol, even though `bandForChannel`
+  (spec-independent, purely structural) still says the number nominally
+  belongs to that band.
+- **`bandsFor(spec)`**: filters `BANDS` to the ones with at least one effective
+  channel — a band is only dropped *entirely* once not even one channel fits
+  (Turbo + low band: 400 Hz alone exceeds the band's whole 200 Hz width). A band
+  that fits *some but not all* of its channels (Medium/Fast/Turbo in the low or
+  ultrasonic bands) keeps the band with fewer channels instead; the numbers for
+  channels that don't exist for that protocol are simply skipped (never reused
+  for another band).
 - **Reference/calibration tones**: low edge, centre, high edge of each band
   (audible band: 300 / 5150 / 10000 Hz).
 - A lower device sample rate (e.g. a Bluetooth headset forcing 16 kHz) cuts off

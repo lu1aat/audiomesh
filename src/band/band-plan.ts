@@ -1,11 +1,15 @@
 /**
  * Fixed channel numbering.
  *
- * A band carries a fixed number of channels spread evenly across it: channel 1
- * starts at the band's low edge and the last channel ends at its high edge. The
- * plan is a pure function of (band, protocol spec), with no sample rate and no
- * runtime state, so every client numbers the spectrum identically. Channel
- * numbers are 1-based, as shown to users.
+ * A band carries up to a fixed number of channels spread evenly across it:
+ * channel 1 starts at the band's low edge and the last channel ends at its
+ * high edge. "Up to": `channelCount` is the most a band ever offers, to its
+ * narrowest protocols; a wider protocol that can't fit them all still uses as
+ * many as do fit (`effectiveChannelCount`), spread the same way, rather than
+ * being excluded outright - only when not even one fits does the whole band
+ * disappear for that protocol. The plan is a pure function of (band, protocol
+ * spec), with no sample rate and no runtime state, so every client numbers the
+ * spectrum identically. Channel numbers are 1-based, as shown to users.
  *
  * Spreading a few channels wide (rather than packing them side by side) leaves
  * large gaps between neighbours, which is deliberate: it tolerates the poor
@@ -70,10 +74,28 @@ export const BANDS: readonly Band[] = [LOW_BAND, AUDIBLE_BAND, ULTRASONIC_BAND];
 /** The band selected on first visit. */
 export const DEFAULT_BAND: Band = ULTRASONIC_BAND;
 
-/** Whether a protocol's channels fit the band at all: a wide protocol has no room in the narrow low band. */
+/** A count of channels this wide still spread evenly across the band, at least bandwidthHz(spec) apart. */
+function countFits(spec: ProtocolSpec, band: Band, count: number): boolean {
+  const bw = bandwidthHz(spec);
+  if (count < 2) return bw <= band.highHz - band.lowHz;
+  return Math.floor((band.highHz - band.lowHz - bw) / (count - 1)) >= bw;
+}
+
+/**
+ * The most channels of `band` a protocol's bandwidth allows, spread the same
+ * evenly-gapped way as when they all fit: min(band.channelCount, the largest
+ * count that does), or 0 if not even one does. Fewer channels only ever fit
+ * more easily than more (each has the whole band's width to share out among
+ * fewer neighbours), so counting down from band.channelCount always finds it.
+ */
+export function effectiveChannelCount(spec: ProtocolSpec, band: Band): number {
+  for (let n = band.channelCount; n >= 1; n--) if (countFits(spec, band, n)) return n;
+  return 0;
+}
+
+/** Whether a protocol has room for at least one channel of the band. */
 export function bandFits(spec: ProtocolSpec, band: Band): boolean {
-  if (band.channelCount < 2) return bandwidthHz(spec) <= band.highHz - band.lowHz;
-  return Math.floor((band.highHz - band.lowHz - bandwidthHz(spec)) / (band.channelCount - 1)) >= bandwidthHz(spec);
+  return effectiveChannelCount(spec, band) > 0;
 }
 
 /** The bands a protocol can use, in plan order. */
@@ -109,19 +131,21 @@ export function bandForChannel(channelNumber: number): Band | null {
 }
 
 /**
- * Distance between adjacent channel base frequencies. Rounded down to a whole
- * Hz so every base frequency is a whole number; the last channel therefore ends
- * a few Hz short of the band's high edge rather than past it.
+ * Distance between adjacent channel base frequencies, using as many channels as
+ * actually fit (`effectiveChannelCount`), not necessarily the band's full
+ * count. Rounded down to a whole Hz so every base frequency is a whole number;
+ * the last channel therefore ends a few Hz short of the band's high edge
+ * rather than past it.
  */
 export function channelSpacingHz(spec: ProtocolSpec, band: Band): number {
-  if (band.channelCount < 2) return 0;
-  const spacing = Math.floor((band.highHz - band.lowHz - bandwidthHz(spec)) / (band.channelCount - 1));
-  if (spacing < bandwidthHz(spec)) {
+  const count = effectiveChannelCount(spec, band);
+  if (count === 0) {
     throw new RangeError(
       `${band.channelCount} channels of ${bandwidthHz(spec)} Hz do not fit in ${band.name} band`,
     );
   }
-  return spacing;
+  if (count < 2) return 0;
+  return Math.floor((band.highHz - band.lowHz - bandwidthHz(spec)) / (count - 1));
 }
 
 export function channelAt(spec: ProtocolSpec, channelNumber: number): Channel {
@@ -129,18 +153,26 @@ export function channelAt(spec: ProtocolSpec, channelNumber: number): Channel {
   if (!band) {
     throw new RangeError(`channel ${channelNumber} is outside 1..${channelCount()}`);
   }
-  const baseHz = band.lowHz + (channelNumber - band.firstNumber) * channelSpacingHz(spec, band);
+  const index = channelNumber - band.firstNumber;
+  const count = effectiveChannelCount(spec, band);
+  if (index >= count) {
+    throw new RangeError(
+      `channel ${channelNumber} does not exist for ${spec.name}: only ${count} of ${band.name}'s ${band.channelCount} channels fit its ${bandwidthHz(spec)} Hz bandwidth`,
+    );
+  }
+  const baseHz = band.lowHz + index * channelSpacingHz(spec, band);
   return { number: channelNumber, baseHz, centerHz: baseHz + bandwidthHz(spec) / 2 };
 }
 
 /**
  * Channels of one band, or of every band the protocol fits when no band is given
- * (numbers keep their plan-wide values, so a skipped band leaves a gap in them).
+ * (numbers keep their plan-wide values, so a skipped band, or channels a wide
+ * protocol can't fit of one it partly does, leave a gap in them).
  */
 export function listChannels(spec: ProtocolSpec, band?: Band): Channel[] {
   const bands = band ? [band] : bandsFor(spec);
   return bands.flatMap((b) =>
-    Array.from({ length: b.channelCount }, (_, i) => channelAt(spec, b.firstNumber + i)),
+    Array.from({ length: effectiveChannelCount(spec, b) }, (_, i) => channelAt(spec, b.firstNumber + i)),
   );
 }
 
@@ -149,7 +181,7 @@ export function channelForFrequency(spec: ProtocolSpec, freqHz: number): Channel
   for (const band of bandsFor(spec)) {
     if (freqHz < band.lowHz || freqHz > band.highHz) continue;
     const i = Math.floor((freqHz - band.lowHz) / channelSpacingHz(spec, band));
-    if (i >= band.channelCount) continue;
+    if (i >= effectiveChannelCount(spec, band)) continue;
     const ch = channelAt(spec, band.firstNumber + i);
     if (freqHz <= ch.baseHz + bandwidthHz(spec)) return ch;
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOW_BAND, ULTRASONIC_BAND, bandsFor, listChannels } from '../src/band/band-plan';
+import { LOW_BAND, ULTRASONIC_BAND, bandsFor, effectiveChannelCount, listChannels } from '../src/band/band-plan';
 import { Gfsk8Codec, PAYLOAD_BITS } from '../src/protocol/gfsk8/codec';
 import { Gfsk8Demodulator } from '../src/protocol/gfsk8/demodulator';
 import { synthesizeFrame } from '../src/protocol/gfsk8/modulator';
@@ -40,9 +40,14 @@ describe('gfsk8-medium', () => {
     expect(spec.slotSec).toBeLessThan(GFSK8_NORMAL.slotSec);
   });
 
-  it('has no low band and ten ultrasonic channels with wide gaps', () => {
-    expect(bandsFor(spec).map((b) => b.name)).toEqual(['audible', 'ultrasonic']);
-    expect(bandsFor(spec)).not.toContain(LOW_BAND);
+  it('fits only 2 of the low band\'s 3 channels (packed edge to edge), and ten ultrasonic channels with wide gaps', () => {
+    expect(bandsFor(spec).map((b) => b.name)).toEqual(['low', 'audible', 'ultrasonic']);
+    expect(bandsFor(spec)).toContain(LOW_BAND);
+    expect(effectiveChannelCount(spec, LOW_BAND)).toBe(2);
+    const low = listChannels(spec, LOW_BAND);
+    expect(low).toHaveLength(2);
+    expect(low[0]!.baseHz).toBe(100);
+    expect(low[1]!.baseHz).toBe(200); // no gap: 2 channels of 100 Hz exactly fill 200 Hz
     const ch = listChannels(spec, ULTRASONIC_BAND);
     expect(ch).toHaveLength(10);
     expect(ch[1]!.baseHz - (ch[0]!.baseHz + bandwidthHz(spec))).toBeGreaterThan(250);
@@ -71,9 +76,9 @@ describe('gfsk8-medium', () => {
     }
   });
 
-  it('decodes every ultrasonic channel', () => {
+  it('decodes every low and ultrasonic channel, including the low band\'s two packed ones', () => {
     const random = rng(43);
-    for (const ch of listChannels(spec, ULTRASONIC_BAND)) {
+    for (const ch of [...listChannels(spec, LOW_BAND), ...listChannels(spec, ULTRASONIC_BAND)]) {
       const payload = payloadOf(random);
       expect(demod.decode(makeWindow(payload, random, 0, undefined, ch.baseHz), ch.baseHz)[0]?.payload, `channel ${ch.number}`).toEqual(payload);
     }
