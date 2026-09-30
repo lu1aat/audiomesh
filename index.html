@@ -35,7 +35,6 @@
         <div class="sidebar-nav">
           <button class="nav-item" data-screen="chat" title="Messages"><span class="nav-label">Messages</span><span class="nav-short" aria-hidden="true">M</span><span class="dot" data-dot="chat"></span></button>
           <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">N</span><span class="dot" data-dot="network"></span></button>
-          <button class="nav-item" data-screen="users" title="Users"><span class="nav-label">Users</span><span class="nav-short" aria-hidden="true">U</span><span class="dot" data-dot="users"></span></button>
           <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">S</span><span class="dot" data-dot="settings"></span></button>
           <button class="nav-item" data-screen="help" title="Help"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">?</span></button>
         </div>
@@ -46,14 +45,23 @@
           <span>No station name set: other stations only see your random id.</span>
           <button id="name-banner-set" type="button">Set your name</button>
         </div>
+        <div id="clock-banner" class="clock-banner" role="alert" hidden>
+          <span id="clock-banner-text"></span>
+          <button id="clock-banner-use" type="button">Use server time</button>
+          <button id="clock-banner-close" type="button" class="banner-close" aria-label="Close this warning" title="Close (until the page is reloaded)">✕</button>
+        </div>
         <section id="screen-chat" class="screen screen-chat" hidden>
 
+          <div class="chat-layout">
+          <div id="users-view" class="users-view" aria-label="Conversations"></div>
+          <div class="chat-thread">
           <div class="chat-head">
+            <h3 id="thread-title" class="thread-title">Public</h3>
             <span id="rx-status" class="hint"></span>
           </div>
           <ol id="rx-list" class="rx-list" aria-live="polite"></ol>
           <div class="composer">
-            <select id="dst-select" aria-label="Send to"></select>
+            <select id="dst-select" aria-label="Send to" hidden></select>
             <input id="msg-input" type="text" maxlength="142" placeholder="message, up to 142 characters" autocomplete="off" spellcheck="false" />
             <button id="send-button" class="primary" disabled>Send at next slot</button>
             <button id="sprite-button" type="button" title="Draw a small picture (a sprite) and send it in a few frames"><span aria-hidden="true">▦</span> Sprite</button>
@@ -97,6 +105,8 @@
               <div id="sprite-gallery" class="sprite-gallery"></div>
             </details>
           </dialog>
+          </div>
+          </div>
         </section>
 
         <section id="screen-network" class="screen screen-link">
@@ -104,6 +114,7 @@
           <div id="error" class="error-bar" role="alert" hidden>
             <div class="error-title">Audio</div>
             <div id="error-text" class="error-text"></div>
+            <button id="error-close" type="button" class="error-close" aria-label="Close this message" title="Close (it comes back if the page is reloaded and the problem is still there)">✕</button>
           </div>
           <div class="activity" role="group" aria-labelledby="activity-title">
             <div id="activity-title" class="activity-title">Network activity</div>
@@ -136,7 +147,7 @@
                 <span class="switch-state" aria-hidden="true"></span>
               </label>
               <label class="switch-tile" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you. Off with a channel selected: every transmission goes on that channel; clear the selection (click it again) to go back to automatic choice.">
-                <span class="switch-label">Auto test</span>
+                <span class="switch-label">Auto beacon</span>
                 <span class="switch"><input id="auto-sound" type="checkbox" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you. Off with a channel selected: every transmission goes on that channel; clear the selection (click it again) to go back to automatic choice." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
                 <span class="switch-state" aria-hidden="true"></span>
               </label>
@@ -153,9 +164,9 @@
             </div>
             <div class="opt-subhead">Timing &amp; protocol — protocol changes reload the page; both stations must match</div>
             <div class="field-grid">
-              <label class="field-tile" title="How often Auto test sends a beacon. Every beacon takes a slot on the air from every station that hears it: with several stations, short intervals crowd the band. Long intervals learn the channels slowly (one channel per beacon, and link data older than 30 min is ignored).">
-                <span class="switch-label">Auto test every</span>
-                <select id="auto-sound-interval" title="How often Auto test sends a beacon. Every beacon takes a slot on the air from every station that hears it: with several stations, short intervals crowd the band. Long intervals learn the channels slowly (one channel per beacon, and link data older than 30 min is ignored)."></select>
+              <label class="field-tile" title="How often Auto beacon sends a beacon. Every beacon takes a slot on the air from every station that hears it: with several stations, short intervals crowd the band. Long intervals learn the channels slowly (one channel per beacon, and link data older than 30 min is ignored).">
+                <span class="switch-label">Auto beacon every</span>
+                <select id="auto-sound-interval" title="How often Auto beacon sends a beacon. Every beacon takes a slot on the air from every station that hears it: with several stations, short intervals crowd the band. Long intervals learn the channels slowly (one channel per beacon, and link data older than 30 min is ignored)."></select>
               </label>
               <label class="field-tile">
                 <span class="switch-label">Band</span>
@@ -167,7 +178,7 @@
               </label>
             </div>
             <div class="opt-reset">
-              <button id="net-options-reset" type="button" class="btn-action" title="Put Allow transmit, Auto channel, Auto test and its interval, Repeater, Deep decode, Band and Protocol back to their defaults. Audio, the selected channel, timing and names are left alone. A protocol change reloads the page.">Reset to defaults</button>
+              <button id="net-options-reset" type="button" class="btn-action" title="Put Allow transmit, Auto channel, Auto beacon and its interval, Repeater, Deep decode, Band and Protocol back to their defaults. Audio, the selected channel, timing and names are left alone. A protocol change reloads the page.">Reset to defaults</button>
             </div>
             </div>
           </div>
@@ -214,7 +225,7 @@
           <section id="sync-block" class="link-section clock-block" aria-labelledby="clock-title">
             <h3 id="clock-title" class="link-section-heading">
               <button type="button" id="sync-block-toggle" class="block-toggle" aria-expanded="true" aria-controls="sync-block-body">
-                <span class="channel-block-title">Sync</span>
+                <span class="channel-block-title">Sync</span><span class="dot" data-dot="sync" title="The clock differs from the server's: use Sync"></span>
               </button>
             </h3>
             <div id="sync-block-body" class="link-section-body">
@@ -228,7 +239,7 @@
               </div>
               <div class="clock-row sync-server">
                 <button id="sync-server-check" type="button" class="btn-action" title="Ask the server this page came from for its time (the Date header of a request to this same address; nothing is sent anywhere else). Takes about 3 s.">Check against server</button>
-                <label class="checkbox inline-check"><input id="sync-server-auto" type="checkbox" /> every 10 min</label>
+                <label class="checkbox inline-check"><input id="sync-server-auto" type="checkbox" /> at start and every 10 min</label>
                 <button id="sync-server-use" type="button" class="btn-action" disabled>Use server time</button>
               </div>
               <p id="sync-server-state" class="hint"></p>
@@ -236,13 +247,33 @@
               <div class="table-wrap"><table id="clock-hints" class="clock-hints"><tbody></tbody></table></div>
             </div>
           </section>
+          <section id="capture-block" class="link-section capture-block" hidden aria-labelledby="capture-title">
+            <h3 id="capture-title" class="link-section-heading">
+              <button type="button" id="capture-block-toggle" class="block-toggle" aria-expanded="true" aria-controls="capture-block-body">
+                <span class="channel-block-title">Capture</span><span class="dot" data-dot="capture" title="Capturing windows"></span>
+              </button>
+            </h3>
+            <div id="capture-block-body" class="link-section-body">
+              <p class="hint">Audio of receive windows kept in memory to replay a failed decode offline. Start capture when the problem is about to happen; it stops itself after 30 minutes. Nothing leaves this browser until you press Download.</p>
+              <div class="clock-row">
+                <button id="capture-toggle" type="button" class="btn-action btn-highlight">Start capture</button>
+                <label class="inline-field">Keep
+                  <select id="capture-mode">
+                    <option value="undecoded">sync seen, nothing decoded</option>
+                    <option value="all">every window</option>
+                  </select></label>
+                <label class="inline-field">Note
+                  <input id="capture-note" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="e.g. tx 40 %, 2 m" title="Saved with every window kept from now on, in the list and in the downloaded .json (for example the transmit volume and the distance of this step)." /></label>
+                <button id="capture-download-all" type="button" class="btn-action" disabled>Download all</button>
+                <button id="capture-clear" type="button" class="btn-action" disabled>Clear</button>
+              </div>
+              <p id="capture-state" class="hint"></p>
+              <div class="table-wrap"><table id="capture-list" class="sync-table"></table></div>
+            </div>
+          </section>
           <div id="link-view" class="link-view"></div>
         </section>
 
-        <section id="screen-users" class="screen screen-users" hidden>
-          <h2>Users</h2>
-          <div id="users-view" class="users-view"></div>
-        </section>
 
         <section id="screen-help" class="screen screen-help" hidden>
           <h2>Help</h2>
@@ -276,17 +307,16 @@
 
             <h3>Talk to other stations</h3>
             <ol>
-              <li><b>Listen first.</b> With Audio on, wait to see stations appear on <b>Network</b> and <b>Users</b>. They show up when their test beacons or announcements are heard, which by default happens every few minutes. Pressing <b>Test</b> and <b>Announce</b> on both stations speeds this up.</li>
+              <li><b>Listen first.</b> With Audio on, wait to see stations appear on <b>Network</b> and in the list on <b>Messages</b>. They show up when their test beacons or announcements are heard, which by default happens every few minutes. Pressing <b>Test</b> and <b>Announce</b> on both stations speeds this up.</li>
               <li><b>Write to everyone.</b> Once you see stations, open <b>Messages</b>, leave the recipient on <i>Everyone</i> and send. This is not confirmed: you will not know who received it.</li>
-              <li><b>Write to one station.</b> After you announce yourself, or receive an announcement from another station, that station appears in the recipient list (or click it in <b>Users</b>). A directed message is <b>confirmed</b>: the other station sends an acknowledgement, lost parts are sent again, and the message shows as delivered or failed.</li>
+              <li><b>Write to one station.</b> After you announce yourself, or receive an announcement from another station, that station appears in the recipient list (or click it in the list on the left of <b>Messages</b>). A directed message is <b>confirmed</b>: the other station sends an acknowledgement, lost parts are sent again, and the message shows as delivered or failed.</li>
             </ol>
             <p class="hint">Messages are up to 142 characters. Text is converted to upper case and a limited set of symbols. Frames go out one per slot, so be patient.</p>
 
             <h3>What each screen shows</h3>
             <ul>
-              <li><b>Messages</b>: the conversation, the recipient, Send, Announce and the sprite editor.</li>
+              <li><b>Messages</b>: the list of stations (Public on top for messages addressed to nobody; click one to open its conversation), the conversation, Send, Announce and the sprite editor.</li>
               <li><b>Network</b>: the map of stations (a stronger link is a shorter line), the channels and waterfall, the list of stations with signal and time since last heard, signal per channel, timing (Sync) and every frame sent or received.</li>
-              <li><b>Users</b>: stations as a contact list, newest activity first. Click one to write to it.</li>
               <li><b>Settings</b>: your name, notifications, sprite display and stored data.</li>
               <li>Colours show age: green heard in the last minute, then orange and red, grey after ten minutes.</li>
             </ul>
@@ -296,7 +326,7 @@
               <li><b>Audio</b>: listen to the microphone. Off, the station is deaf and silent.</li>
               <li><b>Allow transmit</b>: master switch for everything you send. Off, nothing goes out.</li>
               <li><b>Test</b>: sends a beacon that asks every other station to answer, for a quick picture of who hears you and how well. <b>Announce</b>: sends your name.</li>
-              <li><b>Auto channel</b>: picks the best channel for each message from the link quality. <b>Auto test</b>: sends a beacon every few minutes to keep that picture fresh.</li>
+              <li><b>Auto channel</b>: picks the best channel for each message from the link quality. <b>Auto beacon</b>: every few minutes sends a beacon (your name if nobody is heard yet, link reports otherwise), and answers a newly heard station, to keep that picture fresh.</li>
               <li><b>Repeater</b>: repeats what it hears from others, so stations that cannot hear each other can still talk. <b>Deep decode</b>: also looks for frames that arrive further off in time.</li>
               <li><b>Reset to defaults</b>: puts these options back (Audio, your name and timing are kept).</li>
             </ul>
@@ -306,7 +336,7 @@
               <li><b>Nobody appears.</b> Check that both stations use the <b>same band and the same mode</b>, that Audio is on, and that one of them is sending (press Test). Get closer and turn the volume up.</li>
               <li><b>Frames are heard but do not decode, or arrive at the wrong time.</b> The clocks are out of sync. Transmissions happen in slots aligned to UTC and the receiver tolerates only a small error (about 2 seconds in mode A, less in faster modes, under half a second in T). Use the <b>Sync</b> section on <b>Network</b>:
                 <ul>
-                  <li><b>Check against server</b>, then <b>Use server time</b>, to align with the clock of the server this page came from.</li>
+                  <li><b>Check against server</b>, then <b>Use server time</b>, to align with the clock of the server this page came from. The page checks it by itself at startup and every 10 minutes, and shows a warning bar if the difference is large.</li>
                   <li><b>Sync to this station</b>, on a station row, to copy the timing of a station you do hear.</li>
                   <li>A <b>manual offset</b> in seconds, and <b>Back to UTC</b> to undo any of these.</li>
                   <li>The hints in the Sync section say whether your clock or theirs seems to be off.</li>
@@ -320,82 +350,186 @@
 
         <section id="screen-settings" class="screen screen-settings" hidden>
           <h2>Settings</h2>
-          <div id="nick-callout" class="nick-callout">
-            <h3>Station name</h3>
-            <p class="hint">Without one, other stations only ever see your random station id. Set a name so people recognize you; it's sent when you announce.</p>
-            <div class="nick-row">
-              <label>
-                Name (up to 8 characters)
-                <input id="nickname" type="text" maxlength="8" autocomplete="off" spellcheck="false" />
-              </label>
+          <div id="nick-callout" class="channel-block nick-callout">
+            <div class="channel-block-head">
+              <span class="block-title"><span class="channel-block-title">Station name</span></span>
             </div>
-            <p class="hint">Station id <span id="station-id">—</span>: chosen once at random, used to address you.</p>
+            <div class="channel-block-body">
+              <p class="hint">Without one, other stations only ever see your random station id. Set a name so people recognize you; it's sent when you announce.</p>
+              <div class="nick-row">
+                <label>
+                  Name (up to 8 characters)
+                  <input id="nickname" type="text" maxlength="8" autocomplete="off" spellcheck="false" />
+                </label>
+              </div>
+              <div class="icon-row">
+                <span>Icon <span id="icon-current" class="icon-current" aria-hidden="true"></span></span>
+                <details class="icon-picker">
+                  <summary>Choose</summary>
+                  <div id="icon-grid" class="icon-grid"></div>
+                  <button id="icon-auto" type="button">Automatic</button>
+                </details>
+              </div>
+              <p class="hint">The icon is sent with your announcement and shown next to your name. It is not unique: the name and id still tell stations apart.</p>
+              <p class="hint">Station id <span id="station-id">—</span>: chosen once at random, used to address you.</p>
+            </div>
           </div>
-          <label class="checkbox">
-            <input id="notifications" type="checkbox" />
-            Notify me of new messages and announcements while this page is in the background
-          </label>
-          <p><button id="notify-test" type="button">Send a test notification</button></p>
-          <p id="notifications-hint" class="hint"></p>
-          <label class="checkbox">
-            <input id="listen-all" type="checkbox" />
-            Listen on every channel of the band (off: only the selected channel is decoded; uses less CPU)
-          </label>
-          <label class="checkbox">
-            <input id="decode-while-sending" type="checkbox" />
-            Decode while sending (off: slots where this station transmits are skipped)
-          </label>
-          <label class="checkbox">
-            <input id="auto-announce" type="checkbox" />
-            Auto announce: send your name periodically while audio is on and a channel is selected
-          </label>
-          <label>
-            Announcement interval (minutes)
-            <input id="announce-interval" type="number" min="1" max="120" step="1" inputmode="numeric" />
-          </label>
-          <div class="sprite-settings">
-            <h3>Sprites</h3>
-            <label>
-              Pixel size
-              <input id="sprite-pixel-size" type="range" min="2" max="40" step="1" />
-              <output id="sprite-pixel-size-out" for="sprite-pixel-size"></output> px
-            </label>
-            <label>
-              Missing pixels of a partly received sprite
-              <select id="sprite-holes">
-                <option value="fill">filled from the nearest received pixel</option>
-                <option value="checker">shown as a checker board</option>
-              </select>
-            </label>
-            <p class="hint">Pixel size is how large one sprite pixel is drawn in the messages and in the editor (wide sprites shrink to fit a narrow screen).</p>
-            <canvas id="sprite-sample" class="sprite-canvas" aria-label="Sprite size preview"></canvas>
-          </div>
-          <div class="stored-data">
-            <h3>Stored data</h3>
-            <p class="hint">Kept in this browser between visits. Each part is cleared on its own: clearing one leaves the others.</p>
-            <div class="stored-row"><button id="clear-chat" type="button">Clear messages</button> <span id="stored-chat-count" class="hint"></span></div>
-            <div class="stored-row"><button id="clear-stations" type="button">Clear known stations</button> <span id="stored-stations-count" class="hint"></span></div>
-            <div class="stored-row"><button id="clear-debug" type="button">Clear frame log</button> <span id="stored-debug-count" class="hint"></span></div>
-            <div class="stored-row"><button id="clear-link" type="button">Clear link statistics</button> <span id="stored-link-count" class="hint"></span></div>
-          </div>
-          <div class="panel-head test-tone-head">
-            <h3>Test tone</h3>
-            <span id="tone-state" class="chip">off</span>
-          </div>
-          <div class="tone-controls">
-            <label>
-              Frequency
-              <select id="tone-source"></select>
-            </label>
-            <label id="tone-custom-label" hidden>
-              Hz
-              <input id="tone-custom" type="number" min="20" max="24000" step="1" value="1000" />
-            </label>
-            <label>
-              Level
-              <input id="tone-level" type="range" min="1" max="50" step="1" value="10" />
-            </label>
-            <button id="tone-button" class="primary" disabled>Play tone</button>
+
+          <div class="settings-grid">
+            <div class="settings-col">
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-notify-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-notify-body">
+                    <span class="channel-block-title">Notifications</span>
+                  </button>
+                </div>
+                <div id="set-notify-body" class="channel-block-body">
+                  <div class="switch-grid">
+                    <label class="switch-tile" title="Notify me of new messages and announcements while this page is in the background">
+                      <span class="switch-label">Notify me</span>
+                      <span class="switch"><input id="notifications" type="checkbox" /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                      <span class="switch-state" aria-hidden="true"></span>
+                    </label>
+                  </div>
+                  <p class="hint">Shows a system notification for a new message or an announcement while this page is in the background.</p>
+                  <div class="opt-reset"><button id="notify-test" type="button" class="btn-action btn-inline">Send a test notification</button></div>
+                  <p id="notifications-hint" class="hint"></p>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-listen-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-listen-body">
+                    <span class="channel-block-title">Listening</span>
+                  </button>
+                </div>
+                <div id="set-listen-body" class="channel-block-body">
+                  <div class="switch-grid">
+                    <label class="switch-tile" title="Listen on every channel of the band. Off: only the selected channel is decoded, which uses less CPU.">
+                      <span class="switch-label">Every channel</span>
+                      <span class="switch"><input id="listen-all" type="checkbox" /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                      <span class="switch-state" aria-hidden="true"></span>
+                    </label>
+                    <label class="switch-tile" title="Decode while sending. Off: slots where this station transmits are skipped.">
+                      <span class="switch-label">Decode while sending</span>
+                      <span class="switch"><input id="decode-while-sending" type="checkbox" /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                      <span class="switch-state" aria-hidden="true"></span>
+                    </label>
+                  </div>
+                  <p class="hint">Every channel decodes the whole band each slot. Off, only the selected channel is decoded, which uses less CPU. Decode while sending also hears our own frames, which is how to check the timing (their dt should be about 0).</p>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-announce-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-announce-body">
+                    <span class="channel-block-title">Announcements</span>
+                  </button>
+                </div>
+                <div id="set-announce-body" class="channel-block-body">
+                  <div class="switch-grid">
+                    <label class="switch-tile" title="Auto announce: send your name periodically while audio is on and a channel is selected">
+                      <span class="switch-label">Auto announce</span>
+                      <span class="switch"><input id="auto-announce" type="checkbox" /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                      <span class="switch-state" aria-hidden="true"></span>
+                    </label>
+                  </div>
+                  <div class="field-grid">
+                    <label class="field-tile">
+                      <span class="switch-label">Announce every (minutes)</span>
+                      <input id="announce-interval" type="number" min="1" max="120" step="1" inputmode="numeric" />
+                    </label>
+                  </div>
+                  <p class="hint">Sends your name at that interval while audio is on and a channel is selected.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-col">
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-capture-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-capture-body">
+                    <span class="channel-block-title">Network capture</span>
+                  </button>
+                </div>
+                <div id="set-capture-body" class="channel-block-body">
+                  <div class="switch-grid">
+                    <label class="switch-tile" title="Show the Capture section on the Network screen, where capturing is started and stopped.">
+                      <span class="switch-label">Network capture</span>
+                      <span class="switch"><input id="capture-feature" type="checkbox" /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                      <span class="switch-state" aria-hidden="true"></span>
+                    </label>
+                  </div>
+                  <p class="hint">Adds a Capture section to the Network screen. Capturing keeps the audio of receive windows in memory, to replay a failed decode offline; it starts only when you press Start capture there, and stops after 30 minutes. Nothing leaves this browser until you press Download. Switching this off stops and clears any capture.</p>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-sprites-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-sprites-body">
+                    <span class="channel-block-title">Sprites</span>
+                  </button>
+                </div>
+                <div id="set-sprites-body" class="channel-block-body sprite-settings">
+                  <div class="field-grid">
+                    <label class="field-tile">
+                      <span class="switch-label">Pixel size: <output id="sprite-pixel-size-out" for="sprite-pixel-size"></output> px</span>
+                      <input id="sprite-pixel-size" type="range" min="2" max="40" step="1" />
+                    </label>
+                    <label class="field-tile">
+                      <span class="switch-label">Missing pixels</span>
+                      <select id="sprite-holes">
+                        <option value="fill">filled from the nearest received pixel</option>
+                        <option value="checker">shown as a checker board</option>
+                      </select>
+                    </label>
+                  </div>
+                  <p class="hint">Pixel size is how large one sprite pixel is drawn in the messages and in the editor (wide sprites shrink to fit a narrow screen). Missing pixels are those of a partly received sprite.</p>
+                  <canvas id="sprite-sample" class="sprite-canvas" aria-label="Sprite size preview"></canvas>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-stored-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-stored-body">
+                    <span class="channel-block-title">Stored data</span>
+                  </button>
+                </div>
+                <div id="set-stored-body" class="channel-block-body stored-data">
+                  <p class="hint">Kept in this browser between visits. Each part is cleared on its own: clearing one leaves the others.</p>
+                  <div class="stored-row"><button id="clear-chat" type="button" class="btn-action btn-inline">Clear messages</button> <span id="stored-chat-count" class="hint"></span></div>
+                  <div class="stored-row"><button id="clear-stations" type="button" class="btn-action btn-inline">Clear known stations</button> <span id="stored-stations-count" class="hint"></span></div>
+                  <div class="stored-row"><button id="clear-debug" type="button" class="btn-action btn-inline">Clear frame log</button> <span id="stored-debug-count" class="hint"></span></div>
+                  <div class="stored-row"><button id="clear-link" type="button" class="btn-action btn-inline">Clear link statistics</button> <span id="stored-link-count" class="hint"></span></div>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-tone-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-tone-body">
+                    <span class="channel-block-title">Test tone</span>
+                  </button>
+                  <span id="tone-state" class="chip">off</span>
+                </div>
+                <div id="set-tone-body" class="channel-block-body">
+                  <div class="tone-controls">
+                    <label>
+                      Frequency
+                      <select id="tone-source"></select>
+                    </label>
+                    <label id="tone-custom-label" hidden>
+                      Hz
+                      <input id="tone-custom" type="number" min="20" max="24000" step="1" value="1000" />
+                    </label>
+                    <label>
+                      Level
+                      <input id="tone-level" type="range" min="1" max="50" step="1" value="10" />
+                    </label>
+                    <button id="tone-button" class="btn-action btn-inline" disabled>Play tone</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>

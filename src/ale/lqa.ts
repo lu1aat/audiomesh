@@ -33,6 +33,8 @@ export const TIE_DB = 3;
 export const LOAD_PENALTY_DB = 4;
 /** A channel must score at least this to be chosen over a better one because it is less busy (the decoder is reliable to about -18 dB). */
 export const VIABLE_DB = -15;
+/** A station's channels within this many dB of its best take turns standing for it in a sound. */
+export const REPORT_BAND_DB = 6;
 
 export interface ChannelChoice {
   /** Channel -> other transmitters heard on it lately (see `channelLoad`). */
@@ -242,6 +244,13 @@ export class LqaTable {
     return [...this.heardBy.keys()].filter((s) => this.latestHeard(s, slot) !== undefined);
   }
 
+  /** Slot of the newest frame heard from any station (even one past the age limit), or undefined when none. */
+  newestHeardSlot(): number | undefined {
+    let newest: number | undefined;
+    for (const row of this.heardBy.values()) for (const e of row.values()) if (newest === undefined || e.slot > newest) newest = e.slot;
+    return newest;
+  }
+
   /** The most recent thing heard from `station`, for the ack that answers it. */
   latestHeard(station: number, slot?: number): { channel: number; snrDb: number } | undefined {
     let best: { channel: number; snrDb: number; at: number } | undefined;
@@ -312,26 +321,53 @@ export class LqaTable {
   }
 
   /**
-   * Up to `count` reports about (station, channel) pairs we have heard, the ones
-   * reported longest ago first, so successive sounds rotate through every station
-   * and every channel of it. (Reporting only the latest channel would hide the good
-   * ones.) Marks them as reported. A station silent for over `reportSilenceSlots`
-   * is not reported at all, on any channel; each channel's own evidence must also be
-   * younger than `maxAgeSlots`.
+   * True when `station` was never heard, or not for over `reportSilenceSlots`: a frame
+   * from it now means it has just appeared (or come back).
+   */
+  isNewStation(station: number, slot: number): boolean {
+    const row = this.heardBy.get(station);
+    if (!row) return true;
+    return slot - Math.max(...[...row.values()].map((e) => e.slot)) > this.reportSilenceSlots;
+  }
+
+  /**
+   * Up to `count` reports about stations we hear, one per station first: the station
+   * reported longest ago goes first, so successive sounds rotate through every station
+   * (the graph needs who hears whom before it needs how well on each channel). Which
+   * channel stands for a station: the one reported longest ago among those within
+   * `REPORT_BAND_DB` of its best, so the good channels still take turns. Spare slots
+   * in the sound go to further channels, oldest first. Marks them as reported. A station
+   * silent for over `reportSilenceSlots` is not reported at all; each channel's own
+   * evidence must also be younger than `maxAgeSlots`.
    */
   reportsToSend(count: number, slot: number, first?: number): LinkReport[] {
-    const pairs: { station: number; channel: number; snrDb: number; last: number }[] = [];
+    type Pair = { station: number; channel: number; snrDb: number; last: number };
+    const byStation = new Map<number, Pair[]>();
     for (const [station, row] of this.heardBy) {
       const newest = Math.max(...[...row.values()].map((e) => e.slot));
       if (slot - newest > this.reportSilenceSlots) continue;
+      const pairs: Pair[] = [];
       for (const [channel, e] of row) {
         if (slot - e.slot > this.maxAgeSlots) continue;
         pairs.push({ station, channel, snrDb: e.snrDb, last: this.lastReportSlot.get(pairKey(station, channel)) ?? -Infinity });
       }
+      if (pairs.length > 0) byStation.set(station, pairs);
+    }
+    const lead: Pair[] = [];
+    const rest: Pair[] = [];
+    for (const pairs of byStation.values()) {
+      const best = Math.max(...pairs.map((p) => p.snrDb));
+      const good = pairs.filter((p) => p.snrDb >= best - REPORT_BAND_DB).sort((a, b) => a.last - b.last || b.snrDb - a.snrDb);
+      lead.push(good[0]!);
+      rest.push(...pairs.filter((p) => p !== good[0]));
     }
     // `first`: the station asking (a probe) gets its reports ahead of the rotation.
-    pairs.sort((a, b) => Number(b.station === first) - Number(a.station === first) || a.last - b.last);
-    return pairs.slice(0, count).map(({ station, channel, snrDb }) => {
+    const order = (a: Pair, b: Pair): number => Number(b.station === first) - Number(a.station === first) || a.last - b.last;
+    // A station's turn is decided by its most recent report on any channel.
+    const stationLast = (station: number): number => Math.max(...byStation.get(station)!.map((p) => p.last));
+    lead.sort((a, b) => Number(b.station === first) - Number(a.station === first) || stationLast(a.station) - stationLast(b.station));
+    rest.sort(order);
+    return [...lead, ...rest].slice(0, count).map(({ station, channel, snrDb }) => {
       this.lastReportSlot.set(pairKey(station, channel), slot);
       return { station, channel, snrDb };
     });

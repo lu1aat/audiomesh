@@ -25,3 +25,6 @@ TODO.md
 docs/
 design/
 Screenshot_*.png
+
+# Window captures made with the Capture section, for tests/replay-captures.test.ts
+captures/

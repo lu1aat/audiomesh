@@ -90,6 +90,29 @@ describe('LqaTable', () => {
     expect([...seen].sort()).toEqual(['1:5', '1:6', '2:5', '2:6']);
   });
 
+  it('gives every station a report before a second channel of any, best channels taking turns', () => {
+    const t = new LqaTable();
+    for (const s of [1, 2, 3]) {
+      t.heard(s, 5, -10, 0);
+      t.heard(s, 6, -12, 0); // within the band of the best: takes its turn
+      t.heard(s, 7, -25, 0); // far below: only fills spare room
+    }
+    const first = t.reportsToSend(3, 1);
+    expect(new Set(first.map((r) => r.station))).toEqual(new Set([1, 2, 3]));
+    const second = t.reportsToSend(3, 2);
+    expect(new Set(second.map((r) => r.station))).toEqual(new Set([1, 2, 3]));
+    expect(second.map((r) => r.channel).sort()).toEqual([6, 6, 6]); // the other good channel
+    expect(t.reportsToSend(3, 3).every((r) => r.channel === 5)).toBe(true);
+  });
+
+  it('knows a station is new when never heard or silent past reportSilenceSlots', () => {
+    const t = new LqaTable({ reportSilenceSlots: 40 });
+    expect(t.isNewStation(1, 0)).toBe(true);
+    t.heard(1, 5, -8, 0);
+    expect(t.isNewStation(1, 40)).toBe(false);
+    expect(t.isNewStation(1, 41)).toBe(true);
+  });
+
   it('stops reporting a station silent for longer than reportSilenceSlots, on every channel', () => {
     const t = new LqaTable({ reportSilenceSlots: 40 });
     t.heard(1, 5, -8, 0); // station 1: heard long ago on ch 5 ...

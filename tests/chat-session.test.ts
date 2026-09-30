@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BROADCAST, decodeFrame, encodeFrame } from '../src/chat/frames';
+import { LqaTable } from '../src/ale/lqa';
 import { ChatSession, type InMessage } from '../src/chat/session';
 import { rng } from './helpers';
 
@@ -310,5 +311,61 @@ describe('probe sound', () => {
       prober.receive(answer.payload, 11 + k * 10, -8, 5);
       expect(prober.nextTxTo(12 + k * 10)).toBeNull(); // no chain
     }
+  });
+});
+
+describe('event sounds (Auto beacon)', () => {
+  const hello = encodeFrame({ kind: 'hello', src: 22, name: 'BOB' });
+
+  it('a station heard for the first time is answered with a sound a few slots later, once', () => {
+    const me = new ChatSession({ stationId: 11, lqa: new LqaTable() });
+    me.setEventSounds(true);
+    me.receive(hello, 10, -8, 5);
+    expect(me.nextTxTo(10)).toBeNull(); // not at once
+    const sent = [11, 12, 13, 14, 15].map((s) => me.nextTxTo(s)).filter((t) => t !== null);
+    expect(sent).toHaveLength(1);
+    expect(decodeFrame(sent[0]!.payload)).toMatchObject({ kind: 'sound', src: 11 });
+    me.receive(hello, 20, -8, 5); // known now: no second sound
+    expect([21, 22, 23, 24].map((s) => me.nextTxTo(s))).toEqual([null, null, null, null]);
+  });
+
+  it('does nothing when Auto beacon is off, and again for a station back after a long silence', () => {
+    const off = new ChatSession({ stationId: 11, lqa: new LqaTable() });
+    off.receive(hello, 10, -8, 5);
+    expect([11, 12, 13, 14].map((s) => off.nextTxTo(s))).toEqual([null, null, null, null]);
+
+    const me = new ChatSession({ stationId: 11, lqa: new LqaTable({ reportSilenceSlots: 40 }) });
+    me.setEventSounds(true);
+    me.receive(hello, 10, -8, 5);
+    for (let s = 11; s < 16; s++) me.nextTxTo(s);
+    me.receive(hello, 100, -8, 5); // silent 90 slots: back
+    expect([101, 102, 103, 104].some((s) => me.nextTxTo(s) !== null)).toBe(true);
+  });
+});
+
+describe('a sound with nothing to report', () => {
+  it('goes out as a hello when we have a name, but stays a sound for a probe or without a name', () => {
+    const named = new ChatSession({ stationId: 11, lqa: new LqaTable() });
+    named.setNickname('ANA');
+    named.sound();
+    const tx = named.nextTxTo(10)!;
+    expect(decodeFrame(tx.payload)).toMatchObject({ kind: 'hello', src: 11, name: 'ANA' });
+    expect(tx.survey).toBe(true); // the panel keeps rotating its channel
+
+    named.sound(true);
+    expect(decodeFrame(named.nextTxTo(20)!.payload)).toMatchObject({ kind: 'sound', probe: true });
+
+    const nameless = new ChatSession({ stationId: 12, lqa: new LqaTable() });
+    nameless.sound();
+    expect(decodeFrame(nameless.nextTxTo(10)!.payload)).toMatchObject({ kind: 'sound' });
+  });
+
+  it('stays a sound once there is a station to report', () => {
+    const lqa = new LqaTable();
+    const me = new ChatSession({ stationId: 11, lqa });
+    me.setNickname('ANA');
+    lqa.heard(22, 5, -9, 8);
+    me.sound();
+    expect(decodeFrame(me.nextTxTo(10)!.payload)).toMatchObject({ kind: 'sound', reports: [{ station: 22 }] });
   });
 });

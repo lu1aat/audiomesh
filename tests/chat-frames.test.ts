@@ -101,3 +101,17 @@ describe('splitting', () => {
     expect(() => splitText('A'.repeat(143))).toThrow();
   });
 });
+
+import { EMOJI, defaultIconIndex } from '../src/chat/emoji-table';
+describe('hello icon', () => {
+  it('round-trips an icon index and stays compatible without one', () => {
+    const a = decodeFrame(encodeFrame({ kind: 'hello', src: 5, name: 'BOB', icon: 255, repeater: true }));
+    expect(a).toMatchObject({ kind: 'hello', name: 'BOB', icon: 255, repeater: true });
+    const b = decodeFrame(encodeFrame({ kind: 'hello', src: 5, name: 'BOB' }));
+    expect(b && 'icon' in b).toBe(false);
+  });
+  it('has 256 distinct emoji and a default in range', () => {
+    expect(new Set(EMOJI).size).toBe(256);
+    for (const id of [1, 2, 500, 1023]) expect(defaultIconIndex(id)).toBeLessThan(256);
+  });
+});

@@ -160,7 +160,7 @@ export interface SessionEvents {
   /** Called whenever an outgoing message changes state or progress. */
   outgoing?: (message: OutMessage) => void;
   /** A hello arrived: a station told us its nickname. */
-  station?: (id: number, name: string) => void;
+  station?: (id: number, name: string, icon?: number) => void;
   /** A new frame of a sprite arrived: the picture so far (`partial` says whether frames are still missing). */
   spriteProgress?: (message: InMessage) => void;
 }
@@ -207,6 +207,9 @@ const DEDUP_SLOTS = 5;
 const bit = (i: number): number => 1 << i;
 
 /** What the session has lined up, for the "next action" line. Read-only: asking changes nothing. */
+/** A frame to send and who it is for. `survey`: a sound's stand-in (a hello sent because there was nothing to report), so the panel still rotates its channel. */
+export type TxOut = { payload: Uint8Array; dst: number; survey?: boolean };
+
 /** The newest frame from a station that reached us through a repeater. */
 export interface RelayedFrom {
   readonly slot: number;
@@ -254,8 +257,13 @@ export class ChatSession {
   private nextUid = 1;
   private nextMsgId = 0;
   private nickname: string | null = null;
+  private icon: number | null = null;
   private helloPending = false;
   private soundPending = false;
+  /** Event sounds on (Auto beacon): a station that appears queues a sound. */
+  private eventSounds = false;
+  /** Slot a sound for a newly heard station may go (a few slots of delay, so stations that all heard it do not answer together); null = none waiting. */
+  private eventSoundSlot: number | null = null;
   /** The queued sound asks every station to answer (the Test button). */
   private soundProbe = false;
   /** A probe from this station is waiting for our answer: the sound goes to it, on the best channel for it. */
@@ -296,6 +304,16 @@ export class ChatSession {
   }
 
   // --- repeaters ---------------------------------------------------------------
+
+  /**
+   * Event sounds on or off (the Auto beacon switch). On: a station heard direct for the first
+   * time, or after 10 minutes of silence, is answered with a sound 1..3 slots later (by
+   * station id, so neighbours pick different slots).
+   */
+  setEventSounds(on: boolean): void {
+    this.eventSounds = on;
+    if (!on) this.eventSoundSlot = null;
+  }
 
   /** Repeater mode on or off. Turning it on queues a sound, which tells others we repeat. */
   setRepeater(on: boolean): void {
@@ -375,6 +393,11 @@ export class ChatSession {
   /** Forget every learned nickname. */
   forgetStations(): void {
     this.stationNames.clear();
+  }
+
+  /** Our icon index (emoji-table.ts) sent with hellos; null = none. */
+  setIcon(index: number | null): void {
+    this.icon = index;
   }
 
   setNickname(name: string | null): void {
@@ -504,7 +527,12 @@ export class ChatSession {
     }
     // A repeated frame carries the repeater's signal, not the sender's.
     if (channel > 0) {
-      if (tag === 0) this.lqa?.heard(frame.src, channel, snrDb, slot);
+      if (tag === 0) {
+        if (this.eventSounds && this.eventSoundSlot === null && frame.src !== this.stationId && this.lqa?.isNewStation(frame.src, slot)) {
+          this.eventSoundSlot = slot + 1 + (this.stationId % 3);
+        }
+        this.lqa?.heard(frame.src, channel, snrDb, slot);
+      }
       else if (through !== null) this.lqa?.heard(through, channel, snrDb, slot);
     }
     this.repeater?.offer(payload, slot);
@@ -516,7 +544,7 @@ export class ChatSession {
     switch (frame.kind) {
       case 'hello':
         this.stationNames.set(frame.src, frame.name);
-        this.events.station?.(frame.src, frame.name);
+        this.events.station?.(frame.src, frame.name, frame.icon);
         break;
       case 'ack':
         if (frame.dst === this.stationId) {
@@ -823,7 +851,7 @@ export class ChatSession {
   }
 
   /** Like nextTx, and says who the frame is for (BROADCAST for hellos, sounds and broadcasts), so the caller can pick a channel. */
-  nextTxTo(slot: number): { payload: Uint8Array; dst: number } | null {
+  nextTxTo(slot: number): TxOut | null {
     const tx = this.pickTx(slot);
     if (tx) this.lastAnyTxSlot = slot;
     return tx;
@@ -834,10 +862,10 @@ export class ChatSession {
     return this.lastAnyTxSlot !== null && slot > this.lastAnyTxSlot && slot - this.lastAnyTxSlot < this.beaconGapSlots;
   }
 
-  private pickTx(slot: number): { payload: Uint8Array; dst: number } | null {
+  private pickTx(slot: number): TxOut | null {
     this.tick(slot);
 
-    const ackOf = (st: InInternal): { payload: Uint8Array; dst: number } => {
+    const ackOf = (st: InInternal): TxOut => {
       const heard = this.lqa?.latestHeard(st.src, slot);
       return {
         dst: st.src,
@@ -886,14 +914,14 @@ export class ChatSession {
     // Pacing: with a repeater about, leave it room to repeat our last frame.
     const gap = this.paceGap(slot);
     if (gap > 0 && this.lastOwnTxSlot !== null && slot > this.lastOwnTxSlot && slot - this.lastOwnTxSlot <= gap) return null;
-    const own = (tx: { payload: Uint8Array; dst: number } | null): { payload: Uint8Array; dst: number } | null => {
+    const own = (tx: TxOut | null): TxOut | null => {
       if (tx) this.lastOwnTxSlot = slot;
       return tx;
     };
 
     if (this.helloPending && this.nickname && !this.beaconTooSoon(slot)) {
       this.helloPending = false;
-      return own({ dst: BROADCAST, payload: encodeFrame({ kind: 'hello', src: this.stationId, name: this.nickname, repeater: this.isRepeater }) });
+      return own({ dst: BROADCAST, payload: encodeFrame({ kind: 'hello', src: this.stationId, name: this.nickname, ...(this.icon !== null ? { icon: this.icon } : {}), repeater: this.isRepeater }) });
     }
 
     // Stop and wait: a station that transmits cannot hear, so while an ack is
@@ -904,6 +932,10 @@ export class ChatSession {
       // A sound is a low priority beacon: only when no message is in flight, so it never
       // makes us deaf to an ack we are waiting for or delays a message.
       // An answer to a probe does not wait out the beacon gap.
+      if (this.eventSoundSlot !== null && slot >= this.eventSoundSlot) {
+        this.eventSoundSlot = null;
+        this.soundPending = true;
+      }
       if (!this.soundPending || (this.probeFrom === null && this.beaconTooSoon(slot))) return null;
       const to = this.probeFrom;
       const probe = this.soundProbe;
@@ -911,6 +943,10 @@ export class ChatSession {
       this.soundProbe = false;
       this.probeFrom = null;
       const reports = this.lqa?.reportsToSend(SOUND_REPORTS, slot, to ?? undefined) ?? [];
+      // A sound with nothing to report tells the listener only that we exist: a hello says that and our name too.
+      if (!probe && to === null && reports.length === 0 && this.nickname) {
+        return own({ dst: BROADCAST, survey: true, payload: encodeFrame({ kind: 'hello', src: this.stationId, name: this.nickname, ...(this.icon !== null ? { icon: this.icon } : {}), repeater: this.isRepeater }) });
+      }
       return own({ dst: to ?? BROADCAST, payload: encodeFrame({ kind: 'sound', src: this.stationId, reports, repeater: this.isRepeater, probe }) });
     }
     if (msg.state === 'queued') msg.state = 'sending';

@@ -6,6 +6,7 @@
 
 import { decodeRecord, DEFAULT_FILTER, matchFrame, type FrameFilter, type FrameLog, type FrameRecord } from '../chat/frame-log';
 import type { FrameType } from '../chat/describe';
+import { exportFileName, framesToCsv, framesToText } from '../chat/frame-export';
 
 /** More rows than this make the page slow to redraw; the filters narrow what is left. */
 const MAX_SHOWN = 300;
@@ -48,6 +49,9 @@ export class FrameTable {
   private readonly scroll = el('div', 'table-scroll frame-scroll');
   private readonly removeSelected = el('button', undefined, 'Remove selected');
   private readonly removeShown = el('button', undefined, 'Remove all shown');
+  private readonly exportAll = el('button', undefined, 'Export all');
+  private readonly copySelected = el('button', undefined, 'Copy selected');
+  private copiedTimer: ReturnType<typeof setTimeout> | undefined;
   private shown: FrameRecord[] = [];
 
   constructor(
@@ -165,8 +169,51 @@ export class FrameTable {
       this.log.remove(ids);
       this.refresh();
     });
-    bar.append(this.removeSelected, this.removeShown, this.summary);
+    this.exportAll.type = 'button';
+    this.exportAll.title = 'Download every frame of the log (filters are ignored) as a CSV file: times in UTC and local, full raw hex, decoded text';
+    this.exportAll.addEventListener('click', () => this.download());
+    this.copySelected.type = 'button';
+    this.copySelected.title = 'Copy the selected frames to the clipboard as tab-separated text with the full raw hex, oldest first';
+    this.copySelected.addEventListener('click', () => void this.copy());
+    bar.append(this.removeSelected, this.removeShown, this.copySelected, this.exportAll, this.summary);
     return bar;
+  }
+
+  /** Every frame of the log, not just the rows matching the filters, as a CSV download. */
+  private download(): void {
+    const frames = this.log.all;
+    if (frames.length === 0) return;
+    const url = URL.createObjectURL(new Blob([framesToCsv(frames, this.label)], { type: 'text/csv;charset=utf-8' }));
+    const a = el('a');
+    a.href = url;
+    a.download = exportFileName(Date.now());
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  /** The selected frames (selection survives filters) to the clipboard. */
+  private async copy(): Promise<void> {
+    const chosen = this.log.all.filter((r) => this.selected.has(r.id));
+    if (chosen.length === 0) return;
+    const text = framesToText(chosen, this.label);
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      // No clipboard API (a plain-http page) or permission refused: the old way, through a selection.
+      const area = el('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.append(area);
+      area.select();
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      area.remove();
+    }
+    this.copySelected.textContent = ok ? `Copied ${chosen.length}` : 'Copy failed';
+    clearTimeout(this.copiedTimer);
+    this.copiedTimer = setTimeout(() => { this.copySelected.textContent = 'Copy selected'; }, 2000);
   }
 
   private matching(): FrameRecord[] {
@@ -195,6 +242,8 @@ export class FrameTable {
       (all.length > MAX_SHOWN ? ` (first ${MAX_SHOWN} shown)` : '') +
       ` · ${this.selected.size} selected`;
     this.removeSelected.disabled = this.selected.size === 0;
+    this.copySelected.disabled = this.selected.size === 0;
+    this.exportAll.disabled = total === 0;
     this.removeShown.disabled = all.length === 0;
     this.removeShown.textContent = all.length === total ? 'Remove all' : 'Remove all shown';
 

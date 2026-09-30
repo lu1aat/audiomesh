@@ -186,6 +186,26 @@ export function hexGrid(size: number, r: number, bottomGap = 2): HexCell[] {
 }
 
 /**
+ * The same honeycomb as `hexGrid`, carried on past the `size` square by `margin` on every side, for
+ * the background only (the map card is wider and taller than the square, and the pattern should reach
+ * its border). Same lattice, so the cells line up with the ones stations sit in.
+ */
+export function hexBackground(size: number, r: number, bottomGap: number, margin: number): { x: number; y: number }[] {
+  const w = Math.sqrt(3) * r, C = size / 2;
+  const y0 = size - bottomGap - r;
+  const cells: { x: number; y: number }[] = [];
+  const rowsUp = Math.ceil((y0 + margin + r) / (1.5 * r));
+  const rowsDown = Math.ceil((margin + bottomGap) / (1.5 * r));
+  const cols = Math.ceil((C + margin + w) / w);
+  for (let row = -rowsDown; row <= rowsUp; row++) {
+    const y = y0 - row * 1.5 * r;
+    const shift = Math.abs(row) % 2 ? w / 2 : 0;
+    for (let col = -cols; col <= cols; col++) cells.push({ x: C + col * w + shift, y });
+  }
+  return cells;
+}
+
+/**
  * Put each node in the free cell nearest its layout position, strongest claim first
  * (`order`), keeping one empty cell between stations so arrows have room. The other
  * stations are first centred on the vertical axis, so the picture is balanced around us.

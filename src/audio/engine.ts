@@ -55,6 +55,10 @@ export interface DecodeResult {
   readonly clipped?: number;
   /** This station was transmitting during the window: its own loud signal is in the microphone. */
   readonly ownTx?: boolean;
+  /** Only while capture is on (setCaptureWindows): the window's audio, its lead and the sample rate. */
+  readonly window?: Float32Array;
+  readonly leadSec?: number;
+  readonly sampleRate?: number;
   readonly error?: string;
   /** Set when the slot was not analysed because this station was transmitting in it. */
   readonly skipped?: 'sending';
@@ -74,6 +78,7 @@ export class AudioEngine {
   private listenBaseHzs: readonly number[] = [];
   private decodeWhileSending = false;
   private deepDecode = false;
+  private captureWindows = false;
   private txAllowed = true;
   private inputLatencyCache: number | null = null;
   private inputLatencyAtMs = -Infinity;
@@ -82,7 +87,7 @@ export class AudioEngine {
   /** Our slot grid is the UTC grid moved by this much, to match another station's clock. */
   private slotOffsetMs = 0;
   private nextRequestId = 1;
-  private readonly pending = new Map<number, { slotStartUtcMs: number; ownTx: boolean }>();
+  private readonly pending = new Map<number, { slotStartUtcMs: number; ownTx: boolean; window?: Float32Array; leadSec?: number; sampleRate?: number }>();
   private spectrum = new Float32Array(FFT_SIZE / 2);
 
   /** Called when a frame sent with sendFrame has finished playing. */
@@ -465,16 +470,26 @@ export class AudioEngine {
       return;
     }
     const id = this.nextRequestId++;
-    this.pending.set(id, { slotStartUtcMs, ownTx: this.txSchedule.overlaps(windowStartMs, windowEndMs) });
+    const ownTx = this.txSchedule.overlaps(windowStartMs, windowEndMs);
+    // The window is handed to the worker (detached), so a capture must copy it first.
+    this.pending.set(id, this.captureWindows
+      ? { slotStartUtcMs, ownTx, window: samples.slice(), leadSec, sampleRate: this.ctx.sampleRate }
+      : { slotStartUtcMs, ownTx });
     const request: DecodeRequest = {
       id,
       protocolId: this.spec.id,
       sampleRate: this.ctx.sampleRate,
       baseFreqsHz: listen,
       window: samples,
+      slotStartUtcMs,
       leadSec,
     };
     this.decoder.postMessage(request, [samples.buffer]);
+  }
+
+  /** Keep a copy of each window's audio in the DecodeResult (for the Capture section); off by default. */
+  setCaptureWindows(on: boolean): void {
+    this.captureWindows = on;
   }
 
   private handleDecoded(response: DecodeResponse): void {

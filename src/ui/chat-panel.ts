@@ -15,9 +15,10 @@ import { FrameLog, hexPayload, payloadHex } from '../chat/frame-log';
 import type { UndecodedSync } from '../chat/clock-hint';
 import type { Notifier } from './notifier';
 import { normalizeText } from '../chat/charset6';
+import { defaultIconIndex, emojiFor, ICON_COUNT } from '../chat/emoji-table';
 import { BROADCAST, MAX_TEXT_CHARS, decodeFrame, repeaterTag, viaOf, type ChatFrame } from '../chat/frames';
 import { LOAD_WINDOW_SLOTS, channelLoad, quietestChannel, type HeardOn } from '../ale/channel-load';
-import type { ChatSession, InMessage, OutMessage, Via } from '../chat/session';
+import type { ChatSession, InMessage, OutMessage, TxOut, Via } from '../chat/session';
 import { paletteToString, pixelsToString, spriteColours, spriteFrameCount, viewFromStrings, viewOf, type Sprite } from '../chat/sprite';
 import { SpriteEditor } from './sprite-editor';
 import { DEFAULT_PIXEL_PX, drawSprite, type HoleStyle } from './sprite-view';
@@ -65,6 +66,14 @@ interface LogEntry {
   stateClass?: string;
   stateText?: string;
   statusText?: string;
+}
+
+/** Which conversation a chat line belongs to: 'public' (addressed to nobody) or the other station's id. Notices belong to none. */
+function threadOf(e: LogEntry): string | null {
+  if (e.kind === 'notice') return null;
+  if (e.info?.some(([k, v]) => k === 'To' && v === 'everyone')) return 'public';
+  if (e.station === undefined) return 'public';
+  return String(e.station);
 }
 
 /** This many pinned samples (in runs of two or more) in a slot window count as an overloaded input. */
@@ -228,7 +237,9 @@ export class ChatPanel {
   /** The band being used: candidates for automatic channel choice and for sounding. */
   private bandChannels: readonly Channel[] = [];
   private autoChannel = true;
-  /** Auto test off + a selected channel: every frame, beacons included, goes on that channel. */
+  /** Auto beacon off + a selected channel: every frame, beacons included, goes on that channel. */
+  /** Called when a hello of ours is sent (Announce, auto announce or a beacon that became one), so the auto announce wait restarts. */
+  onOwnHello: (() => void) | null = null;
   private autoSound = true;
   private soundCount = 0;
   private shownSecond = -1;
@@ -259,9 +270,11 @@ export class ChatPanel {
   private spriteHoles: HoleStyle = 'fill';
   private readonly editor: SpriteEditor;
   private readonly known = new Map<number, string>();
+  /** Icon index announced by each station (hello); absent = use the hash default. */
+  private readonly icons = new Map<number, number>();
   private log: LogEntry[] = [];
   private readonly chatSaver = new DeferredSaver(() => saveJson(CHAT_KEY, this.log));
-  private readonly stationsSaver = new DeferredSaver(() => saveJson(STATIONS_KEY, [...this.known]));
+  private readonly stationsSaver = new DeferredSaver(() => saveJson(STATIONS_KEY, [...this.known].map(([id, name]) => (this.icons.has(id) ? [id, name, this.icons.get(id)] : [id, name]))));
   /** Called when a complete message from another station arrives. */
   onIncoming: (() => void) | null = null;
   /** Called when one of our directed messages turns delivered. */
@@ -295,12 +308,13 @@ export class ChatPanel {
       this.log.push(entry);
       this.render(entry);
     }
-    this.list.scrollTop = this.list.scrollHeight;
+    this.applyThread();
     setInterval(() => this.expireNotices(), NOTICE_SWEEP_MS);
     session.events.incoming = (m) => this.showIncoming(m);
     session.events.outgoing = (m) => this.showOutgoing(m);
-    session.events.station = (id, name) => {
+    session.events.station = (id, name, icon) => {
       this.known.set(id, name);
+      if (icon !== undefined) this.icons.set(id, icon);
       this.stationsSaver.touch();
       this.fillRecipients();
       this.addNotice(`${this.label(id)} announced itself`);
@@ -354,19 +368,51 @@ export class ChatPanel {
   lastMessages(): Map<number, { text: string; atMs: number; mine: boolean }> {
     const out = new Map<number, { text: string; atMs: number; mine: boolean }>();
     for (const e of this.log) {
-      if (e.kind === 'notice' || e.station === undefined) continue;
+      if (e.kind === 'notice' || e.station === undefined || threadOf(e) === 'public') continue;
       const prev = out.get(e.station);
       if (!prev || e.atMs >= prev.atMs) out.set(e.station, { text: e.text, atMs: e.atMs, mine: e.kind === 'out' });
     }
     return out;
   }
 
-  /** Point the composer at one station (or BROADCAST) and focus the message box. */
+  /** The newest public message (addressed to nobody), for the top row of the contact list. */
+  lastPublic(): { text: string; atMs: number; mine: boolean; who: string | null } | null {
+    for (let i = this.log.length - 1; i >= 0; i--) {
+      const e = this.log[i]!;
+      if (threadOf(e) === 'public') return { text: e.text, atMs: e.atMs, mine: e.kind === 'out', who: e.who ?? null };
+    }
+    return null;
+  }
+
+  /** The conversation open now: a station id, or BROADCAST for Public. */
+  get currentRecipient(): number {
+    return Number(this.dstSelect.value);
+  }
+
+  /** Called when the open conversation changes. */
+  onThreadChange: (() => void) | null = null;
+
+  /** Open the conversation with one station (or BROADCAST = Public): show only its lines, point the composer at it, focus the message box. */
   selectRecipient(id: number): void {
     if (![...this.dstSelect.options].some((o) => o.value === String(id))) this.fillRecipients();
     this.dstSelect.value = String(id);
+    this.applyThread();
     this.input.focus();
     this.blinkRecipient();
+    this.onThreadChange?.();
+  }
+
+  /** Show only the lines of the open conversation (notices stay), and title it. */
+  private applyThread(): void {
+    const id = this.currentRecipient;
+    const want = id === BROADCAST ? 'public' : String(id);
+    for (const li of this.list.children) {
+      const t = (li as HTMLElement).dataset.thread;
+      (li as HTMLElement).hidden = t !== undefined && t !== want;
+    }
+    const title = document.getElementById('thread-title');
+    if (title) title.textContent = id === BROADCAST ? 'Public' : this.label(id);
+    this.list.scrollTop = this.list.scrollHeight;
   }
 
   /** Refill the composer with a failed message's text and recipient, so sending it again is one tap. A sprite goes back into the editor. */
@@ -415,6 +461,7 @@ export class ChatPanel {
   /** Forget the known stations (nicknames and the recipient list). Chat lines keep the names they were written with. */
   clearStations(): void {
     this.known.clear();
+    this.icons.clear();
     this.session.forgetStations();
     this.stationsSaver.cancel();
     removeKey(STATIONS_KEY);
@@ -431,6 +478,7 @@ export class ChatPanel {
     for (const item of raw) {
       if (!Array.isArray(item) || typeof item[0] !== 'number' || typeof item[1] !== 'string') continue;
       this.known.set(item[0], item[1]);
+      if (Number.isInteger(item[2]) && item[2] >= 0 && item[2] < ICON_COUNT) this.icons.set(item[0], item[2]);
       this.session.restoreStation(item[0], item[1]);
     }
   }
@@ -457,9 +505,10 @@ export class ChatPanel {
     this.refresh();
   }
 
-  /** Auto test on or off. Off with a channel selected pins every transmission to that channel. */
+  /** Auto beacon on or off. Off with a channel selected pins every transmission to that channel. */
   setAutoSound(on: boolean): void {
     this.autoSound = on;
+    this.session.setEventSounds(on);
     this.refresh();
   }
 
@@ -522,7 +571,8 @@ export class ChatPanel {
     const txSlot = Math.round(txMs / slotMs);
     const tx = this.session.nextTxTo(txSlot);
     if (!tx) return;
-    const channel = this.txChannel(tx.payload, tx.dst, txSlot);
+    const channel = this.txChannel(tx, txSlot);
+    if (decodeFrame(tx.payload)?.kind === 'hello') this.onOwnHello?.();
     const symbols = this.codec.encode(tx.payload);
     this.sendingAtMs = this.engine.sendFrame(symbols, channel.baseHz, this.getLevel());
     this.currentTx = { what: this.describeTx(tx.payload, tx.dst), channel: channel.number };
@@ -539,15 +589,15 @@ export class ChatPanel {
    * the worst case over every station we hear), steering off channels other stations
    * are busy on and keeping the channel used last for that destination; with no link
    * data, on the quietest channel (the selected one on a tie). Auto off: the selected
-   * channel, or the middle of the band if none is selected. Auto test off with a
+   * channel, or the middle of the band if none is selected. Auto beacon off with a
    * channel selected: everything (sounds too) goes on the selected channel.
    */
-  private txChannel(payload: Uint8Array, dst: number, slot: number): { number: number; baseHz: number; why: string } {
+  private txChannel({ payload, dst, survey }: TxOut, slot: number): { number: number; baseHz: number; why: string } {
     const band = this.bandChannels;
     const byNumber = (n: number): Channel | undefined => band.find((c) => c.number === n) ?? this.channels.find((c) => c.number === n);
     const numbers = band.map((c) => c.number);
-    if (!this.autoSound && this.selected) return { ...this.selected, why: 'selected channel, auto test off' };
-    const isSound = decodeFrame(payload)?.kind === 'sound';
+    if (!this.autoSound && this.selected) return { ...this.selected, why: 'selected channel, auto beacon off' };
+    const isSound = survey === true || decodeFrame(payload)?.kind === 'sound';
     // An answer to a probe (dst = the prober) picks its channel like any directed frame.
     if (isSound && dst === BROADCAST && numbers.length > 0) {
       const n = soundChannel(this.session.stationId, this.soundCount++, numbers);
@@ -648,7 +698,7 @@ export class ChatPanel {
     console.log(
       `slot ${when}: ${result.channels.length} channels, ${heard.length === 0 ? 'nothing decoded' : `${heard.length} frame${heard.length === 1 ? '' : 's'}`} ` +
       `(${result.decodeMs.toFixed(0)} ms)` +
-      heard.map((h) => ` · ch ${this.channelNumber(h.baseFreqHz)} ${signed(h.frame.snrDb, 0)} dB`).join('') +
+      heard.map((h) => ` · ch ${this.channelNumber(h.baseFreqHz)} ${signed(h.frame.snrDb, 0)} dB${h.frame.copies ? ` (${h.frame.copies} copies combined)` : ''}`).join('') +
       // Why nothing decoded, on the channel we transmit on: that is the one being tested.
       (heard.length === 0 && ours?.sync ? this.syncHint(ours.sync) : ''),
     );
@@ -777,8 +827,8 @@ export class ChatPanel {
       o.textContent = label;
       this.dstSelect.append(o);
     };
-    add(BROADCAST, 'Everyone');
-    for (const [id, name] of this.known) add(id, name || `#${id}`);
+    add(BROADCAST, 'Public');
+    for (const [id, name] of this.known) add(id, `${this.iconOf(id)} ${name || `#${id}`}`);
     this.dstSelect.value = [...this.dstSelect.options].some((o) => o.value === keep) ? keep : String(BROADCAST);
   }
 
@@ -829,9 +879,14 @@ export class ChatPanel {
     if (forceScroll || nearBottom) this.list.scrollTop = this.list.scrollHeight;
   }
 
+  /** A station's icon (announced, else the default hash of its id). */
+  iconOf(id: number): string {
+    return emojiFor(this.icons.get(id) ?? defaultIconIndex(id));
+  }
+
   private label(id: number): string {
     const name = this.known.get(id);
-    return name ? `${name} (#${id})` : `#${id}`;
+    return `${this.iconOf(id)} ${name ? `${name} (#${id})` : `#${id}`}`;
   }
 
   private showIncoming(m: InMessage): void {
@@ -1094,6 +1149,9 @@ export class ChatPanel {
     const kind = entry.kind === 'out' ? 'out' : 'in';
     const item = document.createElement('li');
     item.className = `bubble bubble-${kind}`;
+    const thread = threadOf(entry);
+    if (thread !== null) item.dataset.thread = thread;
+    if (thread !== null && thread !== (this.currentRecipient === BROADCAST ? 'public' : String(this.currentRecipient))) item.hidden = true;
     if (entry.who) {
       const whoEl = document.createElement('div');
       whoEl.className = 'bubble-who';

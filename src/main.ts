@@ -11,8 +11,11 @@ import { ChatSession } from './chat/session';
 import { randomStationId } from './chat/frames';
 import { ChatPanel } from './ui/chat-panel';
 import { Notifier } from './ui/notifier';
+import { CaptureView } from './ui/capture-view';
+import { WindowCapture } from './dsp/window-capture';
 import { LinkView, type StationsView } from './ui/link-view';
 import { ServerClock } from './sync/server-clock';
+import { EMOJI, ICON_COUNT, defaultIconIndex, emojiFor } from './chat/emoji-table';
 import { UsersView } from './ui/users-view';
 import { DEFAULT_PIXEL_PX, clampPixelPx, drawSprite, type HoleStyle } from './ui/sprite-view';
 import { SPRITE_GALLERY, parseRows } from './chat/sprite-gallery';
@@ -37,9 +40,11 @@ interface Settings {
   syncOpen: boolean;
   stationId: number;
   nickname: string;
+  /** Our icon: index into the emoji table, or -1 for the automatic one (a hash of the station id). */
+  iconIndex: number;
   autoAnnounce: boolean;
   announceIntervalMin: number;
-  /** Minutes between Auto test beacons; one of AUTO_SOUND_CHOICES_MIN. */
+  /** Minutes between Auto beacon beacons; one of AUTO_SOUND_CHOICES_MIN. */
   autoSoundIntervalMin: number;
   /** Slot grid moved against UTC to match another station ("Sync" on the Network screen). */
   slotOffsetMs: number;
@@ -49,8 +54,11 @@ interface Settings {
   repeater: boolean;
   /** Search a few seconds beyond the usual timing window (Network screen). */
   deepDecode: boolean;
+  /** The Capture section is shown on the Network screen (Settings > Network capture). Capturing itself always starts off. */
+  networkCapture: boolean;
   /** Check this clock against the page's server every 10 minutes (Sync, Network screen). */
-  serverClockAuto: boolean;
+  /** The automatic server clock check (at startup and every 10 min) is switched off. */
+  serverClockOff: boolean;
   /** Master transmit switch (Network options): off = this station never sends anything. */
   allowTx: boolean;
   /** Stations layout on the Network screen: table (columns), cards (one per station) or grid (compact tiles). */
@@ -78,6 +86,7 @@ const DEFAULT_SETTINGS: Settings = {
   syncOpen: false,
   stationId: 0,
   nickname: '',
+  iconIndex: -1,
   autoAnnounce: false,
   announceIntervalMin: 5,
   autoSoundIntervalMin: 5,
@@ -86,7 +95,8 @@ const DEFAULT_SETTINGS: Settings = {
   protocol: DEFAULT_PROTOCOL_ID,
   repeater: false,
   deepDecode: false,
-  serverClockAuto: false,
+  networkCapture: false,
+  serverClockOff: false,
   allowTx: true,
   stationsView: 'table',
   sidebarCollapsed: false,
@@ -134,6 +144,8 @@ const linkSaver = new DeferredSaver(() => saveJson(LINK_KEY, lqa.serialize()), 5
 lqa.onChange = () => linkSaver.touch();
 const session = new ChatSession({ stationId: settings.stationId, lqa });
 session.setNickname(settings.nickname);
+const myIconIndex = (): number => (settings.iconIndex >= 0 && settings.iconIndex < ICON_COUNT ? settings.iconIndex : defaultIconIndex(settings.stationId));
+session.setIcon(myIconIndex());
 session.setRepeater(settings.repeater);
 const chat = new ChatPanel(engine, protocol, allChannels, () => tone.gain, session, lqa);
 
@@ -228,22 +240,59 @@ async function checkServerClock(): Promise<void> {
   await serverClock.measure();
   serverCheck.disabled = false;
   link.render();
+  updateClockBanner();
 }
 serverCheck.addEventListener('click', () => void checkServerClock());
 const serverAuto = el<HTMLInputElement>('sync-server-auto');
-serverAuto.checked = settings.serverClockAuto;
+serverAuto.checked = !settings.serverClockOff;
 serverAuto.addEventListener('change', () => {
-  settings.serverClockAuto = serverAuto.checked;
+  settings.serverClockOff = !serverAuto.checked;
   saveSettings(settings);
   if (serverAuto.checked && !serverClock.latest) void checkServerClock();
 });
 setInterval(() => {
-  if (settings.serverClockAuto && !document.hidden) void checkServerClock();
+  if (!settings.serverClockOff && !document.hidden) void checkServerClock();
 }, 10 * 60_000);
-if (settings.serverClockAuto) void checkServerClock();
+if (!settings.serverClockOff) void checkServerClock();
 el('sync-server-use').addEventListener('click', () => {
   const r = serverClock.latest;
   if (r) link.setOffsetMs(Math.round(r.offsetMs));
+  updateClockBanner();
+});
+
+/**
+ * Warning bar when our clock, against the server's, is off by enough to eat a good part of the
+ * decoder's timing window. Closing it keeps it closed until the page is reloaded; it goes away
+ * by itself once the clock is fine again.
+ */
+const clockBanner = el('clock-banner');
+let clockBannerClosed = false;
+let clockBannerText = '';
+function updateClockBanner(): void {
+  const r = serverClock.latest;
+  // What is left after our slot offset: "Use server time" sets the offset to the measurement.
+  const leftMs = r ? r.offsetMs - settings.slotOffsetMs : 0;
+  const limitMs = Math.max(0.3 * protocol.spec.maxTimeOffsetSec * 1000, (r?.uncertaintyMs ?? 0) + 50);
+  const off = r !== null && Math.abs(leftMs) > limitMs;
+  let text = '';
+  if (off) {
+    const secs = (Math.abs(leftMs) / 1000).toFixed(1);
+    text = `This device's clock is ${secs} s ${leftMs > 0 ? 'ahead of' : 'behind'} the server's. ` +
+      `Stations with the right time may not decode (this mode tolerates ${protocol.spec.maxTimeOffsetSec} s in total). ` +
+      'If nothing decodes but the waterfall shows activity in the channels, this is probably why.';
+  }
+  if (text !== clockBannerText) {
+    clockBannerText = text;
+    el('clock-banner-text').textContent = text;
+  }
+  clockBanner.hidden = !off || clockBannerClosed;
+  // The Sync section's own dot stays on while a sync is needed, whether or not the bar was closed.
+  setDot('sync', off ? 'yellow' : null);
+}
+el('clock-banner-use').addEventListener('click', () => el('sync-server-use').click());
+el('clock-banner-close').addEventListener('click', () => {
+  clockBannerClosed = true;
+  updateClockBanner();
 });
 
 const users = new UsersView(
@@ -252,13 +301,11 @@ const users = new UsersView(
   () => ({ id: settings.stationId, nickname: settings.nickname }),
   () => channels.map((c) => c.number),
   protocol.spec.slotSec,
-  () => !el('screen-users').hidden,
+  () => !el('screen-chat').hidden,
   relayInfo,
-  (id) => {
-    showScreen('chat');
-    chat.selectRecipient(id);
-  },
+  (id) => chat.selectRecipient(id),
 );
+chat.onThreadChange = () => users.render();
 
 const nicknameInput = el<HTMLInputElement>('nickname');
 const nickCallout = el('nick-callout');
@@ -280,6 +327,35 @@ nicknameInput.addEventListener('change', () => {
   saveSettings(settings);
   updateNickCallout();
 });
+link.iconOf = (id) => (id === settings.stationId ? emojiFor(myIconIndex()) : chat.iconOf(id));
+// Icon picker: a grid of the whole table inside a details element; the chosen one is sent with hellos.
+const iconGrid = el('icon-grid');
+const iconCurrent = el('icon-current');
+function showIcon(): void {
+  const i = myIconIndex();
+  iconCurrent.textContent = emojiFor(i);
+  for (const b of iconGrid.querySelectorAll<HTMLButtonElement>('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.index) === i));
+}
+EMOJI.forEach((e, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = e;
+  b.dataset.index = String(i);
+  b.addEventListener('click', () => {
+    settings.iconIndex = i;
+    session.setIcon(i);
+    saveSettings(settings);
+    showIcon();
+  });
+  iconGrid.append(b);
+});
+el('icon-auto').addEventListener('click', () => {
+  settings.iconIndex = -1;
+  session.setIcon(myIconIndex());
+  saveSettings(settings);
+  showIcon();
+});
+showIcon();
 /** Stored data: chat lines, stations and link statistics are kept and cleared separately. */
 function showStoredCounts(): void {
   const { chat: chatCount, stations, debug } = chat.counts;
@@ -455,6 +531,21 @@ disclosure('map-block-toggle', 'map-block-body', settings.mapOpen, (open) => {
   settings.mapOpen = open;
   saveSettings(settings);
 });
+disclosure('capture-block-toggle', 'capture-block-body', false, () => {});
+for (const name of ['notify', 'listen', 'announce', 'capture', 'sprites', 'stored', 'tone']) {
+  disclosure(`set-${name}-toggle`, `set-${name}-body`, true, () => {});
+}
+// Capture is for debugging decodes: never stored, off at every start (see CaptureView).
+const windowCapture = new WindowCapture(protocol.spec.id);
+const showResultNow = engine.onDecoded;
+engine.onDecoded = (result) => {
+  showResultNow(result);
+  windowCapture.offer(result);
+};
+new CaptureView(windowCapture, (on) => engine.setCaptureWindows(on), settings.networkCapture, (on) => {
+  settings.networkCapture = on;
+  saveSettings(settings);
+});
 disclosure('sync-block-toggle', 'sync-block-body', settings.syncOpen, (open) => {
   settings.syncOpen = open;
   saveSettings(settings);
@@ -542,6 +633,19 @@ function blink(e: HTMLElement, className: string): void {
   e.classList.add(className);
   e.addEventListener('animationend', () => e.classList.remove(className), { once: true });
 }
+/** A packet was heard: a few random dark cells of the logo mark light up and fade, each a little apart. */
+const logoCells = [...document.querySelectorAll<SVGElement>('.logo-mark .lm-off')];
+function blinkLogo(): void {
+  for (let k = 0; k < 4; k++) {
+    const cell = logoCells[Math.floor(Math.random() * logoCells.length)];
+    if (!cell) return;
+    cell.style.animationDelay = `${Math.floor(Math.random() * 200)}ms`;
+    cell.classList.remove('lm-rx');
+    void cell.getBoundingClientRect();
+    cell.classList.add('lm-rx');
+    cell.addEventListener('animationend', () => cell.classList.remove('lm-rx'), { once: true });
+  }
+}
 function setDot(name: string, colour: DotColour, pulsing = false): void {
   const d = dots.get(name);
   if (!d) return;
@@ -552,12 +656,12 @@ function setDot(name: string, colour: DotColour, pulsing = false): void {
   d.className = next;
   if (was !== undefined) blink(d, 'dot-blink'); // state change; the first draw does not blink
 }
-const LINK_GOOD_DB = -10;
-const LINK_OK_DB = -16;
-const LINK_RECENT_SLOTS = 8;
-const USERS_RECENT_SLOTS = 4;
+/** Network dot by the age of the last station heard: green up to 3 min, yellow up to 5, red up to 6, then grey (no network). */
+const NET_GREEN_SEC = 180;
+const NET_YELLOW_SEC = 300;
+const NET_RED_SEC = 360;
 let dotsAtSec = -1;
-/** Once a second: chat = unread message or delivery (blinking green), link = best recent SNR, users = who was heard lately. */
+/** Once a second: chat = unread message or delivery (blinking green), network = how long since a station was heard, users = who was heard lately. */
 function updateDots(): void {
   const nowMs = Date.now();
   const sec = Math.floor(nowMs / 1000);
@@ -565,18 +669,12 @@ function updateDots(): void {
   dotsAtSec = sec;
   setDot('chat', chatNews ? 'green' : null, chatNews);
   const slot = Math.floor(nowMs / (protocol.spec.slotSec * 1000));
-  let best: number | undefined;
-  let heardRecently = false;
-  for (const r of lqa.snapshot(slot)) {
-    if (slot - r.lastSlot > LINK_RECENT_SLOTS) continue;
-    for (const v of [r.heardDb, r.reportedDb]) if (v !== undefined && (best === undefined || v > best)) best = v;
-    if (r.heardDb !== undefined && slot - r.lastSlot <= USERS_RECENT_SLOTS) heardRecently = true;
-  }
-  setDot('network', best === undefined ? null : best >= LINK_GOOD_DB ? 'green' : best >= LINK_OK_DB ? 'yellow' : 'red');
-  applyOverload(nowMs);
   const relayed = [...session.relayedStations.values()];
-  if (relayed.some((r) => slot - r.slot <= USERS_RECENT_SLOTS)) heardRecently = true;
-  setDot('users', heardRecently ? 'green' : lqa.stations(slot).length > 0 || relayed.length > 0 ? 'yellow' : null);
+  // A station heard only through a repeater counts too.
+  const newest = Math.max(lqa.newestHeardSlot() ?? -Infinity, ...relayed.map((r) => r.slot));
+  const ageSec = (slot - newest) * protocol.spec.slotSec;
+  setDot('network', !Number.isFinite(newest) || ageSec > NET_RED_SEC ? null : ageSec <= NET_GREEN_SEC ? 'green' : ageSec <= NET_YELLOW_SEC ? 'yellow' : 'red');
+  applyOverload(nowMs);
   setDot('settings', settings.nickname.trim() === '' ? 'yellow' : null);
 }
 
@@ -591,9 +689,9 @@ function showScreen(name: string): void {
     el(`screen-${item.dataset.screen}`).hidden = !active;
   }
   if (name === 'network') link.render();
-  if (name === 'users') users.render();
   if (name === 'settings') showStoredCounts();
   if (name === 'chat') {
+    users.render();
     chatNews = false;
     setDot('chat', null);
   }
@@ -625,6 +723,7 @@ chat.onActivity = (heard, overloaded) => {
     lastRxMs = now;
     const lamp = keyAudio.querySelector<HTMLElement>('.lamp');
     if (lamp) blink(lamp, 'lamp-flash');
+    blinkLogo();
   }
   applyOverload(now);
 };
@@ -638,7 +737,7 @@ function renderStrip(): void {
     cell.className = 'channel-cell';
     cell.dataset.channel = String(c.number);
     cell.textContent = String(c.number);
-    cell.title = `Channel ${c.number}: click to select, click again to clear. With Auto test off, a selected channel carries every transmission.`;
+    cell.title = `Channel ${c.number}: click to select, click again to clear. With Auto beacon off, a selected channel carries every transmission.`;
     cell.addEventListener('click', () => toggleChannel(c.number));
     strip.append(cell);
   }
@@ -779,6 +878,8 @@ function warnIfNoMic(): void {
   );
 }
 
+el('error-close').addEventListener('click', () => showError(null));
+
 function showError(message: string | null): void {
   el('error').hidden = message === null;
   el('error-text').textContent = message ?? '';
@@ -823,6 +924,7 @@ function frame(): void {
   link.tick();
   users.tick();
   updateDots();
+  updateClockBanner();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -896,7 +998,9 @@ spriteHoles.addEventListener('change', () => {
 applySpriteStyle();
 
 let lastAnnounceMs = Date.now();
-/** Auto test intervals offered, in minutes. Was a fixed 1 min, which crowded the band with several stations. */
+/** Any hello of ours (Announce, auto, or an Auto beacon with nothing to report) restarts the auto announce wait. */
+chat.onOwnHello = () => { lastAnnounceMs = Date.now(); };
+/** Auto beacon intervals offered, in minutes. Was a fixed 1 min, which crowded the band with several stations. */
 const AUTO_SOUND_CHOICES_MIN = [1, 2, 3, 5, 10, 15];
 if (!AUTO_SOUND_CHOICES_MIN.includes(settings.autoSoundIntervalMin)) settings.autoSoundIntervalMin = DEFAULT_SETTINGS.autoSoundIntervalMin;
 const autoSound = el<HTMLInputElement>('auto-sound');
@@ -958,7 +1062,7 @@ resetButton.addEventListener('click', () => {
   }
 });
 
-/** Any beacon, automatic or "Test", restarts the Auto test wait. */
+/** Any beacon, automatic or "Test", restarts the Auto beacon wait. */
 let lastSoundMs = Date.now();
 // Checked every 10 s so a changed interval takes effect without a reload.
 setInterval(() => {

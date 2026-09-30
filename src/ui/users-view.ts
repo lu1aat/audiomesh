@@ -1,5 +1,5 @@
 /**
- * The Users screen: everyone this station has heard or that announced itself,
+ * The conversation list on the Messages screen: Public on top, then everyone this station has heard or that announced itself,
  * a vertical contact list like a chat app: avatar with a presence dot, nickname,
  * the last message (or when it was heard) and a time; a click opens a message to them.
  *
@@ -8,6 +8,7 @@
 
 import { buildLinkModel, formatAge, type RepeaterInfo, type StationInfo, type StationStatus } from '../ale/link-model';
 import type { LqaTable } from '../ale/lqa';
+import { BROADCAST } from '../chat/frames';
 import type { ChatPanel } from './chat-panel';
 
 const db = (v: number): string => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(0)} dB`;
@@ -80,12 +81,32 @@ export class UsersView {
     sorted.sort((x, y) => activityMs(y) - activityMs(x) || x - y);
 
     const list = el('ul', 'contact-list');
-    list.append(this.row(self.id, self.nickname, undefined, undefined, true, nowMs));
+    list.append(this.publicRow());
     for (const id of sorted) list.append(this.row(id, nameOf(id), heard.get(id), last.get(id), false, nowMs));
     this.root.replaceChildren(list);
     if (sorted.length === 0) {
       this.root.append(el('p', 'hint', 'Nobody else yet. Stations appear here when we hear a frame from them or they announce a name.'));
     }
+  }
+
+  /** The top row: messages addressed to nobody. */
+  private publicRow(): HTMLElement {
+    const last = this.chat.lastPublic();
+    const li = el('li', 'contact');
+    const btn = el('button', 'contact-row');
+    btn.type = 'button';
+    if (this.chat.currentRecipient === BROADCAST) btn.classList.add('contact-active');
+    btn.addEventListener('click', () => this.onMessage(BROADCAST));
+    const avatar = el('span', 'contact-avatar', '🌐');
+    avatar.setAttribute('aria-hidden', 'true');
+    const body = el('span', 'contact-body');
+    const preview = last ? `${last.mine ? 'You: ' : last.who ? `${last.who}: ` : ''}${last.text}` : 'Messages addressed to nobody';
+    body.append(el('span', 'contact-top', 'Public'), el('span', 'contact-preview', preview));
+    body.firstElementChild!.classList.add('contact-name');
+    btn.append(avatar, body);
+    btn.title = 'Public: messages addressed to nobody, everyone can read them';
+    li.append(btn);
+    return li;
   }
 
   private row(
@@ -98,12 +119,12 @@ export class UsersView {
   ): HTMLElement {
     const status: StationStatus | 'unheard' = info?.status ?? 'unheard';
     const li = el('li', 'contact');
-    const btn = el('button', `contact-row${isSelf ? ' contact-self' : ''}`);
+    const btn = el('button', `contact-row${isSelf ? ' contact-self' : ''}${!isSelf && this.chat.currentRecipient === id ? ' contact-active' : ''}`);
     btn.type = 'button';
     if (isSelf) btn.disabled = true;
     else btn.addEventListener('click', () => this.onMessage(id));
 
-    const avatar = el('span', 'contact-avatar', (nickname[0] ?? '#').toUpperCase());
+    const avatar = el('span', 'contact-avatar', this.chat.iconOf(id));
     avatar.style.setProperty('--hue', String((id * 47) % 360));
     avatar.setAttribute('aria-hidden', 'true');
     if (!isSelf) avatar.append(el('span', `contact-presence presence-${status}`));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hexGrid, layoutGraph, linkLength, snapToHexGrid, type LayoutBox } from '../src/ui/graph-layout';
+import { hexBackground, hexGrid, layoutGraph, linkLength, snapToHexGrid, type LayoutBox } from '../src/ui/graph-layout';
 
 const box: LayoutBox = { size: 360, margin: 33, minDist: 55, maxDist: 143, minSep: 56, clearance: 27 };
 const dist = (p: { x: number; y: number }, q: { x: number; y: number }): number => Math.hypot(p.x - q.x, p.y - q.y);
@@ -94,5 +94,17 @@ describe('honeycomb', () => {
     const ideal = layoutGraph([7], [], 7, { ...box, anchor: { x: 180, y: cells[0]!.y } });
     const pos = snapToHexGrid(ideal, [], 7, cells, 24, 360);
     expect(pos.get(7)).toMatchObject({ x: cells[0]!.x, y: cells[0]!.y });
+  });
+});
+
+describe('hexBackground', () => {
+  it('is the same lattice as hexGrid, carried past the square', () => {
+    const grid = hexGrid(360, 24, 16);
+    const bg = hexBackground(360, 24, 16, 100);
+    for (const c of grid) expect(bg.some((b) => Math.abs(b.x - c.x) < 1e-6 && Math.abs(b.y - c.y) < 1e-6)).toBe(true);
+    expect(Math.min(...bg.map((b) => b.x))).toBeLessThan(-100);
+    expect(Math.max(...bg.map((b) => b.x))).toBeGreaterThan(460);
+    expect(Math.max(...bg.map((b) => b.y))).toBeGreaterThan(360 + 100);
+    expect(Math.min(...bg.map((b) => b.y))).toBeLessThan(-100);
   });
 });

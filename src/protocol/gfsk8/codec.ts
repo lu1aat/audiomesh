@@ -38,6 +38,7 @@ export class Gfsk8Codec implements FrameCodec {
   private readonly info = new Uint8Array(LDPC_K);
   private readonly codeword = new Uint8Array(LDPC_N);
   private readonly llr = new Float32Array(LDPC_N);
+  private readonly energySum: Float32Array;
   private readonly logPower: Float32Array;
 
   constructor(private readonly spec: ProtocolSpec) {
@@ -54,6 +55,7 @@ export class Gfsk8Codec implements FrameCodec {
       throw new RangeError(`spec.payloadBits must be ${PAYLOAD_BITS}`);
     }
     this.logPower = new Float32Array(spec.symbolCount * spec.toneCount);
+    this.energySum = new Float32Array(spec.symbolCount * spec.toneCount);
   }
 
   /** payload: 77 bits, one per byte. Returns 79 tone indices. */
@@ -82,7 +84,34 @@ export class Gfsk8Codec implements FrameCodec {
    * Returns the 77 payload bits, or null if the CRC or the code rejects the frame.
    */
   decode(toneEnergies: Float32Array): Uint8Array | null {
-    const { spec, logPower, llr } = this;
+    if (!this.softBits(toneEnergies, this.llr)) return null;
+    return this.finish(this.llr);
+  }
+
+  /**
+   * Receptions of one frame: the tone energies are added (each copy first scaled to the same
+   * mean, so a louder reception does not drown the others) and the sum is decoded. Measured with
+   * ideal timing, 48 kHz, Fast: adding energies beat adding each copy's soft bits by about half a
+   * dB (3 copies at -16 dB: 23/24 against 16/24), and two copies reach about 2 dB lower than one.
+   */
+  decodeCombined(copies: readonly Float32Array[]): Uint8Array | null {
+    if (copies.length === 1) return this.decode(copies[0]!);
+    const sum = this.energySum;
+    sum.fill(0);
+    for (const energies of copies) {
+      if (energies.length !== sum.length) throw new RangeError(`need ${sum.length} tone energies`);
+      let total = 0;
+      for (let i = 0; i < energies.length; i++) total += energies[i]!;
+      if (!(total > 0)) return null;
+      const scale = energies.length / total;
+      for (let i = 0; i < energies.length; i++) sum[i]! += energies[i]! * scale;
+    }
+    return this.decode(sum);
+  }
+
+  /** Soft bits (positive = 1) of one reception, scaled to the spread the decoder is tuned for. False if flat. */
+  private softBits(toneEnergies: Float32Array, out: Float32Array): boolean {
+    const { spec, logPower } = this;
     const tones = spec.toneCount;
     if (toneEnergies.length !== spec.symbolCount * tones) {
       throw new RangeError(`need ${spec.symbolCount * tones} tone energies`);
@@ -91,20 +120,23 @@ export class Gfsk8Codec implements FrameCodec {
     // strongest matching tones, and it no longer depends on the absolute level.
     for (let i = 0; i < logPower.length; i++) logPower[i] = Math.log(toneEnergies[i]! + EPS);
 
-    // Soft bits, positive = 1. For each of a symbol's 3 bits: the strongest tone
-    // that would carry a 1 there, minus the strongest that would carry a 0.
+    // For each of a symbol's 3 bits: the strongest tone that would carry a 1 there,
+    // minus the strongest that would carry a 0.
     const s = new Float32Array(8);
     for (let d = 0; d < this.dataPositions.length; d++) {
       const row = this.dataPositions[d]! * tones;
       for (let bits = 0; bits < 8; bits++) s[bits] = logPower[row + GRAY_TO_TONE[bits]!]!;
       const o = d * 3;
-      llr[o] = Math.max(s[4]!, s[5]!, s[6]!, s[7]!) - Math.max(s[0]!, s[1]!, s[2]!, s[3]!);
-      llr[o + 1] = Math.max(s[2]!, s[3]!, s[6]!, s[7]!) - Math.max(s[0]!, s[1]!, s[4]!, s[5]!);
-      llr[o + 2] = Math.max(s[1]!, s[3]!, s[5]!, s[7]!) - Math.max(s[0]!, s[2]!, s[4]!, s[6]!);
+      out[o] = Math.max(s[4]!, s[5]!, s[6]!, s[7]!) - Math.max(s[0]!, s[1]!, s[2]!, s[3]!);
+      out[o + 1] = Math.max(s[2]!, s[3]!, s[6]!, s[7]!) - Math.max(s[0]!, s[1]!, s[4]!, s[5]!);
+      out[o + 2] = Math.max(s[1]!, s[3]!, s[5]!, s[7]!) - Math.max(s[0]!, s[2]!, s[4]!, s[6]!);
     }
-
     // Rescale to a fixed spread. BP is sensitive to the LLR scale, and the raw
     // values depend on the receiver's gain and noise floor.
+    return this.normalise(out);
+  }
+
+  private normalise(llr: Float32Array): boolean {
     let sum = 0;
     let sum2 = 0;
     for (let i = 0; i < LDPC_N; i++) {
@@ -113,10 +145,13 @@ export class Gfsk8Codec implements FrameCodec {
     }
     const mean = sum / LDPC_N;
     const variance = sum2 / LDPC_N - mean * mean;
-    if (!(variance > 1e-12)) return null; // silence, or a flat spectrum: nothing to decode
+    if (!(variance > 1e-12)) return false; // silence, or a flat spectrum: nothing to decode
     const scale = LLR_STD / Math.sqrt(variance);
     for (let i = 0; i < LDPC_N; i++) llr[i] = llr[i]! * scale;
+    return true;
+  }
 
+  private finish(llr: Float32Array): Uint8Array | null {
     const { bits, failedChecks } = this.ldpc.decode(llr, MAX_ITERATIONS);
     if (failedChecks !== 0) return null;
 
@@ -134,5 +169,3 @@ export class Gfsk8Codec implements FrameCodec {
     return payload;
   }
 }
-
-

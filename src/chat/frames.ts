@@ -9,7 +9,7 @@
  *   ack    kind 2 | src 10 | dst 10   | msgId 4 | received 16 (bit i = frame i heard)
  *                 | heardChannel 5 | heardSnr 6     (how the acked station was last heard)
  *   ctrl   kind 3 | src 10 | subtype 3 | subtype body
- *            subtype 0 = hello: 8 chars x 6 bit nickname
+ *            subtype 0 = hello: 8 chars x 6 bit nickname | icon 8 (index into emoji-table.ts) | icon present 1
  *            subtype 1 = sound: 2 x (station 10 | channel 5 | snr 6), station 0 = unused
  *            subtype 2 = sprite head: msgId 4 | dst 10 | side-1 4 | bpp-1 2 | data 39
  *            subtype 3 = sprite body: msgId 4 | seq 4 | side-1 4 | bpp-1 2 | data 45
@@ -55,7 +55,7 @@ export type ChatFrame =
   | { kind: 'first'; src: number; msgId: number; last: number; dst: number; text: string; via?: number }
   | { kind: 'next'; src: number; msgId: number; seq: number; text: string; via?: number }
   | { kind: 'ack'; src: number; dst: number; msgId: number; received: number; heardChannel: number; heardSnrDb: number; via?: number }
-  | { kind: 'hello'; src: number; name: string; repeater?: boolean; via?: number }
+  | { kind: 'hello'; src: number; name: string; icon?: number; repeater?: boolean; via?: number }
   | { kind: 'sound'; src: number; reports: readonly LinkReport[]; repeater?: boolean; probe?: boolean; via?: number }
   /** `data` is 0/1 bytes: 39 bits (palette + pixels) in the head, 45 bits (pixels) in a body; seq 1..15. */
   | { kind: 'spriteHead'; src: number; msgId: number; dst: number; side: number; bpp: number; data: Uint8Array; via?: number }
@@ -210,6 +210,11 @@ export function encodeFrame(frame: ChatFrame): Uint8Array {
       w.put(frame.src, STATION_BITS);
       w.put(CTRL_HELLO, 3);
       w.putText(frame.name, NAME_CHARS);
+      if (frame.icon !== undefined) {
+        checkId(frame.icon, 255, 'icon');
+        w.put(frame.icon, 8);
+        w.put(1, 1);
+      }
       if (frame.repeater) w.bits[REPEATER_FLAG_POS] = 1;
       break;
     case 'spriteHead':
@@ -295,7 +300,11 @@ function decodeBody(r: BitReader, kind: number, src: number): ChatFrame | null {
     }
     default: {
       const subtype = r.get(3);
-      if (subtype === CTRL_HELLO) return { kind: 'hello', src, name: r.getText(NAME_CHARS).trimEnd() };
+      if (subtype === CTRL_HELLO) {
+        const name = r.getText(NAME_CHARS).trimEnd();
+        const icon = r.get(8);
+        return r.get(1) ? { kind: 'hello', src, name, icon } : { kind: 'hello', src, name };
+      }
       if (subtype === CTRL_SOUND) {
         const reports: LinkReport[] = [];
         for (let i = 0; i < SOUND_REPORTS; i++) {

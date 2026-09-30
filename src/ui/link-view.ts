@@ -13,7 +13,8 @@ import type { ServerClock } from '../sync/server-clock';
 import { clockHints, type UndecodedSync } from '../chat/clock-hint';
 import { repeaterTag } from '../chat/frames';
 import { FrameTable } from './frame-table';
-import { hexGrid, layoutGraph, snapToHexGrid, type LayoutLink } from './graph-layout';
+import { HistoryView } from './history-view';
+import { hexBackground, hexGrid, layoutGraph, snapToHexGrid, type LayoutLink } from './graph-layout';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -47,7 +48,9 @@ const STALE_OPACITY = 0.4;
 /** Other stations' cells are this see-through, so their age colour sits a little darker on the map. */
 const NODE_FILL_OPACITY = 0.7;
 /** One cycle of the arrows' drifting dashes; matches `.graph-flow` in styles.css. */
-const FLOW_PERIOD_MS = 2400;
+const FLOW_PERIOD_MS = 1600;
+/** Graph units the honeycomb background runs past the map's square on every side. */
+const HEX_OVERFLOW = 260;
 const LEVEL_TEXT: Record<SignalLevel, string> = { good: 'strong', fair: 'fair', weak: 'weak' };
 /** "Reached us through a repeater" lines: level unknown, so neutral grey. */
 const RELAY_COLOR = '#8a8f98';
@@ -143,6 +146,7 @@ export class LinkView {
   private renderedAt = 0;
   private hovering = false;
   private readonly frameTable: FrameTable;
+  private readonly sequence: HistoryView;
   /** Series colour per station, assigned on first sight so a station keeps its colour. */
   private readonly colorIndex = new Map<number, number>();
   /** The graph's live elements, moved every animation frame. */
@@ -181,12 +185,24 @@ export class LinkView {
     this.root = document.getElementById('link-view') as HTMLElement;
     this.graphRoot = document.getElementById('network-graph') as HTMLElement;
     this.frameTable = new FrameTable(this.frames, (id) => this.name(id), this.getMyId);
+    this.sequence = new HistoryView(
+      this.frames,
+      (id) => (id === this.getMyId() ? this.getMyName() : this.names.get(id) ?? '') || `#${id}`,
+      this.getMyId,
+      (id) => {
+        if (!this.colorIndex.has(id)) this.colorIndex.set(id, this.colorIndex.size);
+        return SERIES[this.colorIndex.get(id)!] ?? SERIES_OTHER;
+      },
+    );
   }
 
   /** Call every animation frame; redraws at most every 4 s, only while the screen is showing. */
   tick(nowMs = Date.now()): void {
     this.noteFrames();
-    if (this.isVisible()) this.animateGraph();
+    if (this.isVisible()) {
+      this.animateGraph();
+      this.sequence.sync();
+    }
     // Not while typing a manual offset: redrawing moves the Sync section, which would drop the focus.
     const typing = document.activeElement?.id === 'clock-manual';
     if (!this.isVisible() || this.hovering || this.frameTable.busy || typing || nowMs - this.renderedAt < 4000) return;
@@ -204,6 +220,7 @@ export class LinkView {
     this.renderClock(nowMs);
     const scrollTop = this.frameTable.scrollTop;
     this.frameTable.refresh();
+    this.sequence.refresh(nowMs);
     if (model.stations.length === 0) {
       // The map still shows us, alone, so it is clear where others will appear.
       this.graphRoot.replaceChildren(this.graphSection(model));
@@ -356,9 +373,14 @@ export class LinkView {
 
   /** A station's nickname or #id; our own id reads "me (#914)", so reports about us are not taken for a stranger. */
   private name(id: number): string {
-    if (id === this.getMyId()) return `me (#${id})`;
-    return this.names.get(id) || `#${id}`;
+    const icon = this.iconOf(id);
+    const pre = icon ? `${icon} ` : '';
+    if (id === this.getMyId()) return `${pre}me (#${id})`;
+    return `${pre}${this.names.get(id) || `#${id}`}`;
   }
+
+  /** Picture shown before a station's name ('' = none); set by main.ts. */
+  iconOf: (id: number) => string = () => '';
 
   /**
    * A section with a collapsible header, same pattern as the channel/options blocks
@@ -664,9 +686,11 @@ export class LinkView {
     for (const [name, color] of Object.entries(colors)) {
       // Fixed size in graph units, not scaled by the line width.
       const m = svg('marker', {
-        id: `arrow-${name}`, viewBox: '0 0 8 8', refX: 8, refY: 4, markerUnits: 'userSpaceOnUse', markerWidth: 5, markerHeight: 5, orient: 'auto-start-reverse',
+        id: `arrow-${name}`, viewBox: '0 0 8 8', refX: 4.5, refY: 4, markerUnits: 'userSpaceOnUse', markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse',
       });
-      m.append(svg('path', { d: 'M0,0 L8,4 L0,8 z', fill: color }));
+      // The line ends inside the head (refX 4.5, where the head is wider than the line), so its
+      // butt end never shows at the tip; a round join softens the corners.
+      m.append(svg('path', { d: 'M0.8,0.8 L7.2,4 L0.8,7.2 z', fill: color, stroke: color, 'stroke-width': 1, 'stroke-linejoin': 'round' }));
       defs.append(m);
     }
     const blur = svg('filter', { id: 'node-glow', x: '-100%', y: '-100%', width: '300%', height: '300%' });
@@ -700,12 +724,13 @@ export class LinkView {
     // With fewer than three other stations the top of the map is empty: cut it off. The viewBox
     // keeps the width, so cells and stations stay the same size; only the height shrinks.
     if (nodes.length - 1 < 3) {
-      const cropTop = Math.max(0, Math.floor(Math.min(...[...pos.values()].map((c) => c.y)) - NR - 14));
+      const cropTop = Math.max(0, Math.floor(Math.min(...[...pos.values()].map((c) => c.y)) - NR - 18));
       chart.setAttribute('viewBox', `0 ${cropTop} ${W} ${W - cropTop}`);
     }
 
     const grid = svg('g', { class: 'hex-grid', 'aria-hidden': 'true' });
-    for (const c of cells) grid.append(svg('polygon', { points: hexPoints(NR - 2, c.x, c.y), class: 'hex-cell' }));
+    // The card is wider and taller than the square: carry the pattern on to its border (the svg overflows, the card clips).
+    for (const c of hexBackground(W, NR, 16, HEX_OVERFLOW)) grid.append(svg('polygon', { points: hexPoints(NR - 2, c.x, c.y), class: 'hex-cell' }));
     chart.append(grid);
     const lines: GraphLine[] = [];
     const gap = NR + 3;
@@ -780,7 +805,8 @@ export class LinkView {
       inner.textContent = id === me ? '' : age === undefined || !Number.isFinite(age) ? '–' : shortAge(age);
       g.append(inner);
       const nick = id === me ? this.getMyName() : this.names.get(id) ?? '';
-      const label = svg('text', { x: 0, y: NR + 12, class: 'chart-label', 'text-anchor': 'middle' });
+      // Other stations: the name above the cell. Us: below it (the arrows come from above).
+      const label = svg('text', { x: 0, y: id === me ? NR + 12 : -NR - 2, class: 'chart-label', 'text-anchor': 'middle' });
       label.textContent = nick || `#${id}`;
       g.append(label);
       graphNodes.set(id, { g, halo, ring, target: { x: p.x, y: p.y } });
@@ -1085,15 +1111,15 @@ export class LinkView {
   /** Built once and never taken out of the page: it is what the user is often reading. */
   private framesSection(): HTMLElement {
     if (!this.framesEl) {
-      const { root: s, body } = this.section('frames', 'All frames', 'Every frame sent or received, newest first. Filter, tick rows and remove them; the log keeps the last 1000.');
-      body.append(this.frameTable.root);
+      const { root: s, body } = this.section('frames', 'History', 'The latest frames as a sequence diagram, then every frame in a table. The log keeps the last 1000.');
+      body.append(el('h4', 'history-sub', 'Sequence'), this.sequence.root, el('h4', 'history-sub', 'All frames'), el('p', 'hint', 'Every frame sent or received, newest first. Filter, tick rows and remove them.'), this.frameTable.root);
       this.framesEl = s;
     }
     return this.framesEl;
   }
 
   /**
-   * Replace every section above All frames and leave All frames itself in place. Rebuilding
+   * Replace every section above History and leave History itself in place. Rebuilding
    * the whole screen every few seconds made the page flicker and jump while the log was open;
    * with one element that stays put, the browser keeps what the user is looking at where it is.
    */

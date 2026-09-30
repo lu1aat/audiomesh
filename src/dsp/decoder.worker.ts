@@ -6,7 +6,8 @@
  */
 
 import type { Demodulator } from '../protocol/protocol';
-import { decodeChannels, type ChannelDecode } from '../protocol/multi-decode';
+import type { ChannelDecode } from '../protocol/multi-decode';
+import { CandidatePool, decodeChannelsCombining } from '../protocol/combine';
 import { getProtocol } from '../protocol/registry';
 import type { ProtocolId } from '../protocol/spec';
 
@@ -16,6 +17,8 @@ export interface DecodeRequest {
   sampleRate: number;
   baseFreqsHz: readonly number[];
   window: Float32Array;
+  /** Wall-clock start of the slot this window belongs to: orders windows for retransmission combining. */
+  slotStartUtcMs: number;
   /** Audio before the slot boundary at the window's start; longer than the protocol's with deep decoding. */
   leadSec: number;
 }
@@ -27,21 +30,28 @@ export type DecodeResponse =
 /** A sample this close to full scale is pinned (browsers deliver a clipped ADC as exactly +-1). */
 const CLIP_LEVEL = 0.999;
 
-const cache = new Map<string, Demodulator>();
+interface Decoder {
+  demodulator: Demodulator;
+  /** Failed candidates of earlier windows, to add a retransmission to. */
+  pool: CandidatePool;
+}
 
-function demodulatorFor(protocolId: ProtocolId, sampleRate: number): Demodulator {
+const cache = new Map<string, Decoder>();
+
+function decoderFor(protocolId: ProtocolId, sampleRate: number): Decoder {
   const key = `${protocolId}@${sampleRate}`;
   let d = cache.get(key);
   if (!d) {
     // Building one designs its filters and tone tables; do it once per rate.
-    d = getProtocol(protocolId).createDemodulator(sampleRate);
+    const protocol = getProtocol(protocolId);
+    d = { demodulator: protocol.createDemodulator(sampleRate), pool: new CandidatePool(protocol.createCodec(), protocol.spec) };
     cache.set(key, d);
   }
   return d;
 }
 
 self.onmessage = (event: MessageEvent<DecodeRequest>) => {
-  const { id, protocolId, sampleRate, baseFreqsHz, window, leadSec } = event.data;
+  const { id, protocolId, sampleRate, baseFreqsHz, window, slotStartUtcMs, leadSec } = event.data;
   try {
     // Input overload: clipping flattens the wave tops against full scale, so it shows as
     // runs of samples pinned there. A lone loud peak is not clipping.
@@ -58,8 +68,8 @@ self.onmessage = (event: MessageEvent<DecodeRequest>) => {
       } else run = 0;
     }
     const t0 = performance.now();
-    const demodulator = demodulatorFor(protocolId, sampleRate);
-    const channels = decodeChannels(demodulator, window, baseFreqsHz, leadSec);
+    const { demodulator, pool } = decoderFor(protocolId, sampleRate);
+    const channels = decodeChannelsCombining(demodulator, pool, window, baseFreqsHz, leadSec, slotStartUtcMs);
     const response: DecodeResponse = { id, ok: true, channels, decodeMs: performance.now() - t0, peak, clipped };
     self.postMessage(response);
   } catch (err) {

@@ -21,7 +21,7 @@
  * hundreds of milliseconds.
  */
 
-import type { DecodedFrame, Demodulator, FrameCodec, SyncReport } from '../protocol';
+import type { DecodedFrame, Demodulator, FrameCodec, SyncReport, UndecodedCandidate } from '../protocol';
 import { symbolDurationSec, windowLeadSec, type ProtocolSpec } from '../spec';
 
 /** Baseband samples per symbol after decimation: 200 Hz at 6.25 baud. */
@@ -50,11 +50,20 @@ const FREQ_STEP_HZ = 1;
 /** Candidates handed to the codec per window. */
 const MAX_CANDIDATES = 8;
 
+/**
+ * A candidate that did not decode is kept for combining with a retransmission only when its
+ * sync is this far above noise (the best of a noise-only search is about 0.23).
+ */
+const UNDECODED_MIN_SCORE = 0.27;
+/** At this weak, the true frame is often not the top sync peak, so a few are kept per channel and window. */
+const MAX_UNDECODED = 3;
+
 /** Two candidates closer than a quarter symbol are the same frame. */
 const SUPPRESS_SYMBOL_FRACTION = 0.25;
 
 export class Gfsk8Demodulator implements Demodulator {
   lastSync: SyncReport | null = null;
+  lastUndecoded: UndecodedCandidate[] = [];
   private readonly decimation: number;
   private readonly rateDecHz: number;
   private readonly taps: Float32Array;
@@ -139,6 +148,7 @@ export class Gfsk8Demodulator implements Demodulator {
 
   decode(window: Float32Array, baseFreqHz: number, leadSec = windowLeadSec(this.spec)): DecodedFrame[] {
     this.lastSync = null;
+    this.lastUndecoded = [];
     const { baseband, count } = this.toBaseband(window, baseFreqHz);
     const positions = count - this.windowSamples + 1;
     const lastSymbolOffset = this.symbolStart[this.spec.symbolCount - 1]!;
@@ -156,6 +166,7 @@ export class Gfsk8Demodulator implements Demodulator {
       this.lastSync = {
         score: candidates[0].score,
         timeOffsetSec: candidates[0].start / this.rateDecHz - leadSec,
+        ...this.blockStats(spectra, positions, candidates[0]),
       };
     }
 
@@ -168,7 +179,18 @@ export class Gfsk8Demodulator implements Demodulator {
         energies.set(spectra.subarray(from, from + this.tones), k * this.tones);
       }
       const payload = this.codec.decode(energies);
-      if (!payload) continue;
+      if (!payload) {
+        // The strongest real-looking candidates that failed, for a later retransmission to be added to.
+        if (this.lastUndecoded.length < MAX_UNDECODED && cand.score >= UNDECODED_MIN_SCORE) {
+          this.lastUndecoded.push({
+            energies: energies.slice(),
+            score: cand.score,
+            freqHz: baseFreqHz + this.hypothesesHz[cand.hypothesis]!,
+            timeOffsetSec: cand.start / this.rateDecHz - leadSec,
+          });
+        }
+        continue;
+      }
       const key = payload.join('');
       if (seen.has(key)) continue;
       seen.add(key);
@@ -180,6 +202,10 @@ export class Gfsk8Demodulator implements Demodulator {
       });
     }
     return frames;
+  }
+
+  snrDbOf(energies: Float32Array, payload: Uint8Array): number {
+    return this.estimateSnrDb(energies, this.codec.encode(payload));
   }
 
   /** Channel to complex baseband at ~200 Hz. Returns interleaved-free re/im arrays. */
@@ -258,6 +284,33 @@ export class Gfsk8Demodulator implements Demodulator {
       }
     }
     return out;
+  }
+
+  /** Each Costas block of one candidate on its own: its sync score, and how unevenly loud the blocks are (see SyncReport). */
+  private blockStats(
+    spectra: Float32Array,
+    positions: number,
+    cand: { start: number; hypothesis: number },
+  ): { blocks: number[]; blockImbalanceDb: number } {
+    const tones = this.tones;
+    const length = this.spec.syncPattern.length;
+    const blocks: number[] = [];
+    const levels: number[] = [];
+    for (let b = 0; b < this.spec.syncStarts.length; b++) {
+      let hit = 0;
+      let total = 0;
+      for (let i = b * length; i < (b + 1) * length; i++) {
+        const row = (cand.hypothesis * positions + cand.start + this.syncStart[i]!) * tones;
+        hit += spectra[row + this.syncTone[i]!]!;
+        for (let t = 0; t < tones; t++) total += spectra[row + t]!;
+      }
+      blocks.push(total > 0 ? hit / total : 0);
+      levels.push(total);
+    }
+    const sorted = [...levels].sort((a, b) => a - b);
+    const middle = sorted[sorted.length >> 1]!;
+    const loudest = sorted[sorted.length - 1]!;
+    return { blocks, blockImbalanceDb: middle > 0 ? 10 * Math.log10(loudest / middle) : 0 };
   }
 
   /** Best (start, hypothesis) pairs by sync score, at most MAX_CANDIDATES, best first. */
