@@ -14,6 +14,9 @@ import { Notifier } from './ui/notifier';
 import { LinkView, type StationsView } from './ui/link-view';
 import { ServerClock } from './sync/server-clock';
 import { UsersView } from './ui/users-view';
+import { DEFAULT_PIXEL_PX, clampPixelPx, drawSprite, type HoleStyle } from './ui/sprite-view';
+import { SPRITE_GALLERY, parseRows } from './chat/sprite-gallery';
+import { SPRITE_PALETTE } from './chat/sprite';
 import { TestToneControl } from './ui/test-tone';
 import { DeferredSaver, LINK_KEY, loadJson, removeKey, saveJson } from './storage/store';
 
@@ -54,6 +57,10 @@ interface Settings {
   stationsView: StationsView;
   /** Sidebar narrowed to the status colour and the screen dots. */
   sidebarCollapsed: boolean;
+  /** Size of one sprite pixel in the chat and the editor, CSS pixels (2..40). */
+  spritePixelSize: number;
+  /** How a partly received sprite shows its missing pixels. */
+  spriteHoles: HoleStyle;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -83,6 +90,8 @@ const DEFAULT_SETTINGS: Settings = {
   allowTx: true,
   stationsView: 'table',
   sidebarCollapsed: false,
+  spritePixelSize: DEFAULT_PIXEL_PX,
+  spriteHoles: 'fill',
 };
 
 function loadSettings(): Settings {
@@ -391,7 +400,7 @@ autoChannel.addEventListener('change', () => {
 });
 el('sound-button').addEventListener('click', () => {
   lastSoundMs = Date.now();
-  chat.sound();
+  chat.sound(true);
 });
 
 /** Repeater mode: repeat every frame heard from others. Turning it on sends a sound that tells others. */
@@ -852,6 +861,34 @@ announceInterval.addEventListener('change', () => {
   announceInterval.value = String(settings.announceIntervalMin);
   saveSettings(settings);
 });
+
+/** Sprites: pixel size and how missing pixels look. A sample sprite shows the size. */
+const spritePixelSize = el<HTMLInputElement>('sprite-pixel-size');
+const spritePixelOut = el<HTMLOutputElement>('sprite-pixel-size-out');
+const spriteHoles = el<HTMLSelectElement>('sprite-holes');
+const spriteSample = el<HTMLCanvasElement>('sprite-sample');
+const sampleRows = SPRITE_GALLERY.find((g) => g.side === 8)!.sprites[0]!.rows;
+function applySpriteStyle(): void {
+  chat.setSpriteStyle(settings.spritePixelSize, settings.spriteHoles);
+  spritePixelOut.textContent = String(settings.spritePixelSize);
+  drawSprite(spriteSample, 8, settings.spritePixelSize, Array.from(parseRows(sampleRows, 8), (v) => SPRITE_PALETTE[v]!), settings.spritePixelSize >= 6);
+}
+settings.spritePixelSize = clampPixelPx(settings.spritePixelSize);
+if (settings.spriteHoles !== 'fill' && settings.spriteHoles !== 'checker') settings.spriteHoles = DEFAULT_SETTINGS.spriteHoles;
+spritePixelSize.value = String(settings.spritePixelSize);
+spriteHoles.value = settings.spriteHoles;
+spritePixelSize.addEventListener('input', () => {
+  settings.spritePixelSize = clampPixelPx(spritePixelSize.value);
+  saveSettings(settings);
+  applySpriteStyle();
+});
+spriteHoles.addEventListener('change', () => {
+  settings.spriteHoles = spriteHoles.value === 'checker' ? 'checker' : 'fill';
+  saveSettings(settings);
+  applySpriteStyle();
+});
+applySpriteStyle();
+
 let lastAnnounceMs = Date.now();
 /** Auto test intervals offered, in minutes. Was a fixed 1 min, which crowded the band with several stations. */
 const AUTO_SOUND_CHOICES_MIN = [1, 2, 3, 5, 10, 15];

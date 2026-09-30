@@ -380,6 +380,8 @@ ack    kind 2 | src 10 | dst 10  | msgId 4 | received 16 (bitmap, bit i = frame 
 ctrl   kind 3 | src 10 | subtype 3 | subtype body
          subtype 0 = hello: 8 chars x 6 bit nickname
          subtype 1 = sound: 2 x (station 10 | channel 5 | snr 6), station 0 = unused slot
+         subtype 2 = sprite head: msgId 4 | dst 10 | side-1 4 | bpp-1 2 | data 39   (74 bits)
+         subtype 3 = sprite body: msgId 4 | seq 4  | side-1 4 | bpp-1 2 | data 45   (74 bits)
 ```
 
 Fixed tail bits, present (as spare/zero) in every kind so old frames still
@@ -401,6 +403,61 @@ Other wire-format notes:
   it was last heard at — the wire-level input to link-quality tracking (§11).
 - The codec (`src/protocol/gfsk8/codec.ts`) requires exactly `PAYLOAD_BITS = 77`
   bits; `frames.ts` throws if a value doesn't fit its field width.
+
+### Sprite frames (`ctrl` subtypes 2 and 3)
+
+A **sprite** is a small square picture (1×1 to 16×16) of palette colours, sent as
+a head frame and up to 15 body frames (`seq` 1..15; the head is frame 0, so at
+most `MAX_FRAMES = 16`). It shares `msgId` with chat messages, so the existing
+`ack` (bitmap, bit i = frame i) and selective retransmit apply unchanged, and
+repeaters treat head/body like `first`/`next`. Only the head names the
+destination (`dst`, 0 = everyone). Bits 74–76 are `via` as everywhere; bit 73 is
+*data* here, not the repeater flag.
+
+The point of the format is **partial reception**: any subset of the frames must
+give a usable picture.
+
+- **No compression.** Every pixel has a fixed place in the stream (RLE would
+  make one lost frame unplace everything after it).
+- **Self-describing bodies.** Every frame repeats `side` and `bpp` (`depth`
+  on the wire: bits per pixel − 1, 0..3 = 2, 4, 8, 16 colours), so a lost head
+  costs only the palette and the destination.
+- **Whole pixels per frame, in interleaved order.** No frame splits a pixel.
+  Pixels go in the order of the 16×16 Bayer matrix, not row by row.
+
+*Palette.* A fixed 16-colour palette (PICO-8), index = 4 bits:
+`000000 1d2b53 7e2553 008751 ab5236 5f574f c2c3c7 fff1e8 ff004d ffa300 ffec27
+00e436 29adff 83769c ff77a8 ffccaa`. With 4 bpp a pixel value *is* the fixed
+index and the frame carries no palette. With 1..3 bpp the head's data starts
+with the sprite's own palette, `2^bpp` entries of 4 bits (each a fixed index);
+pixel values then index that local palette.
+
+*Data.* With `N = side²`, `b = bpp`, palette bits `P` (0, 8, 16, 32 for
+b = 4, 1, 2, 3): the head carries `P` palette bits then `H = floor((39 − P) / b)`
+pixels; each body carries `B = floor(45 / b)` pixels; frames =
+`1 + max(0, ceil((N − H) / B))`, at most 16. Frame `seq = s ≥ 1` carries stream
+positions `H + (s−1)·B .. H + s·B − 1` (the last may be short); leftover bits at
+the end of a frame are zero. Stream position → pixel: sort all `(x, y)` (0-based,
+`x` column, `y` row) by `(bayer(x, y), y, x)`, where
+
+```
+bayer(x, y): v = 0; for i = 0..3: v = (v << 2) | ((((x ^ y) >> i) & 1) << 1) | ((y >> i) & 1)
+```
+
+so the low coordinate bits weigh most and consecutive positions land far apart
+in the picture. The order is fixed per `side`: both ends compute it, nothing
+goes on the air. Frames per size, worst case: 4×4 is 1–2, 8×8 is 2 (2 colours)
+to 6 (16), 13×13 at 16 colours is exactly 16; 16×16 needs ≤ 4 colours (13
+frames at 4).
+
+*Receiving.* Frames are kept as they come, in any order, head or not. A frame
+with `seq` ≥ the computed frame count, or of a shape over 16 frames, is
+dropped; a frame whose `side`/`bpp` differs from what is held, or whose data
+differs from the frame already held for that `seq`, or a chat frame where a
+sprite was (same `src`/`msgId`), is a *new* message reusing the id. Each new
+frame reports progress; an incomplete sprite is not discarded on timeout but
+emitted once as a partial. Unknown pixels are for display only filled from the
+nearest known one.
 
 What sits above this line — splitting a chat message across `first`/`next`
 frames up to `MAX_FRAMES = 16` (142 chars: 7 in the first frame, 9 in each

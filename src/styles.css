@@ -526,3 +526,51 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .station-sync { background: var(--panel-alt); color: inherit; border: 0; border-radius: 0; padding: 3px 8px; font: inherit; cursor: pointer; }
 .station-sync:disabled { opacity: 0.55; cursor: default; }
 .frame-filters label.frame-check { flex-direction: row; align-items: center; gap: 6px; color: inherit; font-size: 0.85rem; }
+
+/* Sprites: small pictures in the chat, the editor dialog and the Settings preview. */
+.sprite-canvas { display: block; image-rendering: pixelated; max-width: 100%; height: auto; }
+.bubble-sprite { white-space: normal; }
+.bubble-sprite-note { margin-top: 4px; font: 0.7rem var(--font-mono); color: var(--text-dim); }
+.sprite-settings label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+.sprite-settings input[type="range"] { flex: 0 1 220px; }
+.sprite-settings .sprite-canvas { margin-top: 8px; border: 1px solid var(--border); }
+.sprite-dialog { box-sizing: border-box; width: min(960px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 12px; background: var(--panel); color: var(--text); border: 1px solid var(--border-strong); border-radius: 0; }
+.sprite-dialog::backdrop { background: rgba(0, 0, 0, 0.7); }
+.sprite-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.sprite-head h3 { margin: 0; }
+.sprite-head button, .sprite-buttons button, .sprite-rows button, .sprite-card { background: var(--panel-alt); color: inherit; border: 1px solid var(--border); border-radius: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+.sprite-head button:hover, .sprite-buttons button:hover, .sprite-rows button:hover, .sprite-card:hover { background: var(--panel-raised); border-color: var(--accent); }
+.sprite-edit { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.sprite-tools { display: grid; gap: 8px; align-content: start; min-width: 200px; }
+.sprite-tools label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sprite-swatches { display: grid; grid-template-columns: repeat(8, 26px); gap: 4px; }
+.sprite-swatches button { width: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 0; cursor: pointer; }
+.sprite-swatches button.sel { border-color: #fff; box-shadow: 0 0 0 1px #000 inset; }
+.sprite-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.sprite-paint { cursor: crosshair; touch-action: none; image-rendering: pixelated; max-width: 100%; height: auto; }
+.sprite-out { display: grid; gap: 10px; align-content: start; min-width: 180px; flex: 1 1 200px; }
+.sprite-stats { font: 0.8rem var(--font-mono); }
+.sprite-stats .f1, .sprite-card-info { color: var(--good); }
+.sprite-stats .f2 { color: #a8e63c; }
+.sprite-stats .f3 { color: var(--warn); }
+.sprite-stats .f4, .sprite-over { color: var(--bad); }
+.sprite-stats > span:first-child { font-size: 1rem; font-weight: 600; }
+.sprite-over { font-size: 0.8rem; }
+.sprite-previews { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.sprite-previews figure { margin: 0; display: grid; gap: 4px; justify-items: center; font: 0.65rem var(--font-mono); color: var(--text-dim); }
+.sprite-rows textarea { box-sizing: border-box; width: 100%; min-height: 110px; margin: 6px 0; resize: vertical; background: var(--panel-alt); color: inherit; border: 1px solid var(--border); border-radius: 0; font: 0.8rem var(--font-mono); }
+.sprite-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.sprite-foot #sprite-error { flex: 1 1 auto; }
+.sprite-foot #sprite-to { flex: 1 1 auto; color: var(--text-dim); font: 0.8rem var(--font-mono); }
+.sprite-foot #sprite-error:empty { display: none; }
+.sprite-gallery-box { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+.sprite-gallery-box summary { cursor: pointer; font: 0.8rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.sprite-group h4 { margin: 10px 0 4px; font: 0.75rem var(--font-mono); color: var(--text-dim); }
+.sprite-cards { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.sprite-card { display: grid; gap: 4px; justify-items: center; align-content: start; padding: 6px; font: 0.7rem var(--font-mono); text-align: center; }
+.sprite-card-info { font-size: 0.65rem; }
+.sprite-card-info.sprite-over { color: var(--bad); }
+.composer #sprite-button { white-space: nowrap; }
+@media (max-width: 700px) {
+  .composer #sprite-button { flex: 1; }
+}

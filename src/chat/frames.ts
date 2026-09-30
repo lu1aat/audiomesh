@@ -11,8 +11,12 @@
  *   ctrl   kind 3 | src 10 | subtype 3 | subtype body
  *            subtype 0 = hello: 8 chars x 6 bit nickname
  *            subtype 1 = sound: 2 x (station 10 | channel 5 | snr 6), station 0 = unused
+ *            subtype 2 = sprite head: msgId 4 | dst 10 | side-1 4 | bpp-1 2 | data 39
+ *            subtype 3 = sprite body: msgId 4 | seq 4 | side-1 4 | bpp-1 2 | data 45
+ *   (sprites: src/chat/sprite.ts; msgId is the counter chat messages use, so acks work as is)
  *
  * Tail, the same in every kind (the last bits, spare everywhere; zeros in old frames):
+ *   bit 57      sound only: probe, every station that hears it answers with a sound of its own
  *   bit 73      hello and sound only: the sender is a repeater
  *   bits 74..76 via: 0 = sent by `src` itself; 1..7 = repeated by a repeater with that
  *               tag (repeaterTag). `next` ends at bit 73, so 3 bits is all there is.
@@ -33,6 +37,7 @@
 import { PAYLOAD_BITS } from '../protocol/gfsk8/codec';
 import type { LinkReport } from '../ale/lqa';
 import { CHAR_BITS, charToCode, codeToChar } from './charset6';
+import { MAX_SPRITE_SIDE, SPRITE_BODY_BITS, SPRITE_HEAD_BITS } from './sprite';
 
 export const STATION_BITS = 10;
 export const BROADCAST = 0;
@@ -51,7 +56,10 @@ export type ChatFrame =
   | { kind: 'next'; src: number; msgId: number; seq: number; text: string; via?: number }
   | { kind: 'ack'; src: number; dst: number; msgId: number; received: number; heardChannel: number; heardSnrDb: number; via?: number }
   | { kind: 'hello'; src: number; name: string; repeater?: boolean; via?: number }
-  | { kind: 'sound'; src: number; reports: readonly LinkReport[]; repeater?: boolean; via?: number };
+  | { kind: 'sound'; src: number; reports: readonly LinkReport[]; repeater?: boolean; probe?: boolean; via?: number }
+  /** `data` is 0/1 bytes: 39 bits (palette + pixels) in the head, 45 bits (pixels) in a body; seq 1..15. */
+  | { kind: 'spriteHead'; src: number; msgId: number; dst: number; side: number; bpp: number; data: Uint8Array; via?: number }
+  | { kind: 'spriteBody'; src: number; msgId: number; seq: number; side: number; bpp: number; data: Uint8Array; via?: number };
 
 const VIA_BITS = 3;
 const VIA_POS = PAYLOAD_BITS - VIA_BITS;
@@ -87,10 +95,14 @@ export function frameKey(bits: Uint8Array): string {
 const KIND = { first: 0, next: 1, ack: 2, ctrl: 3 } as const;
 const CTRL_HELLO = 0;
 const CTRL_SOUND = 1;
+const CTRL_SPRITE_HEAD = 2;
+const CTRL_SPRITE_BODY = 3;
 
 export const SOUND_REPORTS = 2;
 const CHANNEL_BITS = 5;
 const SNR_BITS = 6;
+/** Right after the two sound reports: 2 (kind) + 10 (src) + 3 (subtype) + 2 x 21. */
+const PROBE_FLAG_POS = 2 + STATION_BITS + 3 + 2 * (STATION_BITS + CHANNEL_BITS + SNR_BITS);
 const SNR_OFFSET_DB = 30;
 const SNR_MAX_CODE = (1 << SNR_BITS) - 1;
 
@@ -110,6 +122,12 @@ class BitWriter {
   putText(text: string, chars: number): void {
     for (let i = 0; i < chars; i++) this.put(charToCode(i < text.length ? text[i]! : ' '), CHAR_BITS);
   }
+
+  /** `count` bits given as 0/1 bytes; a shorter array is zero-padded, a longer one is an error. */
+  putBits(data: Uint8Array, count: number): void {
+    if (data.length > count) throw new Error(`sprite data is ${data.length} bits, at most ${count}`);
+    for (let i = 0; i < count; i++) this.put(data[i] ? 1 : 0, 1);
+  }
 }
 
 class BitReader {
@@ -127,6 +145,20 @@ class BitReader {
     for (let i = 0; i < chars; i++) s += codeToChar(this.get(CHAR_BITS));
     return s;
   }
+
+  getBits(count: number): Uint8Array {
+    const out = new Uint8Array(count);
+    for (let i = 0; i < count; i++) out[i] = this.get(1);
+    return out;
+  }
+}
+
+/** side - 1 (4 bits) and bits per pixel - 1 (2 bits): the same in a sprite's head and body frames. */
+function putSpriteShape(w: BitWriter, frame: { side: number; bpp: number }): void {
+  checkId(frame.side - 1, MAX_SPRITE_SIDE - 1, 'sprite side');
+  checkId(frame.bpp - 1, 3, 'sprite bpp');
+  w.put(frame.side - 1, 4);
+  w.put(frame.bpp - 1, 2);
 }
 
 function checkId(value: number, max: number, what: string): void {
@@ -180,6 +212,28 @@ export function encodeFrame(frame: ChatFrame): Uint8Array {
       w.putText(frame.name, NAME_CHARS);
       if (frame.repeater) w.bits[REPEATER_FLAG_POS] = 1;
       break;
+    case 'spriteHead':
+      checkId(frame.msgId, MSG_ID_COUNT - 1, 'msgId');
+      checkId(frame.dst, MAX_STATION_ID, 'dst');
+      w.put(KIND.ctrl, 2);
+      w.put(frame.src, STATION_BITS);
+      w.put(CTRL_SPRITE_HEAD, 3);
+      w.put(frame.msgId, 4);
+      w.put(frame.dst, STATION_BITS);
+      putSpriteShape(w, frame);
+      w.putBits(frame.data, SPRITE_HEAD_BITS);
+      break;
+    case 'spriteBody':
+      checkId(frame.msgId, MSG_ID_COUNT - 1, 'msgId');
+      if (!Number.isInteger(frame.seq) || frame.seq < 1 || frame.seq > MAX_FRAMES - 1) throw new Error(`sprite seq out of range: ${frame.seq}`);
+      w.put(KIND.ctrl, 2);
+      w.put(frame.src, STATION_BITS);
+      w.put(CTRL_SPRITE_BODY, 3);
+      w.put(frame.msgId, 4);
+      w.put(frame.seq, 4);
+      putSpriteShape(w, frame);
+      w.putBits(frame.data, SPRITE_BODY_BITS);
+      break;
     case 'sound':
       if (frame.reports.length > SOUND_REPORTS) throw new Error(`a sound carries at most ${SOUND_REPORTS} reports`);
       w.put(KIND.ctrl, 2);
@@ -196,6 +250,7 @@ export function encodeFrame(frame: ChatFrame): Uint8Array {
         w.put(r ? snrToCode(r.snrDb) : 0, SNR_BITS);
       }
       if (frame.repeater) w.bits[REPEATER_FLAG_POS] = 1;
+      if (frame.probe) w.bits[PROBE_FLAG_POS] = 1;
       break;
   }
   return frame.via ? withVia(w.bits, frame.via) : w.bits;
@@ -213,6 +268,7 @@ export function decodeFrame(bits: Uint8Array): ChatFrame | null {
   const via = viaOf(bits);
   if (via) frame.via = via;
   if ((frame.kind === 'hello' || frame.kind === 'sound') && bits[REPEATER_FLAG_POS]) frame.repeater = true;
+  if (frame.kind === 'sound' && bits[PROBE_FLAG_POS]) frame.probe = true;
   return frame;
 }
 
@@ -249,6 +305,21 @@ function decodeBody(r: BitReader, kind: number, src: number): ChatFrame | null {
           if (station !== 0) reports.push({ station, channel, snrDb });
         }
         return { kind: 'sound', src, reports };
+      }
+      if (subtype === CTRL_SPRITE_HEAD) {
+        const msgId = r.get(4);
+        const dst = r.get(STATION_BITS);
+        const side = r.get(4) + 1;
+        const bpp = r.get(2) + 1;
+        return { kind: 'spriteHead', src, msgId, dst, side, bpp, data: r.getBits(SPRITE_HEAD_BITS) };
+      }
+      if (subtype === CTRL_SPRITE_BODY) {
+        const msgId = r.get(4);
+        const seq = r.get(4);
+        if (seq === 0) return null; // the head is frame 0 and has its own subtype
+        const side = r.get(4) + 1;
+        const bpp = r.get(2) + 1;
+        return { kind: 'spriteBody', src, msgId, seq, side, bpp, data: r.getBits(SPRITE_BODY_BITS) };
       }
       return null;
     }

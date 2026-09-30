@@ -1,6 +1,7 @@
 /** One-line, human readable form of a chat frame, for the debug log. Pure. */
 
 import { decodeFrame, type ChatFrame } from './frames';
+import { spriteFrameCount } from './sprite';
 
 /** " · repeater" for a station that says it repeats, " · repeated (tag n)" for a copy sent by a repeater. */
 function relayNote(f: ChatFrame): string {
@@ -29,12 +30,16 @@ function describeBody(f: ChatFrame, label: (id: number) => string): string {
     }
     case 'hello':
       return `${who} · hello, name "${f.name}"`;
+    case 'spriteHead':
+      return `${who} → ${f.dst === 0 ? 'everyone' : label(f.dst)} · msg ${f.msgId} sprite ${f.side}×${f.side}, ${1 << f.bpp} colours · frame 1/${spriteFrameCount(f.side, f.bpp)}`;
+    case 'spriteBody':
+      return `${who} · msg ${f.msgId} sprite ${f.side}×${f.side} · frame ${f.seq + 1}/${spriteFrameCount(f.side, f.bpp)}`;
     case 'sound':
       return `${who} · sound${f.reports.map((r) => ` · hears ${label(r.station)} on ch ${r.channel} at ${r.snrDb} dB`).join('')}`;
   }
 }
 
-export type FrameType = 'first' | 'next' | 'ack' | 'hello' | 'sound' | 'invalid';
+export type FrameType = 'first' | 'next' | 'spriteHead' | 'spriteBody' | 'ack' | 'hello' | 'sound' | 'invalid';
 
 /** A frame split into table columns. `dst` is 0 for everyone, undefined when the frame names nobody. */
 export interface FrameFields {
@@ -68,6 +73,10 @@ function fieldsBody(f: ChatFrame, label: (id: number) => string): FrameFields {
     }
     case 'hello':
       return { type: 'hello', src: f.src, detail: `name "${f.name}"` };
+    case 'spriteHead':
+      return { type: 'spriteHead', src: f.src, dst: f.dst, msgId: f.msgId, detail: `sprite ${f.side}×${f.side}, ${1 << f.bpp} colours, frame 1/${spriteFrameCount(f.side, f.bpp)}` };
+    case 'spriteBody':
+      return { type: 'spriteBody', src: f.src, msgId: f.msgId, detail: `sprite ${f.side}×${f.side}, frame ${f.seq + 1}/${spriteFrameCount(f.side, f.bpp)}` };
     case 'sound':
       return { type: 'sound', src: f.src, detail: f.reports.map((r) => `hears ${label(r.station)} on ch ${r.channel} at ${r.snrDb} dB`).join(' · ') || 'no reports' };
   }

@@ -55,8 +55,47 @@
             <select id="dst-select" aria-label="Send to"></select>
             <input id="msg-input" type="text" maxlength="142" placeholder="message, up to 142 characters" autocomplete="off" spellcheck="false" />
             <button id="send-button" class="primary" disabled>Send at next slot</button>
+            <button id="sprite-button" type="button" title="Draw a small picture (a sprite) and send it in a few frames"><span aria-hidden="true">▦</span> Sprite</button>
             <button id="announce-chat" type="button" class="announce-button" title="Tell other stations your name" disabled><span aria-hidden="true">👋</span> Announce</button>
           </div>
+          <dialog id="sprite-dialog" class="sprite-dialog" aria-labelledby="sprite-title">
+            <div class="sprite-head">
+              <h3 id="sprite-title">Sprite</h3>
+              <button id="sprite-close" type="button" aria-label="Close">✕</button>
+            </div>
+            <div class="sprite-edit">
+              <div class="sprite-tools">
+                <label>Size <select id="sprite-size"></select></label>
+                <label>Colours <select id="sprite-colours"></select></label>
+                <div id="sprite-swatches" class="sprite-swatches" role="group" aria-label="Colour"></div>
+                <p class="hint">Left button paints, right button erases. Pick a picture below to start from it.</p>
+                <div class="sprite-buttons">
+                  <button id="sprite-fill" type="button">Fill with colour</button>
+                  <button id="sprite-clear" type="button">Clear</button>
+                </div>
+              </div>
+              <canvas id="sprite-canvas" class="sprite-paint" aria-label="Sprite editor"></canvas>
+              <div class="sprite-out">
+                <div id="sprite-stats" class="sprite-stats"></div>
+                <div id="sprite-previews" class="sprite-previews"></div>
+                <details class="sprite-rows">
+                  <summary>Rows as text</summary>
+                  <p class="hint">One hex digit per pixel (a colour of the palette), <code>.</code> = background. Edit and apply, or copy out.</p>
+                  <textarea id="sprite-text" spellcheck="false"></textarea>
+                  <button id="sprite-apply" type="button">Apply text</button>
+                </details>
+              </div>
+            </div>
+            <div class="sprite-foot">
+              <span id="sprite-to"></span>
+              <span id="sprite-error" class="sprite-over" role="alert"></span>
+              <button id="sprite-send" type="button" class="primary" disabled>Send at next slot</button>
+            </div>
+            <details class="sprite-gallery-box" open>
+              <summary>Gallery</summary>
+              <div id="sprite-gallery" class="sprite-gallery"></div>
+            </details>
+          </dialog>
         </section>
 
         <section id="screen-network" class="screen screen-link">
@@ -239,6 +278,23 @@
             Announcement interval (minutes)
             <input id="announce-interval" type="number" min="1" max="120" step="1" inputmode="numeric" />
           </label>
+          <div class="sprite-settings">
+            <h3>Sprites</h3>
+            <label>
+              Pixel size
+              <input id="sprite-pixel-size" type="range" min="2" max="40" step="1" />
+              <output id="sprite-pixel-size-out" for="sprite-pixel-size"></output> px
+            </label>
+            <label>
+              Missing pixels of a partly received sprite
+              <select id="sprite-holes">
+                <option value="fill">filled from the nearest received pixel</option>
+                <option value="checker">shown as a checker board</option>
+              </select>
+            </label>
+            <p class="hint">Pixel size is how large one sprite pixel is drawn in the chat and in the editor (wide sprites shrink to fit a narrow screen).</p>
+            <canvas id="sprite-sample" class="sprite-canvas" aria-label="Sprite size preview"></canvas>
+          </div>
           <div class="stored-data">
             <h3>Stored data</h3>
             <p class="hint">Kept in this browser between visits. Each part is cleared on its own: clearing one leaves the others.</p>

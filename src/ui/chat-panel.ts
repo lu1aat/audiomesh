@@ -18,6 +18,9 @@ import { normalizeText } from '../chat/charset6';
 import { BROADCAST, MAX_TEXT_CHARS, decodeFrame, repeaterTag, viaOf, type ChatFrame } from '../chat/frames';
 import { LOAD_WINDOW_SLOTS, channelLoad, quietestChannel, type HeardOn } from '../ale/channel-load';
 import type { ChatSession, InMessage, OutMessage, Via } from '../chat/session';
+import { paletteToString, pixelsToString, spriteColours, spriteFrameCount, viewFromStrings, viewOf, type Sprite } from '../chat/sprite';
+import { SpriteEditor } from './sprite-editor';
+import { DEFAULT_PIXEL_PX, drawSprite, type HoleStyle } from './sprite-view';
 import type { FrameCodec, Protocol } from '../protocol/protocol';
 import { distinctFrames } from '../protocol/multi-decode';
 import { CHAT_KEY, DEBUG_KEY, STATIONS_KEY, DeferredSaver, loadJson, removeKey, saveJson } from '../storage/store';
@@ -25,6 +28,19 @@ import { nextSlotStartMs } from '../protocol/slot-clock';
 import { frameDurationSec } from '../protocol/spec';
 
 const MAX_ROWS = 500;
+
+/** A sprite in a chat line, as stored: the pixels as text (`.` = never arrived), see sprite.ts `viewFromStrings`. */
+interface SpriteLine {
+  side: number;
+  bpp: number;
+  palette?: string;
+  pixels: string;
+  /** Frames heard (sent: all of them) out of `frames`. */
+  got: number;
+  frames: number;
+  /** No more frames are expected (complete, timed out, or sent by us). */
+  done: boolean;
+}
 
 /**
  * One line of the chat as kept in localStorage: only what is shown, already worded
@@ -41,6 +57,8 @@ interface LogEntry {
   info?: [string, string][];
   /** A received directed message: what "Resend ACK" needs. */
   ack?: { src: number; msgId: number; frames: number };
+  /** A sprite instead of text (`text` is then just a label such as "sprite 8×8"). */
+  sprite?: SpriteLine;
   /** Details saved before `info` existed: plain lines. */
   details?: string[];
   /** Delivery state of a sent message: the CSS class, the short label and the explanation (a tooltip). */
@@ -71,6 +89,11 @@ function parseLog(raw: unknown): LogEntry[] {
     }
     const a = e.ack;
     if (a && [a.src, a.msgId, a.frames].every((v) => Number.isInteger(v) && v >= 0)) entry.ack = { src: a.src, msgId: a.msgId, frames: a.frames };
+    const sl = e.sprite;
+    if (sl && typeof sl === 'object' && Number.isInteger(sl.got) && Number.isInteger(sl.frames) && viewFromStrings(sl.side, sl.bpp, sl.palette, sl.pixels)) {
+      // The session that was receiving it is gone with the page: whatever is here is final.
+      entry.sprite = { side: sl.side, bpp: sl.bpp, ...(typeof sl.palette === 'string' ? { palette: sl.palette } : {}), pixels: sl.pixels, got: sl.got, frames: sl.frames, done: true };
+    }
     if (typeof e.station === 'number') entry.station = e.station;
     else if (entry.who) {
       // Saved before stations were stored: the label ends in "(#id)" or "#id".
@@ -145,6 +168,8 @@ function kindText(f: ChatFrame): string {
   switch (f.kind) {
     case 'first': return 'message (first frame)';
     case 'next': return `message frame ${f.seq + 1}`;
+    case 'spriteHead': return 'sprite (first frame)';
+    case 'spriteBody': return `sprite frame ${f.seq + 1}`;
     case 'ack': return 'ack';
     case 'hello': return `announcement "${f.name}"`;
     case 'sound': return 'network probe';
@@ -175,6 +200,16 @@ function fillInfo(box: HTMLElement, entry: LogEntry, action?: HTMLElement): void
     l.textContent = line;
     box.append(l);
   }
+}
+
+/** The parts of a chat line the panel keeps to update it later. */
+interface Bubble {
+  /** A sent message's delivery state; null for received lines. */
+  state: HTMLElement | null;
+  /** The ⓘ details box. */
+  status: HTMLElement;
+  /** A sprite line: redraw it after its pixels changed. */
+  sprite?: { redraw: () => void };
 }
 
 export class ChatPanel {
@@ -215,7 +250,14 @@ export class ChatPanel {
   }
   /** The newest thing that happened: a frame received or sent. */
   lastAction: { atMs: number; text: string } | null = null;
-  private readonly outBubbles = new Map<number, { state: HTMLElement; status: HTMLElement; entry: LogEntry; levelPct: number }>();
+  private readonly outBubbles = new Map<number, { state: HTMLElement | null; status: HTMLElement; entry: LogEntry; levelPct: number }>();
+  /** Sprites being received: the session's message uid -> its chat line, until it is final. */
+  private readonly spriteBubbles = new Map<number, { entry: LogEntry; parts: Bubble }>();
+  /** Redraws of every sprite canvas in the chat, for when the pixel size or hole style changes. */
+  private readonly spriteRedraws = new Set<{ canvas: HTMLCanvasElement; redraw: () => void }>();
+  private spritePx = DEFAULT_PIXEL_PX;
+  private spriteHoles: HoleStyle = 'fill';
+  private readonly editor: SpriteEditor;
   private readonly known = new Map<number, string>();
   private log: LogEntry[] = [];
   private readonly chatSaver = new DeferredSaver(() => saveJson(CHAT_KEY, this.log));
@@ -264,6 +306,14 @@ export class ChatPanel {
       this.addNotice(`${this.label(id)} announced itself`);
       this.notifier?.notify('Station announced', `${this.label(id)} announced itself`, `hello-${id}`);
     };
+    this.editor = new SpriteEditor({
+      slotSec: protocol.spec.slotSec,
+      pixelPx: () => this.spritePx,
+      recipient: () => ({ label: this.who(Number(this.dstSelect.value)), canSend: this.canTransmit }),
+      send: (sprite) => this.sendSprite(sprite),
+    });
+    document.getElementById('sprite-button')?.addEventListener('click', () => this.editor.open());
+    session.events.spriteProgress = (m) => this.showSprite(m, false);
     this.button.addEventListener('click', () => this.onSendClicked());
     this.input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !this.button.disabled) this.onSendClicked();
@@ -281,6 +331,8 @@ export class ChatPanel {
   clearChat(): void {
     this.log = [];
     this.outBubbles.clear();
+    this.spriteBubbles.clear();
+    this.spriteRedraws.clear();
     this.list.replaceChildren();
     this.chatSaver.cancel();
     removeKey(CHAT_KEY);
@@ -317,10 +369,38 @@ export class ChatPanel {
     this.blinkRecipient();
   }
 
-  /** Refill the composer with a failed message's text and recipient, so sending it again is one tap. */
+  /** Refill the composer with a failed message's text and recipient, so sending it again is one tap. A sprite goes back into the editor. */
   private retryFailed(m: OutMessage): void {
     this.selectRecipient(m.dst);
+    if (m.content.kind === 'sprite') {
+      this.editor.loadSprite(m.content.sprite);
+      this.editor.open();
+      return;
+    }
     this.input.value = m.text;
+  }
+
+  /** Pixel size and the look of missing pixels for every sprite shown (settings): redraws what is on screen. */
+  setSpriteStyle(pixelPx: number, holes: HoleStyle): void {
+    this.spritePx = pixelPx;
+    this.spriteHoles = holes;
+    for (const r of this.spriteRedraws) {
+      if (r.canvas.isConnected) r.redraw();
+      else this.spriteRedraws.delete(r);
+    }
+    if (this.editor.isOpen) this.editor.refresh();
+  }
+
+  /** The editor's Send: queue the sprite for the recipient chosen in the composer; an error text when it cannot. */
+  private sendSprite(sprite: Sprite): string | null {
+    try {
+      this.session.sendSprite(Number(this.dstSelect.value), sprite);
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    }
+    this.pump();
+    this.refresh();
+    return null;
   }
 
   /** Flash the recipient selector so it is clear who the next message goes to. */
@@ -393,9 +473,9 @@ export class ChatPanel {
     this.pump();
   }
 
-  /** Ask for a sound (beacon with link reports) to go out in the next free slot. */
-  sound(): void {
-    this.session.sound();
+  /** Ask for a sound (beacon with link reports) to go out in the next free slot; `probe` makes every station answer. */
+  sound(probe = false): void {
+    this.session.sound(probe);
     this.pump();
   }
 
@@ -468,7 +548,8 @@ export class ChatPanel {
     const numbers = band.map((c) => c.number);
     if (!this.autoSound && this.selected) return { ...this.selected, why: 'selected channel, auto test off' };
     const isSound = decodeFrame(payload)?.kind === 'sound';
-    if (isSound && numbers.length > 0) {
+    // An answer to a probe (dst = the prober) picks its channel like any directed frame.
+    if (isSound && dst === BROADCAST && numbers.length > 0) {
       const n = soundChannel(this.session.stationId, this.soundCount++, numbers);
       return { ...byNumber(n)!, why: 'sound rotation' };
     }
@@ -613,6 +694,8 @@ export class ChatPanel {
         const total = this.session.outlook().sending?.total;
         return `message frame ${f.seq + 1}${total ? `/${total}` : ''} to ${this.who(dst)}`;
       }
+      case 'spriteHead': return `sprite frame 1/${spriteFrameCount(f.side, f.bpp)} to ${this.who(f.dst)}`;
+      case 'spriteBody': return `sprite frame ${f.seq + 1}/${spriteFrameCount(f.side, f.bpp)} to ${this.who(dst)}`;
       case 'ack': return `ack to ${this.who(f.dst)}`;
       case 'hello': return 'announcement';
       case 'sound': return 'network probe';
@@ -623,7 +706,7 @@ export class ChatPanel {
   private describeRx(payload: Uint8Array): string {
     const f = decodeFrame(payload);
     if (!f) return 'a frame';
-    const to = f.kind === 'first' || f.kind === 'ack' ? ` to ${f.dst === this.session.stationId ? 'us' : this.who(f.dst)}` : '';
+    const to = f.kind === 'first' || f.kind === 'spriteHead' || f.kind === 'ack' ? ` to ${f.dst === this.session.stationId ? 'us' : this.who(f.dst)}` : '';
     return `${kindText(f)} from ${this.label(f.src)}${to}${f.via ? ' through a repeater' : ''}`;
   }
 
@@ -654,7 +737,7 @@ export class ChatPanel {
       const queued = o.queued ? `; ${o.queued} more message${o.queued === 1 ? '' : 's'} queued` : '';
       return `waiting for an ack from ${this.who(o.waitingAck.dst)} (up to ${secs((o.waitingAck.untilSlot + 1) * slotMs - nowMs)} s)${queued}`;
     }
-    if (o.sending) return `sending a message to ${this.who(o.sending.dst)}: ${o.sending.left} of ${o.sending.total} frames to go (${nextSlot})`;
+    if (o.sending) return `sending a ${o.sending.sprite ? 'sprite' : 'message'} to ${this.who(o.sending.dst)}: ${o.sending.left} of ${o.sending.total} frames to go (${nextSlot})`;
     if (o.queued) return `sending ${o.queued} queued message${o.queued === 1 ? '' : 's'} (${nextSlot})`;
     if (o.sound) return `sending a network probe (${beaconWait})`;
     return `listening (${nextSlot})`;
@@ -716,14 +799,14 @@ export class ChatPanel {
   }
 
   /** Append to the kept log and show it. */
-  private add(entry: LogEntry): { state: HTMLElement; status: HTMLElement } | null {
+  private add(entry: LogEntry): Bubble | null {
     this.log.push(entry);
     while (this.log.length > MAX_ROWS) this.log.shift();
     this.chatSaver.touch();
     return this.render(entry, true);
   }
 
-  private render(entry: LogEntry, live = false): { state: HTMLElement; status: HTMLElement } | null {
+  private render(entry: LogEntry, live = false): Bubble | null {
     if (entry.kind === 'notice') {
       this.appendItem(this.noticeItem(entry), false);
       return null;
@@ -752,6 +835,10 @@ export class ChatPanel {
   }
 
   private showIncoming(m: InMessage): void {
+    if (m.sprite) {
+      this.showSprite(m, true);
+      return;
+    }
     this.onIncoming?.();
     this.notifier?.notify(
       this.label(m.src) + (m.dst === BROADCAST ? '' : ' (to you)'),
@@ -784,6 +871,81 @@ export class ChatPanel {
     });
   }
 
+  /**
+   * A sprite from another station: one chat line that fills in as its frames arrive
+   * (`final` false), and is settled by the session's `incoming` (complete, or timed out
+   * with frames missing). The line is keyed on the message, so a reused id starts a new one.
+   */
+  private showSprite(m: InMessage, final: boolean): void {
+    const view = m.sprite!;
+    const known = this.known.has(m.src);
+    if (!known) {
+      this.known.set(m.src, '');
+      this.stationsSaver.touch();
+      this.fillRecipients();
+    }
+    const at = m.slot * this.protocol.spec.slotSec * 1000;
+    const line: SpriteLine = {
+      side: view.side, bpp: view.bpp, ...(view.paletteKnown && view.palette ? { palette: paletteToString(view.palette) } : {}),
+      pixels: pixelsToString(view), got: m.framesGot ?? 0, frames: m.frames, done: final,
+    };
+    const fields = {
+      text: `sprite ${view.side}×${view.side}`,
+      info: this.spriteInInfo(m, at),
+      sprite: line,
+      ...(m.dst === this.session.stationId ? { ack: { src: m.src, msgId: m.msgId, frames: m.frames } } : {}),
+    };
+    let shown = this.spriteBubbles.get(m.uid);
+    if (!shown) {
+      const entry: LogEntry = { kind: 'in', atMs: at, who: this.label(m.src), station: m.src, ...fields };
+      shown = { entry, parts: this.add(entry)! };
+      this.spriteBubbles.set(m.uid, shown);
+      this.onIncoming?.();
+    } else {
+      Object.assign(shown.entry, fields);
+      this.chatSaver.touch();
+    }
+    shown.parts.sprite?.redraw();
+    fillInfo(shown.parts.status, shown.entry, this.ackButton(shown.entry));
+    if (!final) return;
+    this.spriteBubbles.delete(m.uid);
+    this.notifier?.notify(
+      this.label(m.src) + (m.dst === this.session.stationId ? ' (to you)' : ''),
+      `${fields.text}${m.partial ? ` (partial, ${line.got} of ${line.frames} frames)` : ''}`,
+      `msg-${m.src}`,
+    );
+  }
+
+  /** The ⓘ lines of a received sprite. */
+  private spriteInInfo(m: InMessage, at: number): [string, string][] {
+    const ch = this.channels.find((c) => c.number === m.channel);
+    const got = m.framesGot ?? 0;
+    const missing = Array.from({ length: m.frames }, (_, i) => i).filter((i) => !((m.framesMask ?? 0) & (1 << i))).map((i) => i + 1);
+    const complete = missing.length === 0;
+    let to: string;
+    let ack: string;
+    if (m.dst === null) {
+      to = 'unknown (the first frame, which names it, was not heard)';
+      ack = 'none until the first frame is heard';
+    } else if (m.dst === BROADCAST) {
+      to = 'everyone';
+      ack = 'none (broadcasts are not confirmed)';
+    } else {
+      to = 'you';
+      ack = complete ? `queued back to ${this.label(m.src)}` : `sent when ${this.label(m.src)} pauses, listing what is missing`;
+    }
+    return [
+      ['From', this.label(m.src)],
+      ['To', to],
+      ['Path', m.via ? `repeated by ${this.repeaterName(m.via)}` : 'direct'],
+      ['ACK', ack],
+      ['Signal', `${signed(m.snrDb, 0)} dB weakest frame${m.via ? ', the repeater\'s' : ''}`],
+      ['Channel', `${ch?.number ?? '?'} · ${ch?.baseHz ?? '?'} Hz`],
+      ['Sprite', `${m.sprite!.side}×${m.sprite!.side}, ${1 << m.sprite!.bpp} colours`],
+      ['Frames', complete ? `${m.frames}, complete at ${clock(at)}` : `${got} of ${m.frames}, missing ${missing.join(', ')}`],
+    ];
+  }
+
   private showOutgoing(m: OutMessage): void {
     let entry = this.outBubbles.get(m.localId);
     if (!entry) {
@@ -793,6 +955,7 @@ export class ChatPanel {
         text: m.text,
         who: m.dst === BROADCAST ? null : `to ${this.label(m.dst)}`,
         station: m.dst === BROADCAST ? undefined : m.dst,
+        ...(m.content.kind === 'sprite' ? { sprite: sentSpriteLine(m.content.sprite, m.frames) } : {}),
         info: [],
         stateClass: '',
         stateText: '',
@@ -801,7 +964,7 @@ export class ChatPanel {
       entry = { ...this.add(record)!, entry: record, levelPct: Math.round(this.getLevel() * 100) };
       this.outBubbles.set(m.localId, entry);
     }
-    const el = entry.state;
+    const el = entry.state!;
     const { icon, label, meaning } = this.describeState(m);
     const rec = entry.entry;
     if (m.state === 'delivered' && rec.stateClass !== 'bubble-state state-delivered') this.onDelivered?.();
@@ -840,8 +1003,10 @@ export class ChatPanel {
     const path = m.echoedFrames > 0
       ? `repeated by ${m.echoedBy !== null ? this.label(m.echoedBy) : 'a repeater'}, ${m.echoedFrames} of ${all} heard back`
       : 'direct (no repeat heard)';
+    const sprite = m.content.kind === 'sprite' ? m.content.sprite : null;
     return [
       ['To', broadcast ? 'everyone' : this.label(m.dst)],
+      ...(sprite ? [['Sprite', `${sprite.side}×${sprite.side}, ${1 << sprite.bpp} colours`] as [string, string]] : []),
       ['Status', status],
       ['ACK', ack],
       ['Retry', retry],
@@ -925,7 +1090,7 @@ export class ChatPanel {
   }
 
   /** Builds a bubble from a log entry. Returns the elements that show a sent message's delivery state (null for received ones). */
-  private addBubble(entry: LogEntry, forceScroll = false): { state: HTMLElement; status: HTMLElement } | null {
+  private addBubble(entry: LogEntry, forceScroll = false): Bubble {
     const kind = entry.kind === 'out' ? 'out' : 'in';
     const item = document.createElement('li');
     item.className = `bubble bubble-${kind}`;
@@ -945,9 +1110,12 @@ export class ChatPanel {
         this.selectRecipient(replyTo);
       });
     }
-    const textEl = document.createElement('div');
-    textEl.className = 'bubble-text';
-    textEl.textContent = entry.text;
+    const sprite = entry.sprite ? this.spriteBlock(entry) : null;
+    const textEl = sprite?.el ?? document.createElement('div');
+    if (!sprite) {
+      textEl.className = 'bubble-text';
+      textEl.textContent = entry.text;
+    }
     const foot = document.createElement('div');
     foot.className = 'bubble-foot';
     const time = document.createElement('span');
@@ -976,6 +1144,43 @@ export class ChatPanel {
     foot.append(time, toggle);
     item.append(textEl, foot, info);
     this.appendItem(item, forceScroll && kind === 'out');
-    return state ? { state, status: info } : null;
+    return { state, status: info, ...(sprite ? { sprite } : {}) };
   }
+
+  /** A sprite's canvas and its "n of m frames" note; `redraw` reads the line again (the pixels, the pixel size setting). */
+  private spriteBlock(entry: LogEntry): { el: HTMLElement; redraw: () => void } {
+    const el = document.createElement('div');
+    el.className = 'bubble-text bubble-sprite';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'sprite-canvas';
+    canvas.setAttribute('role', 'img');
+    const note = document.createElement('div');
+    note.className = 'bubble-sprite-note';
+    el.append(canvas, note);
+    const redraw = (): void => {
+      const line = entry.sprite;
+      const view = line && viewFromStrings(line.side, line.bpp, line.palette, line.pixels);
+      if (!line || !view) return;
+      drawSprite(canvas, view.side, this.spritePx, spriteColours(view, this.spriteHoles), true);
+      note.textContent = spriteNote(entry.kind, line);
+      canvas.setAttribute('aria-label', `sprite ${line.side}×${line.side}, ${note.textContent}`);
+    };
+    redraw();
+    if (this.spriteRedraws.size > MAX_ROWS) for (const r of this.spriteRedraws) if (!r.canvas.isConnected) this.spriteRedraws.delete(r);
+    this.spriteRedraws.add({ canvas, redraw });
+    return { el, redraw };
+  }
+}
+
+/** A sprite we sent, as a chat line: every pixel known. */
+function sentSpriteLine(sprite: Sprite, frames: number): SpriteLine {
+  const view = viewOf(sprite);
+  return { side: sprite.side, bpp: sprite.bpp, ...(sprite.palette ? { palette: paletteToString(sprite.palette) } : {}), pixels: pixelsToString(view), got: frames, frames, done: true };
+}
+
+/** Under a sprite: how much of it there is. */
+function spriteNote(kind: LogEntry['kind'], line: SpriteLine): string {
+  const all = `${line.frames} frame${line.frames === 1 ? '' : 's'}`;
+  if (kind === 'out' || line.got >= line.frames) return all;
+  return `${line.done ? 'partial' : 'receiving'}, ${line.got} of ${all}`;
 }

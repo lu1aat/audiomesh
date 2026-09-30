@@ -261,6 +261,34 @@ channel and everyone decodes it. What ALE adds is *which* channel to use.
   round 1; without pacing it fails. Not yet tried over the air.
 
 ## Persistence (localStorage, `src/storage/store.ts`)
+## Sprites (small pictures as network traffic)
+
+A sprite is a 1x1..16x16 picture of fixed-palette colours (PICO-8, 16 colours; 1..4 bits per
+pixel, 2..16 colours), sent as a head frame + up to 15 body frames: `ctrl` subtypes 2 and 3 in
+`chat/frames.ts` (`spriteHead`, `spriteBody`; wire format in `network-protocol.md` §9). The design
+goal is **partial reception**: raw pixels (no RLE), every body frame repeats `side` and `bpp`,
+whole pixels per frame, in the 16x16 Bayer order (`pixelOrder`), so a lost frame leaves scattered
+pixels and the first frames already show the whole picture coarsely.
+- `chat/sprite.ts` (pure): `encodeSprite`, `SpriteAssembly` (frames in any order, `known` mask,
+  `conflicts` = same `seq` with other data = reused message id), `fillHoles` (display only),
+  `spriteColours(view, 'checker' | 'fill')`, `quantize`, storage strings (`pixelsToString`: one hex
+  digit per pixel, `.` = never arrived). The Sprite type says `bpp`; the wire field is `depth` = bpp-1.
+  `chat/sprite-gallery.ts`: default sprites as text rows (from the design page) + `parseRows`/`toRows`.
+- `ChatSession.sendSprite(dst, sprite)`: same stop-and-wait, msgIds, ack bitmap, retransmit rounds,
+  "Resend ACK" and repeater as text (`OutMessage.content`, `spriteData`). Receive: `spriteProgress`
+  event per new frame (a snapshot `InMessage` with `sprite`, `framesGot`, `framesMask`, `partial`),
+  `incoming` when complete, and once with `partial: true` when it times out incomplete (60 slots).
+  `InMessage.uid` is per received message (a reused id gets a new one): the UI keys the chat line on it.
+  `dst` is null when the head was not heard. A head naming someone else makes the session ignore that
+  message's bodies too (`spritesForOthers`). Frames past the last, or of a shape over 16 frames, are dropped.
+- UI: Sprite button in the composer opens the editor dialog (`ui/sprite-editor.ts`: size, colours,
+  paint/erase, live frame count and airtime, "as sent" preview, rows-as-text, gallery); Send uses the
+  composer's recipient. Chat lines draw a canvas (`ui/sprite-view.ts`) with "n of m frames" and fill in as
+  frames arrive; a failed sent sprite reopens in the editor when its status is tapped. Settings > Sprites:
+  `spritePixelSize` (2..40 px, default 10; sprites wider than the bubble shrink to fit) and `spriteHoles`
+  (`fill` default = nearest received pixel, or `checker`). A sprite line stores `sprite` in `audiochat:chat`;
+  restored lines are final. All frames lists `spriteHead`/`spriteBody`. Not yet tried over the air.
+
 
 Four independent keys, each cleared by its own button in Settings > Stored data: `audiochat:chat`
 (chat lines and notices; notices expire 5 min after they appeared, on screen, in storage and on restore; stored already worded so restoring needs no session; sent messages still in

@@ -10,7 +10,7 @@ import type { FrameType } from '../chat/describe';
 /** More rows than this make the page slow to redraw; the filters narrow what is left. */
 const MAX_SHOWN = 300;
 
-const TYPES: readonly ('all' | FrameType)[] = ['all', 'first', 'next', 'ack', 'hello', 'sound', 'invalid'];
+const TYPES: readonly ('all' | FrameType)[] = ['all', 'first', 'next', 'spriteHead', 'spriteBody', 'ack', 'hello', 'sound', 'invalid'];
 
 type SortKey = 'time' | 'channel' | 'snr';
 

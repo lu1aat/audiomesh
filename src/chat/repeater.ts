@@ -3,7 +3,7 @@
  * our via tag so nobody repeats it again and receivers do not mistake our signal for
  * the sender's. Pure: no audio, no clock; time is the UTC slot index.
  *
- * What is repeated: first, next, ack and hello frames heard direct (via 0) from other
+ * What is repeated: first, next, sprite head/body, ack and hello frames heard direct (via 0) from other
  * stations. Never sounds (a sound measures one link; a repeated copy would mislead),
  * never frames addressed to us (we are their destination), never our own.
  *
@@ -48,10 +48,10 @@ export class Repeater {
     const f = decodeFrame(payload);
     if (!f || f.via || f.src === this.stationId || f.kind === 'sound') return;
     let dst = BROADCAST;
-    if (f.kind === 'first') {
+    if (f.kind === 'first' || f.kind === 'spriteHead') {
       this.messageDst.set(`${f.src}:${f.msgId}`, { dst: f.dst, slot });
       dst = f.dst;
-    } else if (f.kind === 'next') {
+    } else if (f.kind === 'next' || f.kind === 'spriteBody') {
       dst = this.messageDst.get(`${f.src}:${f.msgId}`)?.dst ?? BROADCAST;
     } else if (f.kind === 'ack') dst = f.dst;
     if (dst === this.stationId) return;
