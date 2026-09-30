@@ -199,6 +199,8 @@ export class LinkView {
     const slot = Math.floor(nowMs / (this.slotSec * 1000));
     const model = buildLinkModel(this.lqa, this.getChannels(), slot, this.slotSec, this.getMyId(), this.getRelay(), this.historyRange * 60);
     for (const s of model.stations) if (!this.colorIndex.has(s.id)) this.colorIndex.set(s.id, this.colorIndex.size);
+    // A cropped map (see graphSection) should not be stretched to the height of the Channels card.
+    document.getElementById('map-block')?.classList.toggle('map-compact', model.nodes.length - 1 < 3);
     this.renderClock(nowMs);
     const scrollTop = this.frameTable.scrollTop;
     this.frameTable.refresh();
@@ -695,6 +697,12 @@ export class LinkView {
       Math.max(-99, ...model.edges.filter((e) => (e.from === id && e.to === me) || (e.to === id && e.from === me)).map((e) => e.snrDb));
     const order = nodes.filter((id) => id !== me).sort((a, b) => toMe(b) - toMe(a) || a - b);
     const pos = snapToHexGrid(ideal, order, me, cells, NR, W);
+    // With fewer than three other stations the top of the map is empty: cut it off. The viewBox
+    // keeps the width, so cells and stations stay the same size; only the height shrinks.
+    if (nodes.length - 1 < 3) {
+      const cropTop = Math.max(0, Math.floor(Math.min(...[...pos.values()].map((c) => c.y)) - NR - 14));
+      chart.setAttribute('viewBox', `0 ${cropTop} ${W} ${W - cropTop}`);
+    }
 
     const grid = svg('g', { class: 'hex-grid', 'aria-hidden': 'true' });
     for (const c of cells) grid.append(svg('polygon', { points: hexPoints(NR - 2, c.x, c.y), class: 'hex-cell' }));

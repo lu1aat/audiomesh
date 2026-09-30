@@ -285,7 +285,7 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .network-map > .channel-block, .network-waterfall > .channel-block { flex: 1 1 auto; min-width: 0; }
 /* A collapsed card (see disclosure() in main.ts) drops out of the height match, so it
    doesn't sit stretched and empty next to a sibling that is still open. */
-.network-map > .channel-block.is-collapsed, .network-waterfall > .channel-block.is-collapsed { align-self: flex-start; }
+.network-map > .channel-block.is-collapsed, .network-waterfall > .channel-block.is-collapsed, .network-map > .channel-block.map-compact { align-self: flex-start; }
 .network-graph { min-width: 0; }
 .network-graph .link-section { margin: 0; border: 0; background: transparent; padding: 0; }
 
