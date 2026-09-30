@@ -4,7 +4,7 @@
  * state itself.
  */
 
-import { referenceTonesHz, type Band, type Channel } from '../band/band-plan';
+import { bandForChannel, type Channel } from '../band/band-plan';
 import type { AudioEngine } from '../audio/engine';
 
 /** Slider position (1..50) to linear gain (0.01..0.5). Kept well under full scale. */
@@ -19,7 +19,9 @@ export class TestToneControl {
   private readonly state = document.getElementById('tone-state') as HTMLElement;
   private selected: Channel | null = null;
 
-  constructor(private readonly engine: AudioEngine) {
+  /** `allChannels` covers every band the current protocol fits (see `listChannels(spec)`). */
+  constructor(private readonly engine: AudioEngine, private readonly allChannels: readonly Channel[]) {
+    this.buildOptions();
     this.source.addEventListener('change', () => {
       this.customLabel.hidden = this.source.value !== 'custom';
       this.retune();
@@ -41,16 +43,26 @@ export class TestToneControl {
     return levelToGain(this.level.valueAsNumber);
   }
 
-  /** Rebuild the frequency choices for a band: selected channel, its reference tones, custom. */
-  setBand(band: Band): void {
-    const [low, centre, high] = referenceTonesHz(band) as [number, number, number];
-    const options: [string, string][] = [
-      ['channel', 'Selected channel (centre)'],
-      [String(low), `Low reference, ${low} Hz`],
-      [String(centre), `Centre reference, ${centre} Hz`],
-      [String(high), `High reference, ${high} Hz`],
-      ['custom', 'Custom…'],
-    ];
+  /**
+   * Build the frequency choices once for the protocol: the selected channel, one
+   * representative (mid) channel per band so every band can be tried without leaving
+   * this screen to switch the Network band selector, and custom.
+   */
+  private buildOptions(): void {
+    const byBand = new Map<string, Channel[]>();
+    for (const ch of this.allChannels) {
+      const band = bandForChannel(ch.number);
+      if (!band) continue;
+      const list = byBand.get(band.name) ?? [];
+      list.push(ch);
+      byBand.set(band.name, list);
+    }
+    const options: [string, string][] = [['channel', 'Selected channel']];
+    for (const [bandName, chans] of byBand) {
+      const mid = chans[Math.floor((chans.length - 1) / 2)];
+      options.push([String(mid.number), `${bandName} band, channel ${mid.number} (${Math.round(mid.centerHz)} Hz)`]);
+    }
+    options.push(['custom', 'Custom…']);
     this.source.replaceChildren(
       ...options.map(([value, label]) => {
         const o = document.createElement('option');
@@ -60,7 +72,6 @@ export class TestToneControl {
       }),
     );
     this.customLabel.hidden = true;
-    this.retune();
   }
 
   /** Called when the selected channel changes, so a playing channel tone follows it. */
@@ -81,8 +92,12 @@ export class TestToneControl {
 
   private frequencyHz(): number | null {
     if (this.source.value === 'channel') return this.selected ? this.selected.centerHz : null;
-    const hz = this.source.value === 'custom' ? this.custom.valueAsNumber : Number(this.source.value);
-    return Number.isFinite(hz) && hz > 0 ? hz : null;
+    if (this.source.value === 'custom') {
+      const hz = this.custom.valueAsNumber;
+      return Number.isFinite(hz) && hz > 0 ? hz : null;
+    }
+    const channelNumber = Number(this.source.value);
+    return this.allChannels.find((c) => c.number === channelNumber)?.centerHz ?? null;
   }
 
   /** Retune a tone that is already playing, or start one when `start` is set. */

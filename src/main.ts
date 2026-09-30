@@ -113,7 +113,7 @@ const engine = new AudioEngine(protocol.spec);
 let band: Band = bands.find((b) => b.name === settings.band) ?? bands[bands.length - 1] ?? DEFAULT_BAND;
 let channels = listChannels(protocol.spec, band);
 
-const tone = new TestToneControl(engine);
+const tone = new TestToneControl(engine, allChannels);
 if (!settings.stationId) {
   settings.stationId = randomStationId();
   saveSettings(settings);
@@ -646,7 +646,6 @@ function selectBand(next: Band): void {
   const margin = Math.max(20, (band.highHz - band.lowHz) * 0.03);
   display.setViewRange(Math.max(0, band.lowHz - margin), band.highHz + margin);
   display.setPlan(channels, bandwidthHz(protocol.spec), referenceTonesHz(band));
-  tone.setBand(band);
   settings.band = band.name;
   const current = channels.find((c) => c.number === settings.channel);
   selectChannel(current ? current.number : null);
