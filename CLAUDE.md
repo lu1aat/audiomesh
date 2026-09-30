@@ -114,7 +114,14 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
   extrapolating from Medium/Fast predicted (~-7 to -8 dB expected). Cost is the cheapest
   of any protocol here to decode (~0.2 s/window in Node, faster than Normal's own
   ~0.3 s), since the demodulator's cost-scaling favours going faster, not slower (see
-  above). Not yet tried over the air.
+  above). Tried over the air: works well in the ultrasonic band between two devices
+  in the same room, with a repeater also active. Real-world numbers seen: SNR down to
+  -9 dB on individual frames (right at the measured reliable floor, still decoding
+  correctly) and clock offset a steady +0.22..+0.25 s, comfortably inside the +-0.45 s
+  allowance (about half of it spent) - the tight clock allowance has not been a
+  problem for two nearby, similarly-clocked devices. The Network screen's channel
+  table also confirms `effectiveChannelCount` end to end: exactly channels 8-15 show
+  up for this protocol in the ultrasonic band, not the usual band's 8-17.
 - `src/protocol/gfsk8/` is the first protocol. The spec and **modulator** are real
   (Gaussian 8-FSK, BT 2.0, continuous phase, rendered on the fly per block so the
   worklet never stalls; `tests/gfsk8-modulator.test.ts` decodes the tones back out at

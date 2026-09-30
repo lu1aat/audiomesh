@@ -192,7 +192,15 @@ at a few metres and decodes reliably — the allowance widening is the leading
 candidate for the fix, though this wasn't isolated against the room-echo
 theory, so it's not certain the echo risk is gone at other distances/rooms.
 Medium, Long and Deep have not yet been tried over the air. Normal has also
-been tried over the air and works, especially in the ultrasonic band.
+been tried over the air and works, especially in the ultrasonic band. Turbo
+has too, between two devices in the same room in the ultrasonic band (with a
+repeater also active): real frames decoded down to -9 dB SNR, right at its
+measured reliable floor, and clock offset held steady around +0.22..+0.25 s —
+comfortably inside its ±0.45 s allowance, so the tight clock budget (§4) has
+not been a practical problem for two nearby, similarly-clocked devices. This
+also field-confirms `effectiveChannelCount` (§5): the Network screen's channel
+table showed exactly channels 8–15 for Turbo in the ultrasonic band, not the
+band's usual 8–17.
 
 ## 5. Band plan and channel numbering
 
