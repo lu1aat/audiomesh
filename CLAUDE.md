@@ -44,7 +44,7 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
 ```
 
 - `src/protocol/protocol.ts` defines the `Protocol` interface. **Multi-protocol is
-  the design; five protocols are registered (below).** Adding one = a folder under
+  the design; six protocols are registered (below).** Adding one = a folder under
   `src/protocol/`, an id in `ProtocolId` (`spec.ts`), an entry in `registry.ts`.
   The registry is a `Record<ProtocolId, Protocol>`, so a missing entry is a compile
   error.
