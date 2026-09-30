@@ -1,5 +1,6 @@
 /// <reference types="node" />
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 
 // Self-signed certificate for the dev server, if one has been generated into
@@ -42,8 +43,34 @@ function cspMeta(): Plugin {
   };
 }
 
+// Offline: after the build, put the list of every emitted file (and the public ones) into
+// dist/sw.js, and a version taken from it (file names carry content hashes, so any change
+// gives a new version and the old cache is dropped on activate).
+function precache(): Plugin {
+  let outDir = 'dist';
+  return {
+    name: 'audiochat-precache',
+    apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    closeBundle() {
+      const list = (dir: string, prefix = ''): string[] =>
+        readdirSync(`${outDir}/${dir}`, { withFileTypes: true }).flatMap((e) =>
+          e.isDirectory() ? list(`${dir}/${e.name}`, `${prefix}${e.name}/`) : [`${prefix}${e.name}`],
+        );
+      const files = list('.').filter((f) => f !== 'sw.js').sort();
+      const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 12);
+      const path = `${outDir}/sw.js`;
+      const src = readFileSync(path, 'utf8');
+      if (!src.includes('const PRECACHE = [];')) throw new Error('sw.js: PRECACHE placeholder not found');
+      writeFileSync(path, src.replace('const PRECACHE = [];', `const PRECACHE = ${JSON.stringify(['./', ...files])};`).replace('__VERSION__', version));
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [cspMeta()],
+  plugins: [cspMeta(), precache()],
   base: './',
   build: {
     target: 'es2022',

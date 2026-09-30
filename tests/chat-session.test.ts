@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BROADCAST, decodeFrame } from '../src/chat/frames';
+import { BROADCAST, decodeFrame, encodeFrame } from '../src/chat/frames';
 import { ChatSession, type InMessage } from '../src/chat/session';
 import { rng } from './helpers';
 
@@ -284,4 +284,31 @@ describe('beacons do not clog the channel', () => {
     for (let slot = 1; slot <= 4; slot++) expect(a.nextTx(slot), `slot ${slot}`).not.toBeNull();
   });
 });
+});
+
+describe('probe sound', () => {
+  it('the probe bit roundtrips and a plain sound has none', () => {
+    const on = decodeFrame(encodeFrame({ kind: 'sound', src: 5, reports: [], probe: true }));
+    const off = decodeFrame(encodeFrame({ kind: 'sound', src: 5, reports: [] }));
+    expect(on).toMatchObject({ kind: 'sound', probe: true });
+    expect(off && 'probe' in off).toBe(false);
+  });
+
+  it('every station that hears a probe answers with a plain sound to the prober, at once and every time', () => {
+    const prober = new ChatSession({ stationId: 11 });
+    const other = new ChatSession({ stationId: 22 });
+    for (let k = 0; k < 3; k++) {
+      prober.sound(true);
+      const probe = prober.nextTxTo(10 + k * 10)!;
+      expect(decodeFrame(probe.payload)).toMatchObject({ kind: 'sound', probe: true });
+      other.receive(probe.payload, 10 + k * 10, -8, 5);
+      const answer = other.nextTxTo(11 + k * 10)!;
+      expect(answer.dst).toBe(11);
+      const f = decodeFrame(answer.payload);
+      expect(f).toMatchObject({ kind: 'sound', src: 22 });
+      expect(f && 'probe' in f).toBe(false);
+      prober.receive(answer.payload, 11 + k * 10, -8, 5);
+      expect(prober.nextTxTo(12 + k * 10)).toBeNull(); // no chain
+    }
+  });
 });

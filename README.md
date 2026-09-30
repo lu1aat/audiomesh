@@ -6,7 +6,7 @@
 your browser, nothing to install.
 
 A small acoustic network that runs entirely in the browser, using the speaker and
-microphone as the radio. Stations exchange chat messages, announcements, link
+microphone as the radio. Stations exchange messages, announcements, link
 tests and repeats over sound: audible, low-frequency or ultrasonic (17.5–21 kHz,
 inaudible to most people).
 
@@ -28,7 +28,7 @@ optional same-origin clock check.
   use the same mode.
 - **Three bands** with fixed channel numbering: low (100–300 Hz), audible
   (300–10000 Hz) and ultrasonic (17.5–21 kHz, needs a 48 kHz sound card).
-- **Chat**: broadcast and directed messages up to 142 characters, acknowledged and
+- **Messages**: broadcast and directed messages up to 142 characters, acknowledged and
   retransmitted for directed messages; nicknames announced over the air.
 - **Every channel decoded at once**, with ALE-style automatic channel choice
   based on measured link quality in both directions, and congestion avoidance.

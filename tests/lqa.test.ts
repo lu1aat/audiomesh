@@ -231,3 +231,23 @@ describe('LqaTable persistence', () => {
     expect(t.snapshot(10)).toHaveLength(0);
   });
 });
+
+describe('restore after a protocol change', () => {
+  const NOW = 1_800_000_000_000;
+  it('converts slot numbers by time when the slot length changed', () => {
+    const fast = new LqaTable({ slotSec: 5 });
+    const slotFast = Math.floor(NOW / 5000) - 60; // 300 s ago
+    fast.heard(7, 3, -10, slotFast);
+    const normal = new LqaTable({ slotSec: 15 });
+    normal.restore(JSON.parse(JSON.stringify(fast.serialize())), NOW);
+    const [, row] = normal.serialize().heard[0]!;
+    const saved = row[0]![2];
+    expect(Math.floor(NOW / 15000) - saved).toBeCloseTo(20, 0); // 300 s / 15 s, not negative
+  });
+  it('drops future slots from a save that has no slot length', () => {
+    const t = new LqaTable({ slotSec: 15 });
+    const now = Math.floor(NOW / 15000);
+    t.restore({ heard: [[7, [[3, -10, now * 3, 1], [3, -8, now - 4, 1]].slice(0, 1)], [8, [[3, -8, now - 4, 1]]]], reported: [], samples: [] }, NOW);
+    expect(t.serialize().heard.map(([st]) => st)).toEqual([8]);
+  });
+});

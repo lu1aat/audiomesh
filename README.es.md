@@ -6,7 +6,7 @@
 navegador, no hay que instalar nada.
 
 Una pequeña red acústica que funciona entera en el navegador y usa el parlante y el
-micrófono como radio. Las estaciones intercambian mensajes de chat, anuncios,
+micrófono como radio. Las estaciones intercambian mensajes, anuncios,
 pruebas de enlace y repeticiones por sonido: audible, de baja frecuencia o
 ultrasónico (17,5–21 kHz, inaudible para la mayoría de las personas).
 
@@ -28,7 +28,7 @@ una verificación opcional de hora contra el mismo origen.
   las estaciones tienen que usar el mismo modo.
 - **Tres bandas** con numeración fija de canales: baja (100–300 Hz), audible
   (300–10000 Hz) y ultrasónica (17,5–21 kHz, necesita una placa de sonido de 48 kHz).
-- **Chat**: mensajes generales y dirigidos de hasta 142 caracteres; los dirigidos se
+- **Mensajes**: mensajes generales y dirigidos de hasta 142 caracteres; los dirigidos se
   confirman y se retransmiten. Los apodos se anuncian por el aire.
 - **Todos los canales decodificados a la vez**, con elección automática de canal al
   estilo ALE según la calidad de enlace medida en ambos sentidos, evitando canales

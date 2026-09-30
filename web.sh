@@ -7,12 +7,12 @@
 # There is no PHP application code and no backend; see CLAUDE.md.
 #
 # Usage:
-#   ./web.sh                      # build if needed, serve https on every interface, port 8080
+#   ./web.sh                      # build, then serve https on every interface, port 8080
 #   ./web.sh -p 9000              # different port
 #   ./web.sh -H localhost         # only this machine
 #   ./web.sh -i                   # plain http (the mic then works only via localhost)
-#   ./web.sh -b                   # force a rebuild first
 #   ./web.sh -n                   # skip the build, serve dist/ as it stands
+#   (-b, force a rebuild, is still accepted: building is the default now)
 #
 # https uses certs/dev-cert.pem and certs/dev-key.pem (shared with the vite dev
 # server), generating a self-signed pair if they are missing. PHP cannot speak
@@ -23,7 +23,6 @@ set -euo pipefail
 
 PORT=8080
 HOST=0.0.0.0
-FORCE_BUILD=0
 SKIP_BUILD=0
 PORT_EXPLICIT=0
 HTTPS=1
@@ -35,7 +34,7 @@ CERT="$ROOT/certs/dev-cert.pem"
 KEY="$ROOT/certs/dev-key.pem"
 
 usage() {
-  sed -n '3,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
@@ -43,7 +42,7 @@ while getopts ":p:H:bnih" opt; do
   case "$opt" in
     p) PORT="$OPTARG"; PORT_EXPLICIT=1 ;;
     H) HOST="$OPTARG" ;;
-    b) FORCE_BUILD=1 ;;
+    b) ;; # kept for old habits: building is the default
     n) SKIP_BUILD=1 ;;
     i) HTTPS=0 ;;
     h) usage ;;
@@ -72,7 +71,7 @@ if [ "$SKIP_BUILD" -eq 1 ]; then
     echo "error: -n given but $DIST/index.html does not exist. Build first." >&2
     exit 1
   fi
-elif [ "$FORCE_BUILD" -eq 1 ] || [ ! -f "$DIST/index.html" ]; then
+else
   if ! command -v npm >/dev/null 2>&1; then
     echo "error: npm not found, and dist/ has not been built." >&2
     exit 1

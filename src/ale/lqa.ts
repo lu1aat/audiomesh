@@ -78,6 +78,8 @@ export interface LqaState {
   samples: readonly Sample[];
   /** Third-party links: [listener, talker, channel, snrDb, slot, count]. Absent in older saves. */
   overheard?: readonly (readonly [number, number, number, number, number, number])[];
+  /** Slot length the slot numbers above count in; absent in older saves. */
+  slotSec?: number;
 }
 
 export interface LqaOptions {
@@ -91,11 +93,14 @@ export interface LqaOptions {
    * link alive in other stations' graphs. Default 40 (10 min of 15 s slots).
    */
   reportSilenceSlots?: number;
+  /** Slot length of the protocol in use (seconds). Saved with the evidence so a protocol change can convert it. */
+  slotSec?: number;
 }
 
 export class LqaTable {
   private readonly maxAgeSlots: number;
   private readonly smoothing: number;
+  private readonly slotSec: number | undefined;
   private readonly reportSilenceSlots: number;
   private readonly heardBy = new Map<number, Map<number, Entry>>(); // station -> channel -> entry
   private readonly reportedBy = new Map<number, Map<number, Entry>>();
@@ -107,6 +112,7 @@ export class LqaTable {
 
   constructor(options: LqaOptions = {}) {
     this.maxAgeSlots = options.maxAgeSlots ?? 120;
+    this.slotSec = options.slotSec;
     this.smoothing = options.smoothing ?? 0.5;
     this.reportSilenceSlots = options.reportSilenceSlots ?? 40;
   }
@@ -127,20 +133,31 @@ export class LqaTable {
     const side = (m: Map<number, Map<number, Entry>>): LqaState['heard'] =>
       [...m].map(([station, row]) => [station, [...row].map(([channel, e]) => [channel, e.snrDb, e.slot, e.count] as const)] as const);
     const overheard = [...this.overheardBy.values()].map((e) => [e.listener, e.talker, e.channel, e.snrDb, e.slot, e.count] as const);
-    return { heard: side(this.heardBy), reported: side(this.reportedBy), samples: this.samples, overheard };
+    return { heard: side(this.heardBy), reported: side(this.reportedBy), samples: this.samples, overheard, slotSec: this.slotSec };
   }
 
   /** Load what `serialize` produced (from storage, so anything may be malformed: bad parts are skipped). */
-  restore(state: unknown): void {
+  restore(state: unknown, nowMs = Date.now()): void {
     const s = state as Partial<LqaState> | undefined;
     const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+    // Slot numbers count in the slot length of the protocol that saved them. After a switch
+    // (Fast 5 s -> Normal 15 s) an old number lies in the future, and its age would clamp to 0 s.
+    // Convert by time; a save without a slot length cannot be converted, but a future slot is
+    // known to be wrong and is dropped.
+    const ratio = this.slotSec !== undefined && num(s?.slotSec) && s.slotSec > 0 ? s.slotSec / this.slotSec : 1;
+    const nowSlot = this.slotSec !== undefined ? Math.floor(nowMs / (this.slotSec * 1000)) : Infinity;
+    const slotOf = (slot: number): number | null => {
+      const converted = Math.round(slot * ratio);
+      return converted > nowSlot + 1 ? null : converted;
+    };
     const side = (into: Map<number, Map<number, Entry>>, data: unknown): void => {
       if (!Array.isArray(data)) return;
       for (const item of data) {
         if (!Array.isArray(item) || !num(item[0]) || !Array.isArray(item[1])) continue;
         const row = new Map<number, Entry>();
         for (const e of item[1]) {
-          if (Array.isArray(e) && num(e[0]) && num(e[1]) && num(e[2]) && num(e[3])) row.set(e[0], { snrDb: e[1], slot: e[2], count: e[3] });
+          const slot = Array.isArray(e) && num(e[2]) ? slotOf(e[2]) : null;
+          if (Array.isArray(e) && num(e[0]) && num(e[1]) && slot !== null && num(e[3])) row.set(e[0], { snrDb: e[1], slot, count: e[3] });
         }
         if (row.size > 0) into.set(item[0], row);
       }
@@ -149,12 +166,14 @@ export class LqaTable {
     side(this.reportedBy, s?.reported);
     if (Array.isArray(s?.overheard)) {
       for (const e of s.overheard) {
-        if (Array.isArray(e) && e.length === 6 && e.every(num)) this.overheardPut(e[0], e[1], e[2], e[3], e[4], e[5]);
+        const slot = Array.isArray(e) && num(e[4]) ? slotOf(e[4]) : null;
+        if (Array.isArray(e) && e.length === 6 && e.every(num) && slot !== null) this.overheardPut(e[0], e[1], e[2], e[3], slot, e[5]);
       }
     }
     if (Array.isArray(s?.samples)) {
       for (const x of s.samples) {
-        if (x && num(x.slot) && num(x.station) && num(x.channel) && num(x.snrDb)) this.samples.push({ slot: x.slot, station: x.station, channel: x.channel, snrDb: x.snrDb });
+        const slot = x && num(x.slot) ? slotOf(x.slot) : null;
+        if (x && slot !== null && num(x.station) && num(x.channel) && num(x.snrDb)) this.samples.push({ slot, station: x.station, channel: x.channel, snrDb: x.snrDb });
       }
       this.samples.splice(0, Math.max(0, this.samples.length - MAX_SAMPLES));
     }
@@ -300,7 +319,7 @@ export class LqaTable {
    * is not reported at all, on any channel; each channel's own evidence must also be
    * younger than `maxAgeSlots`.
    */
-  reportsToSend(count: number, slot: number): LinkReport[] {
+  reportsToSend(count: number, slot: number, first?: number): LinkReport[] {
     const pairs: { station: number; channel: number; snrDb: number; last: number }[] = [];
     for (const [station, row] of this.heardBy) {
       const newest = Math.max(...[...row.values()].map((e) => e.slot));
@@ -310,7 +329,8 @@ export class LqaTable {
         pairs.push({ station, channel, snrDb: e.snrDb, last: this.lastReportSlot.get(pairKey(station, channel)) ?? -Infinity });
       }
     }
-    pairs.sort((a, b) => a.last - b.last);
+    // `first`: the station asking (a probe) gets its reports ahead of the rotation.
+    pairs.sort((a, b) => Number(b.station === first) - Number(a.station === first) || a.last - b.last);
     return pairs.slice(0, count).map(({ station, channel, snrDb }) => {
       this.lastReportSlot.set(pairKey(station, channel), slot);
       return { station, channel, snrDb };

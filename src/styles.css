@@ -95,8 +95,8 @@ h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-sp
 .screen { flex: 1; min-height: 0; box-sizing: border-box; padding: 12px 16px; }
 .screen[hidden] { display: none; }
 .screen-chat { display: flex; flex-direction: column; gap: 8px; }
-.screen-settings, .screen-link { overflow-y: auto; }
-.screen-settings h2, .screen-link h2 { font-size: 1.05rem; margin: 0 0 12px; }
+.screen-settings, .screen-link, .screen-help { overflow-y: auto; }
+.screen-settings h2, .screen-link h2, .screen-help h2 { font-size: 1.05rem; margin: 0 0 12px; }
 
 /* Network screen: separate cards with real space between them, each a thin (1px)
    border — not a shared thick divider. Splitting things into distinct, named cards
@@ -229,10 +229,26 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 
 @media (max-width: 700px) {
   #app { flex-direction: column; }
-  .sidebar { width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px 12px; gap: 8px; }
+  /* The bar stays put and takes two lines: logo + screens, then the Audio / TX lamps with the state.
+     Screens scroll inside <main>, so the page itself never moves the bar away. */
+  .sidebar { width: auto; flex: none; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 6px 12px; gap: 6px 8px; border-right: 0; border-bottom: 1px solid var(--border); }
   .sidebar h1 { font-size: 1rem; }
-  .radio { flex: 1 1 200px; }
-  .sidebar-nav { flex-direction: row; margin: 0 0 0 auto; border-top: 0; border-left: 1px solid var(--border); }
+  .sidebar-head { order: 2; }
+  .sidebar-toggle, .logo-word { display: none; }
+  .sidebar-nav { order: 1; flex: 1 1 100%; min-width: 0; margin: 0; border-left: 0; border-top: 0; }
+  .sidebar-nav .nav-item { flex: 1 1 auto; justify-content: center; gap: 4px; padding: 8px 4px; font-size: 0.85rem; }
+  .sidebar-nav .nav-item.active { padding-left: 4px; }
+  .radio { order: 3; flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; row-gap: 4px; padding: 4px 8px; }
+  .radio-keys { grid-template-columns: auto auto; }
+  .radio-key { padding: 4px 10px; }
+  .radio-readout { min-width: 0; overflow: hidden; }
+  .status-main, .status-count { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .status-main { font-size: 0.85rem; }
+  .status-count { font-size: 0.75rem; min-height: 0; }
+  .status-cadence { grid-column: 1 / -1; }
+  .main { min-height: 0; }
+  .screen { overflow-y: auto; }
+  .sidebar-nav { flex-direction: row; border-top: 0; }
   .nav-item { border-bottom: 0; border-right: 1px solid var(--border); }
   .nav-item:last-child { border-right: 0; }
   .nav-item.active { border-left: 0; border-top: var(--sep) solid var(--accent); padding-left: 10px; padding-top: 6px; }
@@ -448,6 +464,12 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .legend-swatch { width: 10px; height: 10px; border-radius: 0; display: inline-block; }
 .graph-wrap { position: relative; max-width: 520px; margin: 0 auto; }
 .graph-tip { white-space: pre-line; text-align: left; z-index: 2; }
+/* Direction on the graph's arrows: faint dashes drifting slowly from the sender toward the arrowhead. */
+.graph-flow { stroke: #ffffff; stroke-opacity: 0.45; stroke-width: 1.5; stroke-dasharray: 2 10; stroke-linecap: round; pointer-events: none; animation: graph-flow 2.4s linear infinite; }
+@keyframes graph-flow { from { stroke-dashoffset: 12; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .graph-flow { display: none; }
+}
 .graph-hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: default; }
 .graph-chart line.graph-hot { stroke-width: 4; }
 .graph-chart g { cursor: default; }
@@ -573,4 +595,26 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .composer #sprite-button { white-space: nowrap; }
 @media (max-width: 700px) {
   .composer #sprite-button { flex: 1; }
+}
+
+/* Help: plain reading text. */
+.help-body { max-width: 46rem; line-height: 1.5; }
+.help-body h3 { font-size: 0.95rem; margin: 20px 0 6px; color: var(--accent); }
+.help-body h3:first-child { margin-top: 0; }
+.help-body ol, .help-body ul { margin: 6px 0; padding-left: 1.4rem; }
+.help-body li { margin: 6px 0; }
+.help-body li > ul { margin: 4px 0; }
+.help-body p.hint { margin: 8px 0 0; }
+
+.help-lead { margin: 0 0 4px; color: var(--text-dim); }
+.help-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+.help-table th, .help-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.help-table th { color: var(--text-dim); font-weight: 600; white-space: nowrap; }
+.help-table .help-pick { background: var(--panel-raised); }
+@media (max-width: 700px) {
+  .help-table { font-size: 0.8rem; }
+  .help-table th, .help-table td { padding: 5px 6px; }
+  /* Narrow screen: the slot column goes (the mode selector shows it), so "Best for" fits. */
+  .help-table th:nth-child(2), .help-table td:nth-child(2) { display: none; }
+  .help-table td:first-child, .help-table td:nth-child(3), .help-table td:nth-child(4) { white-space: nowrap; }
 }

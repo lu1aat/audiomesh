@@ -128,7 +128,7 @@ if (!settings.stationId) {
   saveSettings(settings);
 }
 // Stations silent for 10 minutes (when the graph fades them) drop out of our sound reports.
-const lqa = new LqaTable({ reportSilenceSlots: Math.ceil(600 / protocol.spec.slotSec) });
+const lqa = new LqaTable({ reportSilenceSlots: Math.ceil(600 / protocol.spec.slotSec), slotSec: protocol.spec.slotSec });
 lqa.restore(loadJson(LINK_KEY));
 const linkSaver = new DeferredSaver(() => saveJson(LINK_KEY, lqa.serialize()), 5000);
 lqa.onChange = () => linkSaver.touch();
@@ -295,7 +295,7 @@ function confirmClear(what: string, action: () => void): void {
   showStoredCounts();
   link.render();
 }
-el('clear-chat').addEventListener('click', () => confirmClear('all chat messages', () => chat.clearChat()));
+el('clear-chat').addEventListener('click', () => confirmClear('all messages', () => chat.clearChat()));
 el('clear-stations').addEventListener('click', () => confirmClear('the list of known stations', () => chat.clearStations()));
 el('clear-debug').addEventListener('click', () => confirmClear('the frame log', () => chat.clearDebug()));
 el('clear-link').addEventListener('click', () =>
@@ -307,7 +307,13 @@ el('clear-link').addEventListener('click', () =>
 );
 showStoredCounts();
 
-for (const b of document.querySelectorAll('.announce-button')) b.addEventListener('click', () => chat.announce());
+// Without a name there is nothing to announce: take the user to the field instead of failing silently.
+for (const b of document.querySelectorAll('.announce-button')) {
+  b.addEventListener('click', () => {
+    if (settings.nickname.trim() === '') el('name-banner-set').click();
+    else chat.announce();
+  });
+}
 
 /** Sidebar collapse: the choice is kept in settings. */
 const sidebarToggle = el<HTMLButtonElement>('sidebar-toggle');
@@ -514,7 +520,7 @@ protocolSelect.addEventListener('change', () => {
   location.reload();
 });
 
-/** A message arrived or one of ours was delivered while the Chat screen was hidden: its dot blinks green until Chat is shown. */
+/** A message arrived or one of ours was delivered while the Messages screen was hidden: its dot blinks green until Messages is shown. */
 let chatNews = false;
 function chatAttention(): void {
   const chatDot = dots.get('chat');

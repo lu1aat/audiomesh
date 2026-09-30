@@ -19,7 +19,7 @@ export class Notifier {
     return Notifier.supported ? Notification.permission : 'unsupported';
   }
 
-  /** Register the service worker (best effort; without it desktop falls back to `new Notification`). */
+  /** Register the service worker (also what caches the app for offline use; without it desktop notifications fall back to `new Notification`). */
   async init(): Promise<void> {
     if (!('serviceWorker' in navigator)) return;
     try {

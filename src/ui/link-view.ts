@@ -46,6 +46,8 @@ function timingLevel(deltaSec: number, reachSec: number): SignalLevel {
 const STALE_OPACITY = 0.4;
 /** Other stations' cells are this see-through, so their age colour sits a little darker on the map. */
 const NODE_FILL_OPACITY = 0.7;
+/** One cycle of the arrows' drifting dashes; matches `.graph-flow` in styles.css. */
+const FLOW_PERIOD_MS = 2400;
 const LEVEL_TEXT: Record<SignalLevel, string> = { good: 'strong', fair: 'fair', weak: 'weak' };
 /** "Reached us through a repeater" lines: level unknown, so neutral grey. */
 const RELAY_COLOR = '#8a8f98';
@@ -53,7 +55,7 @@ const RELAY_COLOR = '#8a8f98';
 /** How long a node glows after a frame from that station. */
 const FLASH_MS = 1600;
 /** How to read the graph: its tooltip (no visible text). */
-const GRAPH_LEGEND = 'The stronger the signal between two stations, the closer their cells; we are the blue cell at the bottom. Arrows point the way a signal reaches: green strong, yellow fair, red weak. A double arrow is a strong link both ways. Grey dotted: that station reached us only through the repeater it points to. A double border marks a repeater. Faded: nothing heard for over 10 minutes. Links between other stations are what they report hearing.';
+const GRAPH_LEGEND = 'The stronger the signal between two stations, the closer their cells; we are the blue cell at the bottom. Arrows point the way a signal reaches: green strong, yellow fair, red weak. A link heard both ways is two arrows side by side, one per direction. Grey dotted: that station reached us only through the repeater it points to. A double border marks a repeater. Faded: nothing heard for over 10 minutes. Links between other stations are what they report hearing.';
 const ME_COLOR = '#3987e5';
 const FLASH_COLOR = '#e6e8eb';
 
@@ -87,9 +89,11 @@ interface GraphLine {
   readonly el: SVGLineElement;
   /** A wide invisible twin that catches the pointer: the drawn line is too thin to hover. */
   readonly hit: SVGLineElement;
+  /** Faint dashes over the line that drift toward the arrowhead, showing the direction. */
+  readonly flow: SVGLineElement;
   readonly from: number;
   readonly to: number;
-  /** Sideways offset, so two one-way links between a pair sit side by side. */
+  /** Sideways offset, so the two directions of a link heard both ways sit side by side. */
   readonly side: number;
   readonly gapFrom: number;
   readonly gapTo: number;
@@ -202,19 +206,18 @@ export class LinkView {
       // The map still shows us, alone, so it is clear where others will appear.
       this.graphRoot.replaceChildren(this.graphSection(model));
       this.animateGraph();
-      this.root.replaceChildren(el('p', 'hint', 'No stations heard yet. Turn Audio on (Network options) on both devices and press "Test" on each; every test beacon and every ack teaches the table.'), ...this.syncBlock(), this.framesSection());
+      this.swapSections([el('p', 'hint', 'No stations heard yet. Turn Audio on (Network options) on both devices and press "Test" on each; every test beacon and every ack teaches the table.'), ...this.syncBlock()]);
       this.frameTable.scrollTop = scrollTop;
       return;
     }
     this.graphRoot.replaceChildren(this.graphSection(model));
     this.animateGraph();
-    this.root.replaceChildren(
+    this.swapSections([
       this.stationsSection(model),
       this.historySection(model, nowMs),
       ...this.syncBlock(),
       this.signalSection(model),
-      this.framesSection(),
-    );
+    ]);
     this.frameTable.scrollTop = scrollTop;
   }
 
@@ -646,10 +649,21 @@ export class LinkView {
     chart.addEventListener('pointerenter', () => { this.hovering = true; });
     chart.addEventListener('pointerleave', () => { this.hovering = false; tip.hidden = true; });
     const stationInfo = new Map(model.stations.map((st) => [st.id, st]));
+    // The graph is rebuilt on every redraw; start each flow at the phase the clock says, so
+    // the drift carries on across redraws instead of jumping back.
+    const flowPhase = `-${Math.round(performance.now() % FLOW_PERIOD_MS)}ms`;
+    const flowLine = (): SVGLineElement => {
+      const f = svg('line', { class: 'graph-flow' });
+      f.style.animationDelay = flowPhase;
+      return f;
+    };
     const defs = svg('defs', {});
     const colors: Record<string, string> = { ...LEVEL_COLOR, relay: RELAY_COLOR };
     for (const [name, color] of Object.entries(colors)) {
-      const m = svg('marker', { id: `arrow-${name}`, viewBox: '0 0 8 8', refX: 8, refY: 4, markerWidth: 4, markerHeight: 4, orient: 'auto-start-reverse' });
+      // Fixed size in graph units, not scaled by the line width.
+      const m = svg('marker', {
+        id: `arrow-${name}`, viewBox: '0 0 8 8', refX: 8, refY: 4, markerUnits: 'userSpaceOnUse', markerWidth: 5, markerHeight: 5, orient: 'auto-start-reverse',
+      });
       m.append(svg('path', { d: 'M0,0 L8,4 L0,8 z', fill: color }));
       defs.append(m);
     }
@@ -690,29 +704,24 @@ export class LinkView {
 
     const has = new Map(model.edges.map((e) => [`${e.from}>${e.to}`, e]));
     const drawn = new Set<string>();
-    const line = (e: GraphEdge, both: boolean): void => {
-      if (!pos.has(e.from) || !pos.has(e.to)) return;
+    // One arrow per direction heard: a link heard both ways is two arrows side by side,
+    // a one-way link a single arrow down the middle.
+    for (const e of model.edges) {
+      if (!pos.has(e.from) || !pos.has(e.to)) continue;
+      const back = has.get(`${e.to}>${e.from}`);
       const l = svg('line', {
         stroke: LEVEL_COLOR[e.level], 'stroke-width': e.level === 'good' ? 2 : 1.5, 'stroke-dasharray': e.level === 'weak' ? '4 3' : '',
         'marker-end': `url(#arrow-${e.level})`,
       });
-      if (both) l.setAttribute('marker-start', `url(#arrow-${e.level})`);
       if (e.stale) l.setAttribute('opacity', String(STALE_OPACITY));
+      const flow = flowLine();
+      if (e.stale) flow.setAttribute('opacity', String(STALE_OPACITY));
       const hit = svg('line', { class: 'graph-hit' });
       const way = (x: GraphEdge): string =>
         `${this.name(x.from)} → ${this.name(x.to)}: ${db(x.snrDb)} dB (${LEVEL_TEXT[x.level]})${x.stale ? ', over 10 min old' : ''}`;
-      const back = has.get(`${e.to}>${e.from}`);
       hoverable(hit, () => [way(e), ...(back ? [way(back)] : [])].join('\n'), () => [l]);
-      lines.push({ el: l, hit, from: e.from, to: e.to, side: both ? 0 : 4, gapFrom: both ? gap + 4 : gap, gapTo: gap });
-      chart.append(l, hit);
-    };
-    for (const e of model.edges) {
-      if (drawn.has(`${e.from}>${e.to}`)) continue;
-      const back = has.get(`${e.to}>${e.from}`);
-      if (back && e.level === 'good' && back.level === 'good') {
-        drawn.add(`${e.to}>${e.from}`);
-        line(e, true);
-      } else line(e, false);
+      lines.push({ el: l, hit, flow, from: e.from, to: e.to, side: back ? 4 : 0, gapFrom: gap, gapTo: gap });
+      chart.append(l, flow, hit);
       drawn.add(`${e.from}>${e.to}`);
     }
 
@@ -722,10 +731,12 @@ export class LinkView {
         stroke: RELAY_COLOR, 'stroke-width': 1.5, 'stroke-dasharray': '1 4', 'stroke-linecap': 'round', 'marker-end': 'url(#arrow-relay)',
       });
       if (r.stale) l.setAttribute('opacity', String(STALE_OPACITY));
+      const flow = flowLine();
+      if (r.stale) flow.setAttribute('opacity', String(STALE_OPACITY));
       const hit = svg('line', { class: 'graph-hit' });
       hoverable(hit, () => `${this.name(r.from)} reached us through repeater ${this.name(r.via)} (signal level unknown)`, () => [l]);
-      lines.push({ el: l, hit, from: r.from, to: r.via, side: 0, gapFrom: gap, gapTo: gap });
-      chart.append(l, hit);
+      lines.push({ el: l, hit, flow, from: r.from, to: r.via, side: 0, gapFrom: gap, gapTo: gap });
+      chart.append(l, flow, hit);
     }
 
     const stale = new Set(model.staleNodes);
@@ -858,7 +869,7 @@ export class LinkView {
       const ox = -uy * l.side, oy = ux * l.side;
       const x1 = (a.x + ux * l.gapFrom + ox).toFixed(2), y1 = (a.y + uy * l.gapFrom + oy).toFixed(2);
       const x2 = (b.x - ux * l.gapTo + ox).toFixed(2), y2 = (b.y - uy * l.gapTo + oy).toFixed(2);
-      for (const e of [l.el, l.hit]) {
+      for (const e of [l.el, l.flow, l.hit]) {
         e.setAttribute('x1', x1);
         e.setAttribute('y1', y1);
         e.setAttribute('x2', x2);
@@ -1061,9 +1072,27 @@ export class LinkView {
 
   // --- frames -----------------------------------------------------------------
 
+  private framesEl: HTMLElement | null = null;
+
+  /** Built once and never taken out of the page: it is what the user is often reading. */
   private framesSection(): HTMLElement {
-    const { root: s, body } = this.section('frames', 'All frames', 'Every frame sent or received, newest first. Filter, tick rows and remove them; the log keeps the last 1000.');
-    body.append(this.frameTable.root);
-    return s;
+    if (!this.framesEl) {
+      const { root: s, body } = this.section('frames', 'All frames', 'Every frame sent or received, newest first. Filter, tick rows and remove them; the log keeps the last 1000.');
+      body.append(this.frameTable.root);
+      this.framesEl = s;
+    }
+    return this.framesEl;
+  }
+
+  /**
+   * Replace every section above All frames and leave All frames itself in place. Rebuilding
+   * the whole screen every few seconds made the page flicker and jump while the log was open;
+   * with one element that stays put, the browser keeps what the user is looking at where it is.
+   */
+  private swapSections(sections: Node[]): void {
+    const keep = this.framesSection();
+    for (const child of [...this.root.children]) if (child !== keep) child.remove();
+    if (keep.parentElement !== this.root) this.root.append(keep); // moving it would reset its scroll
+    keep.before(...sections);
   }
 }

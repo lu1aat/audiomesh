@@ -6,7 +6,7 @@
     <title>audiomesh — acoustic network</title>
     <meta
       name="description"
-      content="Browser-only acoustic network over speaker and microphone: chat messages, announcements and link tests between stations."
+      content="Browser-only acoustic network over speaker and microphone: messages, announcements and link tests between stations."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/src/styles.css" />
@@ -15,7 +15,7 @@
     <div id="app">
       <nav id="sidebar" class="sidebar" aria-label="Screens">
         <div class="sidebar-head">
-          <h1 class="logo" title="audiomesh: chat over the air, speaker to microphone"><svg class="logo-mark" viewBox="0 0 35.2 32.4" aria-hidden="true" focusable="false"><rect class="lm-off" x="0" y="29.4" width="4" height="3"/><rect class="lm-off" x="0" y="25.2" width="4" height="3"/><rect class="lm-off" x="0" y="21" width="4" height="3"/><rect class="lm-on" style="--i:0" x="0" y="16.8" width="4" height="3"/><rect class="lm-off" x="0" y="12.6" width="4" height="3"/><rect class="lm-off" x="0" y="8.4" width="4" height="3"/><rect class="lm-off" x="0" y="4.2" width="4" height="3"/><rect class="lm-off" x="0" y="0" width="4" height="3"/><rect class="lm-off" x="5.2" y="29.4" width="4" height="3"/><rect class="lm-on" style="--i:1" x="5.2" y="25.2" width="4" height="3"/><rect class="lm-off" x="5.2" y="21" width="4" height="3"/><rect class="lm-off" x="5.2" y="16.8" width="4" height="3"/><rect class="lm-off" x="5.2" y="12.6" width="4" height="3"/><rect class="lm-off" x="5.2" y="8.4" width="4" height="3"/><rect class="lm-off" x="5.2" y="4.2" width="4" height="3"/><rect class="lm-off" x="5.2" y="0" width="4" height="3"/><rect class="lm-off" x="10.4" y="29.4" width="4" height="3"/><rect class="lm-off" x="10.4" y="25.2" width="4" height="3"/><rect class="lm-off" x="10.4" y="21" width="4" height="3"/><rect class="lm-off" x="10.4" y="16.8" width="4" height="3"/><rect class="lm-on" style="--i:2" x="10.4" y="12.6" width="4" height="3"/><rect class="lm-off" x="10.4" y="8.4" width="4" height="3"/><rect class="lm-off" x="10.4" y="4.2" width="4" height="3"/><rect class="lm-off" x="10.4" y="0" width="4" height="3"/><rect class="lm-on" style="--i:3" x="15.6" y="29.4" width="4" height="3"/><rect class="lm-off" x="15.6" y="25.2" width="4" height="3"/><rect class="lm-off" x="15.6" y="21" width="4" height="3"/><rect class="lm-off" x="15.6" y="16.8" width="4" height="3"/><rect class="lm-off" x="15.6" y="12.6" width="4" height="3"/><rect class="lm-off" x="15.6" y="8.4" width="4" height="3"/><rect class="lm-off" x="15.6" y="4.2" width="4" height="3"/><rect class="lm-off" x="15.6" y="0" width="4" height="3"/><rect class="lm-off" x="20.8" y="29.4" width="4" height="3"/><rect class="lm-off" x="20.8" y="25.2" width="4" height="3"/><rect class="lm-off" x="20.8" y="21" width="4" height="3"/><rect class="lm-off" x="20.8" y="16.8" width="4" height="3"/><rect class="lm-off" x="20.8" y="12.6" width="4" height="3"/><rect class="lm-off" x="20.8" y="8.4" width="4" height="3"/><rect class="lm-on" style="--i:4" x="20.8" y="4.2" width="4" height="3"/><rect class="lm-off" x="20.8" y="0" width="4" height="3"/><rect class="lm-off" x="26" y="29.4" width="4" height="3"/><rect class="lm-off" x="26" y="25.2" width="4" height="3"/><rect class="lm-off" x="26" y="21" width="4" height="3"/><rect class="lm-off" x="26" y="16.8" width="4" height="3"/><rect class="lm-off" x="26" y="12.6" width="4" height="3"/><rect class="lm-on" style="--i:5" x="26" y="8.4" width="4" height="3"/><rect class="lm-off" x="26" y="4.2" width="4" height="3"/><rect class="lm-off" x="26" y="0" width="4" height="3"/><rect class="lm-off" x="31.2" y="29.4" width="4" height="3"/><rect class="lm-off" x="31.2" y="25.2" width="4" height="3"/><rect class="lm-on" style="--i:6" x="31.2" y="21" width="4" height="3"/><rect class="lm-off" x="31.2" y="16.8" width="4" height="3"/><rect class="lm-off" x="31.2" y="12.6" width="4" height="3"/><rect class="lm-off" x="31.2" y="8.4" width="4" height="3"/><rect class="lm-off" x="31.2" y="4.2" width="4" height="3"/><rect class="lm-off" x="31.2" y="0" width="4" height="3"/></svg><span class="logo-word">audiomesh</span></h1>
+          <h1 class="logo" title="audiomesh: messages over the air, speaker to microphone"><svg class="logo-mark" viewBox="0 0 35.2 32.4" aria-hidden="true" focusable="false"><rect class="lm-off" x="0" y="29.4" width="4" height="3"/><rect class="lm-off" x="0" y="25.2" width="4" height="3"/><rect class="lm-off" x="0" y="21" width="4" height="3"/><rect class="lm-on" style="--i:0" x="0" y="16.8" width="4" height="3"/><rect class="lm-off" x="0" y="12.6" width="4" height="3"/><rect class="lm-off" x="0" y="8.4" width="4" height="3"/><rect class="lm-off" x="0" y="4.2" width="4" height="3"/><rect class="lm-off" x="0" y="0" width="4" height="3"/><rect class="lm-off" x="5.2" y="29.4" width="4" height="3"/><rect class="lm-on" style="--i:1" x="5.2" y="25.2" width="4" height="3"/><rect class="lm-off" x="5.2" y="21" width="4" height="3"/><rect class="lm-off" x="5.2" y="16.8" width="4" height="3"/><rect class="lm-off" x="5.2" y="12.6" width="4" height="3"/><rect class="lm-off" x="5.2" y="8.4" width="4" height="3"/><rect class="lm-off" x="5.2" y="4.2" width="4" height="3"/><rect class="lm-off" x="5.2" y="0" width="4" height="3"/><rect class="lm-off" x="10.4" y="29.4" width="4" height="3"/><rect class="lm-off" x="10.4" y="25.2" width="4" height="3"/><rect class="lm-off" x="10.4" y="21" width="4" height="3"/><rect class="lm-off" x="10.4" y="16.8" width="4" height="3"/><rect class="lm-on" style="--i:2" x="10.4" y="12.6" width="4" height="3"/><rect class="lm-off" x="10.4" y="8.4" width="4" height="3"/><rect class="lm-off" x="10.4" y="4.2" width="4" height="3"/><rect class="lm-off" x="10.4" y="0" width="4" height="3"/><rect class="lm-on" style="--i:3" x="15.6" y="29.4" width="4" height="3"/><rect class="lm-off" x="15.6" y="25.2" width="4" height="3"/><rect class="lm-off" x="15.6" y="21" width="4" height="3"/><rect class="lm-off" x="15.6" y="16.8" width="4" height="3"/><rect class="lm-off" x="15.6" y="12.6" width="4" height="3"/><rect class="lm-off" x="15.6" y="8.4" width="4" height="3"/><rect class="lm-off" x="15.6" y="4.2" width="4" height="3"/><rect class="lm-off" x="15.6" y="0" width="4" height="3"/><rect class="lm-off" x="20.8" y="29.4" width="4" height="3"/><rect class="lm-off" x="20.8" y="25.2" width="4" height="3"/><rect class="lm-off" x="20.8" y="21" width="4" height="3"/><rect class="lm-off" x="20.8" y="16.8" width="4" height="3"/><rect class="lm-off" x="20.8" y="12.6" width="4" height="3"/><rect class="lm-off" x="20.8" y="8.4" width="4" height="3"/><rect class="lm-on" style="--i:4" x="20.8" y="4.2" width="4" height="3"/><rect class="lm-off" x="20.8" y="0" width="4" height="3"/><rect class="lm-off" x="26" y="29.4" width="4" height="3"/><rect class="lm-off" x="26" y="25.2" width="4" height="3"/><rect class="lm-off" x="26" y="21" width="4" height="3"/><rect class="lm-off" x="26" y="16.8" width="4" height="3"/><rect class="lm-off" x="26" y="12.6" width="4" height="3"/><rect class="lm-on" style="--i:5" x="26" y="8.4" width="4" height="3"/><rect class="lm-off" x="26" y="4.2" width="4" height="3"/><rect class="lm-off" x="26" y="0" width="4" height="3"/><rect class="lm-off" x="31.2" y="29.4" width="4" height="3"/><rect class="lm-off" x="31.2" y="25.2" width="4" height="3"/><rect class="lm-on" style="--i:6" x="31.2" y="21" width="4" height="3"/><rect class="lm-off" x="31.2" y="16.8" width="4" height="3"/><rect class="lm-off" x="31.2" y="12.6" width="4" height="3"/><rect class="lm-off" x="31.2" y="8.4" width="4" height="3"/><rect class="lm-off" x="31.2" y="4.2" width="4" height="3"/><rect class="lm-off" x="31.2" y="0" width="4" height="3"/></svg><span class="logo-word">audiomesh</span></h1>
           <button id="sidebar-toggle" type="button" class="sidebar-toggle" aria-expanded="true" aria-controls="sidebar" title="Collapse the sidebar">«</button>
         </div>
         <div id="audio-state" class="radio status-stopped" data-audio="off" data-tx="off" role="group" aria-label="Station">
@@ -33,10 +33,11 @@
           </div>
         </div>
         <div class="sidebar-nav">
-          <button class="nav-item" data-screen="chat" title="Chat"><span class="nav-label">Chat</span><span class="nav-short" aria-hidden="true">C</span><span class="dot" data-dot="chat"></span></button>
+          <button class="nav-item" data-screen="chat" title="Messages"><span class="nav-label">Messages</span><span class="nav-short" aria-hidden="true">M</span><span class="dot" data-dot="chat"></span></button>
           <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">N</span><span class="dot" data-dot="network"></span></button>
           <button class="nav-item" data-screen="users" title="Users"><span class="nav-label">Users</span><span class="nav-short" aria-hidden="true">U</span><span class="dot" data-dot="users"></span></button>
           <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">S</span><span class="dot" data-dot="settings"></span></button>
+          <button class="nav-item" data-screen="help" title="Help"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">?</span></button>
         </div>
       </nav>
 
@@ -243,6 +244,80 @@
           <div id="users-view" class="users-view"></div>
         </section>
 
+        <section id="screen-help" class="screen screen-help" hidden>
+          <h2>Help</h2>
+          <div class="help-body">
+            <p class="help-lead">audiomesh sends short text messages between devices using only a speaker and a microphone. No internet, no server: your device plays the signal, the other one hears it. It is slow on purpose, so it can work far away and in noise.</p>
+
+            <h3>Set up your station</h3>
+            <ol>
+              <li><b>Set your name.</b> Open <b>Settings</b>, find <b>Station name</b> and type a name of up to 8 characters. (The yellow "Set your name" bar at the top takes you there.) Without a name, other stations only see a random id. The name is sent when you press <b>Announce</b>.</li>
+              <li><b>Turn the station on.</b> Open <b>Network</b>, then <b>Network options</b>. Switch <b>Audio</b> on (the browser asks for the microphone) and <b>Allow transmit</b> on. The Audio and TX lamps at the top show the state.</li>
+              <li><b>Choose band and mode</b> in the same panel. <b>Both stations must use the same band and the same mode</b>, or they cannot hear each other at all. See the table below.</li>
+            </ol>
+
+            <h3>Choose a mode</h3>
+            <p>Slower modes reach further and work in more noise; faster modes send more but need a good signal and closer clocks. <i>142 chars</i> is the time for one full message (16 frames, one per slot). <i>Down to</i> is the weakest signal that still decodes reliably (dB in a 2500 Hz noise bandwidth).</p>
+            <div class="table-wrap">
+              <table class="help-table">
+                <thead><tr><th>Mode</th><th>Slot</th><th>142 chars</th><th>Down to</th><th>Best for</th></tr></thead>
+                <tbody>
+                  <tr><td><b>D</b> Deep</td><td>60 s</td><td>16 min</td><td>-23 dB</td><td><b>Longest range</b>, weakest signals</td></tr>
+                  <tr><td><b>L</b> Long</td><td>30 s</td><td>8 min</td><td>-21 dB</td><td>Long range</td></tr>
+                  <tr><td><b>A</b> Normal</td><td>15 s</td><td>4 min</td><td>-18 dB</td><td>General use</td></tr>
+                  <tr><td><b>B</b> Medium</td><td>10 s</td><td>2 min 40 s</td><td>-14 dB</td><td>Faster, medium distance</td></tr>
+                  <tr class="help-pick"><td><b>C</b> Fast</td><td>5 s</td><td>1 min 20 s</td><td>-11 dB</td><td><b>Devices nearby</b> (same room): recommended</td></tr>
+                  <tr><td><b>T</b> Turbo</td><td>2.5 s</td><td>40 s</td><td>-9 dB</td><td>Fastest; a testing tool for devices very close</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="hint">If you are unsure, use <b>C</b> for devices in the same room and <b>A</b> for anything farther. Changing the mode reloads the page.</p>
+            <p><b>Band:</b> <i>ultrasonic</i> (17.5 to 21 kHz) is inaudible and has the most channels, so it is a good default when your speakers and microphones reach it (it needs a 48 kHz sound card). <i>Audible</i> works with any hardware but you will hear it. <i>Low</i> (100 to 300 Hz) is a narrow band for special cases.</p>
+
+            <h3>Talk to other stations</h3>
+            <ol>
+              <li><b>Listen first.</b> With Audio on, wait to see stations appear on <b>Network</b> and <b>Users</b>. They show up when their test beacons or announcements are heard, which by default happens every few minutes. Pressing <b>Test</b> and <b>Announce</b> on both stations speeds this up.</li>
+              <li><b>Write to everyone.</b> Once you see stations, open <b>Messages</b>, leave the recipient on <i>Everyone</i> and send. This is not confirmed: you will not know who received it.</li>
+              <li><b>Write to one station.</b> After you announce yourself, or receive an announcement from another station, that station appears in the recipient list (or click it in <b>Users</b>). A directed message is <b>confirmed</b>: the other station sends an acknowledgement, lost parts are sent again, and the message shows as delivered or failed.</li>
+            </ol>
+            <p class="hint">Messages are up to 142 characters. Text is converted to upper case and a limited set of symbols. Frames go out one per slot, so be patient.</p>
+
+            <h3>What each screen shows</h3>
+            <ul>
+              <li><b>Messages</b>: the conversation, the recipient, Send, Announce and the sprite editor.</li>
+              <li><b>Network</b>: the map of stations (a stronger link is a shorter line), the channels and waterfall, the list of stations with signal and time since last heard, signal per channel, timing (Sync) and every frame sent or received.</li>
+              <li><b>Users</b>: stations as a contact list, newest activity first. Click one to write to it.</li>
+              <li><b>Settings</b>: your name, notifications, sprite display and stored data.</li>
+              <li>Colours show age: green heard in the last minute, then orange and red, grey after ten minutes.</li>
+            </ul>
+
+            <h3>Network options</h3>
+            <ul>
+              <li><b>Audio</b>: listen to the microphone. Off, the station is deaf and silent.</li>
+              <li><b>Allow transmit</b>: master switch for everything you send. Off, nothing goes out.</li>
+              <li><b>Test</b>: sends a beacon that asks every other station to answer, for a quick picture of who hears you and how well. <b>Announce</b>: sends your name.</li>
+              <li><b>Auto channel</b>: picks the best channel for each message from the link quality. <b>Auto test</b>: sends a beacon every few minutes to keep that picture fresh.</li>
+              <li><b>Repeater</b>: repeats what it hears from others, so stations that cannot hear each other can still talk. <b>Deep decode</b>: also looks for frames that arrive further off in time.</li>
+              <li><b>Reset to defaults</b>: puts these options back (Audio, your name and timing are kept).</li>
+            </ul>
+
+            <h3>Troubleshooting</h3>
+            <ul>
+              <li><b>Nobody appears.</b> Check that both stations use the <b>same band and the same mode</b>, that Audio is on, and that one of them is sending (press Test). Get closer and turn the volume up.</li>
+              <li><b>Frames are heard but do not decode, or arrive at the wrong time.</b> The clocks are out of sync. Transmissions happen in slots aligned to UTC and the receiver tolerates only a small error (about 2 seconds in mode A, less in faster modes, under half a second in T). Use the <b>Sync</b> section on <b>Network</b>:
+                <ul>
+                  <li><b>Check against server</b>, then <b>Use server time</b>, to align with the clock of the server this page came from.</li>
+                  <li><b>Sync to this station</b>, on a station row, to copy the timing of a station you do hear.</li>
+                  <li>A <b>manual offset</b> in seconds, and <b>Back to UTC</b> to undo any of these.</li>
+                  <li>The hints in the Sync section say whether your clock or theirs seems to be off.</li>
+                </ul>
+              </li>
+              <li><b>On a phone.</b> Phone clocks drift, so sync them. The browser stops audio when the screen turns off or the tab is in the background: keep the page open and the screen on. A Bluetooth headset can force a low sample rate and make the ultrasonic band unavailable; use the phone's own speaker and microphone. The microphone needs the page to be on https (or localhost).</li>
+              <li><b>Signal heard but nothing decodes.</b> Check the microphone level (a channel shown in yellow is overloaded), get closer, or move both stations to a slower mode.</li>
+            </ul>
+          </div>
+        </section>
+
         <section id="screen-settings" class="screen screen-settings" hidden>
           <h2>Settings</h2>
           <div id="nick-callout" class="nick-callout">
@@ -292,13 +367,13 @@
                 <option value="checker">shown as a checker board</option>
               </select>
             </label>
-            <p class="hint">Pixel size is how large one sprite pixel is drawn in the chat and in the editor (wide sprites shrink to fit a narrow screen).</p>
+            <p class="hint">Pixel size is how large one sprite pixel is drawn in the messages and in the editor (wide sprites shrink to fit a narrow screen).</p>
             <canvas id="sprite-sample" class="sprite-canvas" aria-label="Sprite size preview"></canvas>
           </div>
           <div class="stored-data">
             <h3>Stored data</h3>
             <p class="hint">Kept in this browser between visits. Each part is cleared on its own: clearing one leaves the others.</p>
-            <div class="stored-row"><button id="clear-chat" type="button">Clear chat messages</button> <span id="stored-chat-count" class="hint"></span></div>
+            <div class="stored-row"><button id="clear-chat" type="button">Clear messages</button> <span id="stored-chat-count" class="hint"></span></div>
             <div class="stored-row"><button id="clear-stations" type="button">Clear known stations</button> <span id="stored-stations-count" class="hint"></span></div>
             <div class="stored-row"><button id="clear-debug" type="button">Clear frame log</button> <span id="stored-debug-count" class="hint"></span></div>
             <div class="stored-row"><button id="clear-link" type="button">Clear link statistics</button> <span id="stored-link-count" class="hint"></span></div>
