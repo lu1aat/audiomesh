@@ -253,9 +253,16 @@ const users = new UsersView(
 
 const nicknameInput = el<HTMLInputElement>('nickname');
 const nickCallout = el('nick-callout');
+const nameBanner = el('name-banner');
 function updateNickCallout(): void {
-  nickCallout.classList.toggle('nick-ok', settings.nickname.trim() !== '');
+  const named = settings.nickname.trim() !== '';
+  nickCallout.classList.toggle('nick-ok', named);
+  nameBanner.hidden = named;
 }
+el('name-banner-set').addEventListener('click', () => {
+  showScreen('settings');
+  nicknameInput.focus();
+});
 nicknameInput.value = settings.nickname;
 updateNickCallout();
 nicknameInput.addEventListener('change', () => {
@@ -401,7 +408,7 @@ repeaterBox.addEventListener('change', () => {
  * A collapsible block built from a plain button + body, not <details>/<summary>:
  * Chromium hides every non-summary child of a <details> through internal slot
  * rendering, not CSS, so a sibling control that must stay visible while collapsed
- * (the channel strip; Test now) can't live inside one at all.
+ * (the channel strip; Test) can't live inside one at all.
  */
 function disclosure(toggleId: string, bodyId: string, open: boolean, onChange: (open: boolean) => void): void {
   const toggle = el<HTMLButtonElement>(toggleId);
@@ -615,7 +622,8 @@ function renderStrip(): void {
     cell.className = 'channel-cell';
     cell.dataset.channel = String(c.number);
     cell.textContent = String(c.number);
-    cell.addEventListener('click', () => selectChannel(c.number));
+    cell.title = `Channel ${c.number}: click to select, click again to clear. With Auto test off, a selected channel carries every transmission.`;
+    cell.addEventListener('click', () => toggleChannel(c.number));
     strip.append(cell);
   }
 }
@@ -633,7 +641,11 @@ function selectChannel(number: number | null): void {
   saveSettings(settings);
   applyListen();
 }
-display.onSelect = selectChannel;
+/** Clicking the selected channel again clears the selection: frames go back to the best / quietest channel. */
+function toggleChannel(number: number): void {
+  selectChannel(settings.channel === number ? null : number);
+}
+display.onSelect = toggleChannel;
 
 /** Show one band: waterfall span, channel plan and test tone references. Drops a channel from another band. */
 function selectBand(next: Band): void {
@@ -845,8 +857,10 @@ const AUTO_SOUND_CHOICES_MIN = [1, 2, 3, 5, 10, 15];
 if (!AUTO_SOUND_CHOICES_MIN.includes(settings.autoSoundIntervalMin)) settings.autoSoundIntervalMin = DEFAULT_SETTINGS.autoSoundIntervalMin;
 const autoSound = el<HTMLInputElement>('auto-sound');
 autoSound.checked = settings.autoSound;
+chat.setAutoSound(settings.autoSound);
 autoSound.addEventListener('change', () => {
   settings.autoSound = autoSound.checked;
+  chat.setAutoSound(autoSound.checked);
   saveSettings(settings);
 });
 const autoSoundInterval = el<HTMLSelectElement>('auto-sound-interval');
@@ -856,7 +870,7 @@ autoSoundInterval.addEventListener('change', () => {
   settings.autoSoundIntervalMin = Number(autoSoundInterval.value);
   saveSettings(settings);
 });
-/** Any beacon, automatic or "Test now", restarts the Auto test wait. */
+/** Any beacon, automatic or "Test", restarts the Auto test wait. */
 let lastSoundMs = Date.now();
 // Checked every 10 s so a changed interval takes effect without a reload.
 setInterval(() => {

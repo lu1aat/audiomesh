@@ -84,7 +84,7 @@ export class UsersView {
     for (const id of sorted) list.append(this.row(id, nameOf(id), heard.get(id), last.get(id), false, nowMs));
     this.root.replaceChildren(list);
     if (sorted.length === 0) {
-      this.root.append(el('p', 'hint', 'Nobody else yet. Stations appear here when we hear a frame from them or they announce a nickname.'));
+      this.root.append(el('p', 'hint', 'Nobody else yet. Stations appear here when we hear a frame from them or they announce a name.'));
     }
   }
 
@@ -108,7 +108,7 @@ export class UsersView {
     avatar.setAttribute('aria-hidden', 'true');
     if (!isSelf) avatar.append(el('span', `contact-presence presence-${status}`));
 
-    const name = `${nickname || 'No nickname'}${isSelf ? ' (you)' : ''}`;
+    const name = `${nickname || 'No name'}${isSelf ? ' (you)' : ''}`;
     const top = el('span', 'contact-top');
     const when = last?.atMs ?? (info ? nowMs - info.ageSec * 1000 : 0);
     // Slot resolution: the table only knows in which slot a station was last heard.

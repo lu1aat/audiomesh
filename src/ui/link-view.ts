@@ -202,7 +202,7 @@ export class LinkView {
       // The map still shows us, alone, so it is clear where others will appear.
       this.graphRoot.replaceChildren(this.graphSection(model));
       this.animateGraph();
-      this.root.replaceChildren(el('p', 'hint', 'No stations heard yet. Turn Audio on (Network options) on both devices and press "Test now" on each; every test beacon and every ack teaches the table.'), ...this.syncBlock(), this.framesSection());
+      this.root.replaceChildren(el('p', 'hint', 'No stations heard yet. Turn Audio on (Network options) on both devices and press "Test" on each; every test beacon and every ack teaches the table.'), ...this.syncBlock(), this.framesSection());
       this.frameTable.scrollTop = scrollTop;
       return;
     }

@@ -28,7 +28,7 @@ function describeBody(f: ChatFrame, label: (id: number) => string): string {
       return `${who} → ${label(f.dst)} · ack msg ${f.msgId}, frames ${got.join(',') || 'none'}${heard}`;
     }
     case 'hello':
-      return `${who} · hello, nickname "${f.name}"`;
+      return `${who} · hello, name "${f.name}"`;
     case 'sound':
       return `${who} · sound${f.reports.map((r) => ` · hears ${label(r.station)} on ch ${r.channel} at ${r.snrDb} dB`).join('')}`;
   }
@@ -67,7 +67,7 @@ function fieldsBody(f: ChatFrame, label: (id: number) => string): FrameFields {
       return { type: 'ack', src: f.src, dst: f.dst, msgId: f.msgId, detail: `frames ${got.join(',') || 'none'}${heard}` };
     }
     case 'hello':
-      return { type: 'hello', src: f.src, detail: `nickname "${f.name}"` };
+      return { type: 'hello', src: f.src, detail: `name "${f.name}"` };
     case 'sound':
       return { type: 'sound', src: f.src, detail: f.reports.map((r) => `hears ${label(r.station)} on ch ${r.channel} at ${r.snrDb} dB`).join(' · ') || 'no reports' };
   }

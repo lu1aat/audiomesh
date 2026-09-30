@@ -12,9 +12,9 @@ describe('describeFrame', () => {
     expect(text({ kind: 'ack', src: 6, dst: 5, msgId: 3, received: 0b11, heardChannel: 4, heardSnrDb: -9 })).toBe(
       'S6 → S5 · ack msg 3, frames 1,2 · heard you on ch 4 at -9 dB',
     );
-    expect(text({ kind: 'hello', src: 6, name: 'BOB' })).toBe('S6 · hello, nickname "BOB"');
+    expect(text({ kind: 'hello', src: 6, name: 'BOB' })).toBe('S6 · hello, name "BOB"');
     expect(text({ kind: 'sound', src: 6, reports: [{ station: 5, channel: 2, snrDb: -3 }] })).toBe('S6 · sound · hears S5 on ch 2 at -3 dB');
-    expect(text({ kind: 'hello', src: 6, name: 'RPT', repeater: true })).toBe('S6 · hello, nickname "RPT" · repeater');
+    expect(text({ kind: 'hello', src: 6, name: 'RPT', repeater: true })).toBe('S6 · hello, name "RPT" · repeater');
     expect(text({ kind: 'next', src: 5, msgId: 3, seq: 1, text: 'THERE', via: 4 })).toBe('S5 · msg 3 frame 2 · "THERE" · repeated (tag 4)');
   });
 

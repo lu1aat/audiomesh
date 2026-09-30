@@ -41,6 +41,10 @@
       </nav>
 
       <main class="main">
+        <div id="name-banner" class="name-banner" role="status" hidden>
+          <span>No station name set: other stations only see your random id.</span>
+          <button id="name-banner-set" type="button">Set your name</button>
+        </div>
         <section id="screen-chat" class="screen screen-chat" hidden>
 
           <div class="chat-head">
@@ -51,7 +55,7 @@
             <select id="dst-select" aria-label="Send to"></select>
             <input id="msg-input" type="text" maxlength="142" placeholder="message, up to 142 characters" autocomplete="off" spellcheck="false" />
             <button id="send-button" class="primary" disabled>Send at next slot</button>
-            <button id="announce-chat" type="button" class="announce-button" title="Tell other stations your nickname" disabled><span aria-hidden="true">👋</span> Announce</button>
+            <button id="announce-chat" type="button" class="announce-button" title="Tell other stations your name" disabled><span aria-hidden="true">👋</span> Announce</button>
           </div>
         </section>
 
@@ -72,8 +76,8 @@
             <button type="button" id="net-options-toggle" class="block-toggle" aria-expanded="true" aria-controls="net-options-body">
               <span class="channel-block-title" id="options-title">Network options</span>
             </button>
-            <button id="sound-button" type="button" class="btn-action btn-highlight" title="Test the link now: send one short beacon on the next channel of the rotation, so other stations can report how well they hear it" disabled>Test now</button>
-            <button id="announce-button" type="button" class="btn-action announce-button" title="Tell other stations your nickname" disabled><span aria-hidden="true">👋</span> Announce</button>
+            <button id="sound-button" type="button" class="btn-action btn-highlight" title="Test the link now: send one short beacon on the next channel of the rotation, so other stations can report how well they hear it" disabled>Test</button>
+            <button id="announce-button" type="button" class="btn-action announce-button" title="Tell other stations your name" disabled><span aria-hidden="true">👋</span> Announce</button>
             <div id="net-options-body" class="net-options-body">
             <div class="switch-grid">
               <label class="switch-tile" title="Audio on: listen to the microphone and allow sending. Off: the station is silent and deaf.">
@@ -91,9 +95,9 @@
                 <span class="switch"><input id="auto-channel" type="checkbox" title="Choose the channel automatically for each message, from the link quality. Off: always the selected channel, which is also the fallback." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
                 <span class="switch-state" aria-hidden="true"></span>
               </label>
-              <label class="switch-tile" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you.">
+              <label class="switch-tile" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you. Off with a channel selected: every transmission goes on that channel; clear the selection (click it again) to go back to automatic choice.">
                 <span class="switch-label">Auto test</span>
-                <span class="switch"><input id="auto-sound" type="checkbox" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch"><input id="auto-sound" type="checkbox" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you. Off with a channel selected: every transmission goes on that channel; clear the selection (click it again) to go back to automatic choice." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
                 <span class="switch-state" aria-hidden="true"></span>
               </label>
               <label class="switch-tile" title="Repeater mode: repeat every message, ack and announcement heard from other stations (marked as repeated), so stations that cannot hear each other can still talk through this one. While any repeater is about, every station sends its frames three slots apart, so messages take about three times as long.">
@@ -200,11 +204,11 @@
         <section id="screen-settings" class="screen screen-settings" hidden>
           <h2>Settings</h2>
           <div id="nick-callout" class="nick-callout">
-            <h3>Nickname</h3>
-            <p class="hint">Without one, other stations only ever see your random station id. Set a nickname so people recognize you; it's sent when you announce.</p>
+            <h3>Station name</h3>
+            <p class="hint">Without one, other stations only ever see your random station id. Set a name so people recognize you; it's sent when you announce.</p>
             <div class="nick-row">
               <label>
-                Nickname (up to 8 characters)
+                Name (up to 8 characters)
                 <input id="nickname" type="text" maxlength="8" autocomplete="off" spellcheck="false" />
               </label>
             </div>
@@ -226,7 +230,7 @@
           </label>
           <label class="checkbox">
             <input id="auto-announce" type="checkbox" />
-            Auto announce: send your nickname periodically while audio is on and a channel is selected
+            Auto announce: send your name periodically while audio is on and a channel is selected
           </label>
           <label>
             Announcement interval (minutes)

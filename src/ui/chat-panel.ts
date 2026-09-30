@@ -193,6 +193,8 @@ export class ChatPanel {
   /** The band being used: candidates for automatic channel choice and for sounding. */
   private bandChannels: readonly Channel[] = [];
   private autoChannel = true;
+  /** Auto test off + a selected channel: every frame, beacons included, goes on that channel. */
+  private autoSound = true;
   private soundCount = 0;
   private shownSecond = -1;
   private sendingAtMs = 0;
@@ -375,6 +377,12 @@ export class ChatPanel {
     this.refresh();
   }
 
+  /** Auto test on or off. Off with a channel selected pins every transmission to that channel. */
+  setAutoSound(on: boolean): void {
+    this.autoSound = on;
+    this.refresh();
+  }
+
   /** Repeater mode on or off; says so in the chat. */
   setRepeater(on: boolean): void {
     if (on === this.session.isRepeater) return;
@@ -407,7 +415,7 @@ export class ChatPanel {
   /** Ask for a hello with our nickname to go out in the next free slot. */
   announce(automatic = false): void {
     if (!this.session.hasNickname) {
-      this.status.textContent = 'Set a nickname in Settings before announcing.';
+      this.status.textContent = 'Set a name in Settings before announcing.';
       return;
     }
     this.session.announce();
@@ -451,12 +459,14 @@ export class ChatPanel {
    * the worst case over every station we hear), steering off channels other stations
    * are busy on and keeping the channel used last for that destination; with no link
    * data, on the quietest channel (the selected one on a tie). Auto off: the selected
-   * channel, or the middle of the band if none is selected.
+   * channel, or the middle of the band if none is selected. Auto test off with a
+   * channel selected: everything (sounds too) goes on the selected channel.
    */
   private txChannel(payload: Uint8Array, dst: number, slot: number): { number: number; baseHz: number; why: string } {
     const band = this.bandChannels;
     const byNumber = (n: number): Channel | undefined => band.find((c) => c.number === n) ?? this.channels.find((c) => c.number === n);
     const numbers = band.map((c) => c.number);
+    if (!this.autoSound && this.selected) return { ...this.selected, why: 'selected channel, auto test off' };
     const isSound = decodeFrame(payload)?.kind === 'sound';
     if (isSound && numbers.length > 0) {
       const n = soundChannel(this.session.stationId, this.soundCount++, numbers);

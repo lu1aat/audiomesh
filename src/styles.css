@@ -104,7 +104,7 @@ h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-sp
 /* A plain div + button, not <details>/<summary>: Chromium hides every non-summary
    child of a <details> through its own internal slot rendering, not CSS — no amount
    of `display: ... !important` on a sibling can override that, so a control that
-   must stay visible while collapsed (the channel strip; Test now, below) can't live
+   must stay visible while collapsed (the channel strip; Test, below) can't live
    inside a <details> at all. .block-toggle is a real <button> with aria-expanded;
    the body is a plain sibling shown/hidden via the [hidden] attribute from main.ts. */
 /* Shared by every collapsible header on this screen (channel-block, net-options, the
@@ -210,6 +210,10 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .composer select { max-width: 9em; border-radius: 0; }
 /* Nickname callout: thick warn border while unset (matches the yellow sidebar dot),
    settles to a plain border once a nickname is saved. */
+/* Top banner while no station name is set; its button opens Settings at the name field. */
+.name-banner { flex: none; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 16px; background: var(--panel-alt); border-bottom: var(--sep) solid var(--warn); font-size: 0.85rem; }
+.name-banner[hidden] { display: none; }
+.name-banner button { background: var(--warn); color: #000; border: 0; border-radius: 0; padding: 4px 12px; font: inherit; cursor: pointer; }
 .nick-callout { border: var(--sep) solid var(--warn); background: var(--panel-alt); padding: 12px 16px; margin: 0 0 20px; }
 .nick-callout h3 { margin: 0 0 6px; font-size: 0.9rem; }
 .nick-callout.nick-ok { border-color: var(--border); }
@@ -272,8 +276,8 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 /* Options card: a labelled list of switches and selects, so "what does this do" and
    "is this on" don't depend on every control looking like every other button.
    Collapsible (a <details>, same pattern as .channel-block above) so it doesn't
-   dominate the screen on mobile — the summary and Test now stay on one row, and
-   Test now is forced visible even while collapsed, same trick as .channel-strip. */
+   dominate the screen on mobile — the summary and Test stay on one row, and
+   Test is forced visible even while collapsed, same trick as .channel-strip. */
 .net-options { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; border: 1px solid var(--border); background: var(--panel); margin-bottom: 16px; }
 .net-options > .block-toggle { flex: 1 1 auto; min-width: 140px; padding: 8px 12px; margin: 0; background: var(--panel-alt); text-align: left; }
 .net-options-body { flex-basis: 100%; padding: 12px 16px 14px; }
