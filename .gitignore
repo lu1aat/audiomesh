@@ -1,0 +1,27 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.DS_Store
+.vite/
+coverage/
+
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Self-signed dev certificate for https over Tailscale/LAN; never commit the key
+certs/
+.playwright-mcp/
+
+# Agent / tooling scratch
+.claude/
+
+# Local notes, unreleased designs and captures
+TODO.md
+*.local.md
+docs/
+design/
+Screenshot_*.png

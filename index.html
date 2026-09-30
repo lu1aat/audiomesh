@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>audiomesh — acoustic network</title>
+    <meta
+      name="description"
+      content="Browser-only acoustic network over speaker and microphone: chat messages, announcements and link tests between stations."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <nav id="sidebar" class="sidebar" aria-label="Screens">
+        <div class="sidebar-head">
+          <h1 class="logo" title="audiomesh: chat over the air, speaker to microphone"><svg class="logo-mark" viewBox="0 0 35.2 32.4" aria-hidden="true" focusable="false"><rect class="lm-off" x="0" y="29.4" width="4" height="3"/><rect class="lm-off" x="0" y="25.2" width="4" height="3"/><rect class="lm-off" x="0" y="21" width="4" height="3"/><rect class="lm-on" style="--i:0" x="0" y="16.8" width="4" height="3"/><rect class="lm-off" x="0" y="12.6" width="4" height="3"/><rect class="lm-off" x="0" y="8.4" width="4" height="3"/><rect class="lm-off" x="0" y="4.2" width="4" height="3"/><rect class="lm-off" x="0" y="0" width="4" height="3"/><rect class="lm-off" x="5.2" y="29.4" width="4" height="3"/><rect class="lm-on" style="--i:1" x="5.2" y="25.2" width="4" height="3"/><rect class="lm-off" x="5.2" y="21" width="4" height="3"/><rect class="lm-off" x="5.2" y="16.8" width="4" height="3"/><rect class="lm-off" x="5.2" y="12.6" width="4" height="3"/><rect class="lm-off" x="5.2" y="8.4" width="4" height="3"/><rect class="lm-off" x="5.2" y="4.2" width="4" height="3"/><rect class="lm-off" x="5.2" y="0" width="4" height="3"/><rect class="lm-off" x="10.4" y="29.4" width="4" height="3"/><rect class="lm-off" x="10.4" y="25.2" width="4" height="3"/><rect class="lm-off" x="10.4" y="21" width="4" height="3"/><rect class="lm-off" x="10.4" y="16.8" width="4" height="3"/><rect class="lm-on" style="--i:2" x="10.4" y="12.6" width="4" height="3"/><rect class="lm-off" x="10.4" y="8.4" width="4" height="3"/><rect class="lm-off" x="10.4" y="4.2" width="4" height="3"/><rect class="lm-off" x="10.4" y="0" width="4" height="3"/><rect class="lm-on" style="--i:3" x="15.6" y="29.4" width="4" height="3"/><rect class="lm-off" x="15.6" y="25.2" width="4" height="3"/><rect class="lm-off" x="15.6" y="21" width="4" height="3"/><rect class="lm-off" x="15.6" y="16.8" width="4" height="3"/><rect class="lm-off" x="15.6" y="12.6" width="4" height="3"/><rect class="lm-off" x="15.6" y="8.4" width="4" height="3"/><rect class="lm-off" x="15.6" y="4.2" width="4" height="3"/><rect class="lm-off" x="15.6" y="0" width="4" height="3"/><rect class="lm-off" x="20.8" y="29.4" width="4" height="3"/><rect class="lm-off" x="20.8" y="25.2" width="4" height="3"/><rect class="lm-off" x="20.8" y="21" width="4" height="3"/><rect class="lm-off" x="20.8" y="16.8" width="4" height="3"/><rect class="lm-off" x="20.8" y="12.6" width="4" height="3"/><rect class="lm-off" x="20.8" y="8.4" width="4" height="3"/><rect class="lm-on" style="--i:4" x="20.8" y="4.2" width="4" height="3"/><rect class="lm-off" x="20.8" y="0" width="4" height="3"/><rect class="lm-off" x="26" y="29.4" width="4" height="3"/><rect class="lm-off" x="26" y="25.2" width="4" height="3"/><rect class="lm-off" x="26" y="21" width="4" height="3"/><rect class="lm-off" x="26" y="16.8" width="4" height="3"/><rect class="lm-off" x="26" y="12.6" width="4" height="3"/><rect class="lm-on" style="--i:5" x="26" y="8.4" width="4" height="3"/><rect class="lm-off" x="26" y="4.2" width="4" height="3"/><rect class="lm-off" x="26" y="0" width="4" height="3"/><rect class="lm-off" x="31.2" y="29.4" width="4" height="3"/><rect class="lm-off" x="31.2" y="25.2" width="4" height="3"/><rect class="lm-on" style="--i:6" x="31.2" y="21" width="4" height="3"/><rect class="lm-off" x="31.2" y="16.8" width="4" height="3"/><rect class="lm-off" x="31.2" y="12.6" width="4" height="3"/><rect class="lm-off" x="31.2" y="8.4" width="4" height="3"/><rect class="lm-off" x="31.2" y="4.2" width="4" height="3"/><rect class="lm-off" x="31.2" y="0" width="4" height="3"/></svg><span class="logo-word">audiomesh</span></h1>
+          <button id="sidebar-toggle" type="button" class="sidebar-toggle" aria-expanded="true" aria-controls="sidebar" title="Collapse the sidebar">«</button>
+        </div>
+        <div id="audio-state" class="radio status-stopped" data-audio="off" data-tx="off" role="group" aria-label="Station">
+          <div class="radio-keys">
+            <button id="key-audio" type="button" class="radio-key" aria-pressed="false" title="Turn audio on: listen to the microphone and allow sending"><span class="lamp" aria-hidden="true"></span><span class="key-label">Audio</span></button>
+            <button id="key-tx" type="button" class="radio-key" aria-pressed="false" title="Allow transmit"><span class="lamp" aria-hidden="true"></span><span class="key-label">TX</span></button>
+          </div>
+          <div class="radio-readout">
+            <div id="status-main" class="status-main" role="status">Audio off</div>
+            <div id="status-count" class="status-count"></div>
+          </div>
+          <div class="status-cadence" aria-hidden="true" title="Slot cadence of the protocol: the bar fills once per slot; the mark is where a frame ends">
+            <div id="status-cadence-fill" class="status-cadence-fill"></div>
+            <div id="status-cadence-mark" class="status-cadence-mark"></div>
+          </div>
+        </div>
+        <div class="sidebar-nav">
+          <button class="nav-item" data-screen="chat" title="Chat"><span class="nav-label">Chat</span><span class="nav-short" aria-hidden="true">C</span><span class="dot" data-dot="chat"></span></button>
+          <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">N</span><span class="dot" data-dot="network"></span></button>
+          <button class="nav-item" data-screen="users" title="Users"><span class="nav-label">Users</span><span class="nav-short" aria-hidden="true">U</span><span class="dot" data-dot="users"></span></button>
+          <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">S</span><span class="dot" data-dot="settings"></span></button>
+        </div>
+      </nav>
+
+      <main class="main">
+        <section id="screen-chat" class="screen screen-chat" hidden>
+
+          <div class="chat-head">
+            <span id="rx-status" class="hint"></span>
+          </div>
+          <ol id="rx-list" class="rx-list" aria-live="polite"></ol>
+          <div class="composer">
+            <select id="dst-select" aria-label="Send to"></select>
+            <input id="msg-input" type="text" maxlength="142" placeholder="message, up to 142 characters" autocomplete="off" spellcheck="false" />
+            <button id="send-button" class="primary" disabled>Send at next slot</button>
+            <button id="announce-chat" type="button" class="announce-button" title="Tell other stations your nickname" disabled><span aria-hidden="true">👋</span> Announce</button>
+          </div>
+        </section>
+
+        <section id="screen-network" class="screen screen-link">
+          <h2>Network</h2>
+          <div id="error" class="error-bar" role="alert" hidden>
+            <div class="error-title">Audio</div>
+            <div id="error-text" class="error-text"></div>
+          </div>
+          <div class="activity" role="group" aria-labelledby="activity-title">
+            <div id="activity-title" class="activity-title">Network activity</div>
+            <div class="activity-rows" aria-live="polite">
+              <div class="activity-row"><span class="activity-label">Last</span><span id="activity-last">nothing yet</span></div>
+              <div class="activity-row"><span class="activity-label">Next</span><span id="activity-next"></span></div>
+            </div>
+          </div>
+          <div id="net-options" class="net-options">
+            <button type="button" id="net-options-toggle" class="block-toggle" aria-expanded="true" aria-controls="net-options-body">
+              <span class="channel-block-title" id="options-title">Network options</span>
+            </button>
+            <button id="sound-button" type="button" class="btn-action btn-highlight" title="Test the link now: send one short beacon on the next channel of the rotation, so other stations can report how well they hear it" disabled>Test now</button>
+            <button id="announce-button" type="button" class="btn-action announce-button" title="Tell other stations your nickname" disabled><span aria-hidden="true">👋</span> Announce</button>
+            <div id="net-options-body" class="net-options-body">
+            <div class="switch-grid">
+              <label class="switch-tile" title="Audio on: listen to the microphone and allow sending. Off: the station is silent and deaf.">
+                <span class="switch-label">Audio</span>
+                <span class="switch"><input id="audio-on" type="checkbox" title="Audio on: listen to the microphone and allow sending. Off: the station is silent and deaf." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch-state" aria-hidden="true"></span>
+              </label>
+              <label class="switch-tile" title="Allow this station to transmit. Off: nothing is ever sent, not messages, acks, announcements, test beacons, repeats or the test tone; the station only listens. Turning it off also cuts a frame that is on the air.">
+                <span class="switch-label">Allow transmit</span>
+                <span class="switch"><input id="allow-tx" type="checkbox" title="Allow this station to transmit. Off: nothing is ever sent, not messages, acks, announcements, test beacons, repeats or the test tone; the station only listens. Turning it off also cuts a frame that is on the air." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch-state" aria-hidden="true"></span>
+              </label>
+              <label class="switch-tile" title="Choose the channel automatically for each message, from the link quality. Off: always the selected channel, which is also the fallback.">
+                <span class="switch-label">Auto channel</span>
+                <span class="switch"><input id="auto-channel" type="checkbox" title="Choose the channel automatically for each message, from the link quality. Off: always the selected channel, which is also the fallback." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch-state" aria-hidden="true"></span>
+              </label>
+              <label class="switch-tile" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you.">
+                <span class="switch-label">Auto test</span>
+                <span class="switch"><input id="auto-sound" type="checkbox" title="Send a short test beacon at the chosen interval, rotating through the channels, so other stations learn which channel reaches you." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch-state" aria-hidden="true"></span>
+              </label>
+              <label class="switch-tile" title="Repeater mode: repeat every message, ack and announcement heard from other stations (marked as repeated), so stations that cannot hear each other can still talk through this one. While any repeater is about, every station sends its frames three slots apart, so messages take about three times as long.">
+                <span class="switch-label">Repeater</span>
+                <span class="switch"><input id="repeater" type="checkbox" title="Repeater mode: repeat every message, ack and announcement heard from other stations (marked as repeated), so stations that cannot hear each other can still talk through this one. While any repeater is about, every station sends its frames three slots apart, so messages take about three times as long." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch-state" aria-hidden="true"></span>
+              </label>
+              <label class="switch-tile" title="Deep decode: also search up to 3 s beyond the usual timing window on each side (less in the fast mode), so a station whose clock is a few seconds off is still heard and its offset measured. Costs about a third more decoding time.">
+                <span class="switch-label">Deep decode</span>
+                <span class="switch"><input id="deep-decode" type="checkbox" title="Deep decode: also search up to 3 s beyond the usual timing window on each side (less in the fast mode), so a station whose clock is a few seconds off is still heard and its offset measured. Costs about a third more decoding time." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch-state" aria-hidden="true"></span>
+              </label>
+            </div>
+            <div class="opt-subhead">Timing &amp; protocol — protocol changes reload the page; both stations must match</div>
+            <div class="field-grid">
+              <label class="field-tile" title="How often Auto test sends a beacon. Every beacon takes a slot on the air from every station that hears it: with several stations, short intervals crowd the band. Long intervals learn the channels slowly (one channel per beacon, and link data older than 30 min is ignored).">
+                <span class="switch-label">Auto test every</span>
+                <select id="auto-sound-interval" title="How often Auto test sends a beacon. Every beacon takes a slot on the air from every station that hears it: with several stations, short intervals crowd the band. Long intervals learn the channels slowly (one channel per beacon, and link data older than 30 min is ignored)."></select>
+              </label>
+              <label class="field-tile">
+                <span class="switch-label">Band</span>
+                <select id="band-select"></select>
+              </label>
+              <label class="field-tile" title="Both stations must use the same protocol. Changing it reloads the page and stops audio.">
+                <span class="switch-label">Protocol</span>
+                <select id="protocol-select" title="Both stations must use the same protocol. Changing it reloads the page and stops audio."></select>
+              </label>
+            </div>
+            </div>
+          </div>
+          <div class="network-top">
+            <div class="network-map">
+              <div id="map-block" class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="map-block-toggle" class="block-toggle" aria-expanded="true" aria-controls="map-block-body">
+                    <span class="channel-block-title">Map</span>
+                  </button>
+                </div>
+                <div id="map-block-body" class="channel-block-body">
+                  <div id="network-graph" class="network-graph"></div>
+                </div>
+              </div>
+            </div>
+            <div class="network-waterfall">
+              <div id="channel-block" class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="channel-block-toggle" class="block-toggle" aria-expanded="true" aria-controls="channel-block-body">
+                    <span class="channel-block-title">Channels</span>
+                  </button>
+                  <span id="channel-strip" class="channel-strip" role="group" aria-label="Channels"></span>
+                </div>
+                <div id="channel-block-body" class="channel-block-body">
+                  <canvas id="spectrum" class="spectrum" aria-label="Spectrum and waterfall with channel plan"></canvas>
+                  <div class="level-controls">
+                    <label>
+                      Floor
+                      <input id="level-floor" type="range" min="-120" max="-10" step="1" value="-100" />
+                      <output id="level-floor-value">-100 dB</output>
+                    </label>
+                    <label>
+                      Ceiling
+                      <input id="level-ceil" type="range" min="-110" max="0" step="1" value="-30" />
+                      <output id="level-ceil-value">-30 dB</output>
+                    </label>
+                    <button id="level-fit" type="button">Fit to signal</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <section id="sync-block" class="link-section clock-block" aria-labelledby="clock-title">
+            <h3 id="clock-title" class="link-section-heading">
+              <button type="button" id="sync-block-toggle" class="block-toggle" aria-expanded="true" aria-controls="sync-block-body">
+                <span class="channel-block-title">Sync</span>
+              </button>
+            </h3>
+            <div id="sync-block-body" class="link-section-body">
+              <p id="clock-state" class="hint"></p>
+              <div class="clock-row">
+                <label class="inline-field">Manual offset
+                  <input id="clock-manual" type="number" step="0.1" inputmode="decimal" title="Seconds to move our slot timing against UTC: positive = our slots start later (the other stations' clocks are ahead of ours as we hear them)" />
+                  s</label>
+                <button id="clock-set" type="button" class="btn-action">Set</button>
+                <button id="clock-utc" type="button" class="btn-action">Back to UTC</button>
+              </div>
+              <div class="clock-row sync-server">
+                <button id="sync-server-check" type="button" class="btn-action" title="Ask the server this page came from for its time (the Date header of a request to this same address; nothing is sent anywhere else). Takes about 3 s.">Check against server</button>
+                <label class="checkbox inline-check"><input id="sync-server-auto" type="checkbox" /> every 10 min</label>
+                <button id="sync-server-use" type="button" class="btn-action" disabled>Use server time</button>
+              </div>
+              <p id="sync-server-state" class="hint"></p>
+              <div class="table-wrap"><table id="sync-stations" class="sync-table"></table></div>
+              <div class="table-wrap"><table id="clock-hints" class="clock-hints"><tbody></tbody></table></div>
+            </div>
+          </section>
+          <div id="link-view" class="link-view"></div>
+        </section>
+
+        <section id="screen-users" class="screen screen-users" hidden>
+          <h2>Users</h2>
+          <div id="users-view" class="users-view"></div>
+        </section>
+
+        <section id="screen-settings" class="screen screen-settings" hidden>
+          <h2>Settings</h2>
+          <div id="nick-callout" class="nick-callout">
+            <h3>Nickname</h3>
+            <p class="hint">Without one, other stations only ever see your random station id. Set a nickname so people recognize you; it's sent when you announce.</p>
+            <div class="nick-row">
+              <label>
+                Nickname (up to 8 characters)
+                <input id="nickname" type="text" maxlength="8" autocomplete="off" spellcheck="false" />
+              </label>
+            </div>
+            <p class="hint">Station id <span id="station-id">—</span>: chosen once at random, used to address you.</p>
+          </div>
+          <label class="checkbox">
+            <input id="notifications" type="checkbox" />
+            Notify me of new messages and announcements while this page is in the background
+          </label>
+          <p><button id="notify-test" type="button">Send a test notification</button></p>
+          <p id="notifications-hint" class="hint"></p>
+          <label class="checkbox">
+            <input id="listen-all" type="checkbox" />
+            Listen on every channel of the band (off: only the selected channel is decoded; uses less CPU)
+          </label>
+          <label class="checkbox">
+            <input id="decode-while-sending" type="checkbox" />
+            Decode while sending (off: slots where this station transmits are skipped)
+          </label>
+          <label class="checkbox">
+            <input id="auto-announce" type="checkbox" />
+            Auto announce: send your nickname periodically while audio is on and a channel is selected
+          </label>
+          <label>
+            Announcement interval (minutes)
+            <input id="announce-interval" type="number" min="1" max="120" step="1" inputmode="numeric" />
+          </label>
+          <div class="stored-data">
+            <h3>Stored data</h3>
+            <p class="hint">Kept in this browser between visits. Each part is cleared on its own: clearing one leaves the others.</p>
+            <div class="stored-row"><button id="clear-chat" type="button">Clear chat messages</button> <span id="stored-chat-count" class="hint"></span></div>
+            <div class="stored-row"><button id="clear-stations" type="button">Clear known stations</button> <span id="stored-stations-count" class="hint"></span></div>
+            <div class="stored-row"><button id="clear-debug" type="button">Clear frame log</button> <span id="stored-debug-count" class="hint"></span></div>
+            <div class="stored-row"><button id="clear-link" type="button">Clear link statistics</button> <span id="stored-link-count" class="hint"></span></div>
+          </div>
+          <div class="panel-head test-tone-head">
+            <h3>Test tone</h3>
+            <span id="tone-state" class="chip">off</span>
+          </div>
+          <div class="tone-controls">
+            <label>
+              Frequency
+              <select id="tone-source"></select>
+            </label>
+            <label id="tone-custom-label" hidden>
+              Hz
+              <input id="tone-custom" type="number" min="20" max="24000" step="1" value="1000" />
+            </label>
+            <label>
+              Level
+              <input id="tone-level" type="range" min="1" max="50" step="1" value="10" />
+            </label>
+            <button id="tone-button" class="primary" disabled>Play tone</button>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

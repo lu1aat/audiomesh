@@ -1,0 +1,523 @@
+:root {
+  color-scheme: dark;
+  --font-ui: system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Menlo, Consolas, monospace;
+  --sep: 3px; /* boundary between separate panels: a thick line, never a margin/gap */
+  --bg: #0a0a0a; --panel: #121212; --panel-alt: #181818; --panel-raised: #1f1f1f;
+  --border: #333333; --border-strong: #e8e8e8;
+  --text: #eaeaea; --text-dim: #8a8a8a;
+  /* one hue, reserved for "this is on/selected" — pulled from the waterfall's own Viridis
+     colormap (the teal midpoint) so it reads as a distinct colour, not a brightness flip
+     that's easy to miss against all the other white borders/text in this theme. */
+  --accent: #21918c; --accent-fg: #eafffb; --accent-ink: #101010;
+  --good: #4ade80; --warn: #e8c34a; --bad: #f0776b;
+  font-family: var(--font-ui);
+}
+body { margin: 0; background: var(--bg); color: var(--text); }
+html, body { height: 100%; }
+input[type="checkbox"] { accent-color: var(--accent); }
+h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+#app { display: flex; height: 100vh; height: 100dvh; }
+.sidebar { flex: none; width: 190px; box-sizing: border-box; padding: 16px 12px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+.sidebar h1 { font-size: 1.1rem; margin: 0; color: var(--accent); }
+/* Logo: the Costas sync pattern every frame opens with, as it shows on a waterfall: 7 symbols
+   across, 8 tones up, dim segments unlit. While we transmit, the tones light in symbol order. */
+.logo { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.logo-mark { flex: none; width: 32px; height: auto; display: block; }
+.lm-off { fill: color-mix(in srgb, var(--text) 9%, transparent); }
+.lm-on { fill: color-mix(in srgb, var(--accent) 65%, #ffffff); }
+.logo-word { color: var(--text); font-weight: 700; font-size: 1.05rem; text-transform: none; letter-spacing: -0.01em; }
+#app:has(.status-sending) .lm-on { animation: lm-tx 1.12s steps(1, end) infinite; animation-delay: calc(var(--i) * 0.16s); }
+@keyframes lm-tx { 0% { fill: #ffffff; } 14.3%, 100% { fill: var(--accent); } }
+@media (prefers-reduced-motion: reduce) {
+  #app:has(.status-sending) .lm-on { animation: none; }
+}
+.sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sidebar-toggle { flex: none; background: none; color: var(--text-dim); border: 1px solid var(--border); border-radius: 0; padding: 0 7px; font: inherit; line-height: 1.5; cursor: pointer; }
+.sidebar-toggle:hover { color: var(--text); background: var(--panel-raised); }
+.nav-short { display: none; }
+/* Collapsed: a narrow rail with the toggle, the status colour and cadence bar, and the screens as letters + dots. */
+.sidebar-collapsed .sidebar { width: 56px; padding: 12px 6px; }
+.sidebar-collapsed .sidebar-head { flex-direction: column; gap: 10px; }
+.sidebar-collapsed .logo { justify-content: center; }
+.sidebar-collapsed .logo-word, .sidebar-collapsed .radio-readout, .sidebar-collapsed .key-label, .sidebar-collapsed .nav-label { display: none; }
+.sidebar-collapsed .radio { padding: 6px 4px; gap: 6px; }
+.sidebar-collapsed .radio-keys { grid-template-columns: 1fr; }
+.sidebar-collapsed .radio-key { justify-content: center; padding: 8px 0; }
+.sidebar-collapsed .nav-short { display: inline; }
+.sidebar-collapsed .nav-item { flex-direction: column; gap: 4px; padding: 8px 0; }
+.sidebar-collapsed .nav-item.active { padding-left: 0; }
+.sidebar-status { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Station panel: a radio's front panel in the site's panel style. Two keys whose lamps are the
+   state (same round dots as the nav): Audio (green, flashes when a frame is decoded) and TX
+   (hollow = off, dim ring = allowed, amber = waiting for its slot, red = on air). */
+.radio { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--border); background: var(--panel-alt); font-variant-numeric: tabular-nums; }
+.radio-keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.radio-key { display: flex; align-items: center; gap: 7px; padding: 6px 8px; background: var(--panel); color: var(--text); border: 1px solid var(--border-strong); border-radius: 0; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.radio-key:hover { background: var(--panel-raised); }
+.radio-key:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.radio-key[aria-pressed="false"] { color: var(--text-dim); }
+.lamp { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #4a505b; box-sizing: border-box; }
+.radio[data-audio="on"] #key-audio .lamp { background: var(--good); }
+#key-audio .lamp.lamp-flash { animation: lamp-flash 0.6s ease-out; }
+@keyframes lamp-flash { 0% { background: #ffffff; box-shadow: 0 0 10px var(--good); transform: scale(1.4); } }
+.radio[data-tx="off"] #key-tx .lamp { background: none; border: 1.5px solid #4a505b; }
+.radio[data-tx="armed"] #key-tx .lamp { background: color-mix(in srgb, var(--bad) 25%, transparent); border: 1.5px solid var(--bad); }
+.radio[data-tx="preparing"] #key-tx .lamp { background: var(--warn); }
+.radio[data-tx="onair"] #key-tx .lamp { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+.radio[data-tx="onair"] #key-tx { border-color: var(--bad); }
+.radio-readout { padding: 0 2px; line-height: 1.3; }
+.status-main { font-weight: 700; font-size: 0.95rem; }
+.status-count { font-size: 0.8rem; color: var(--text-dim); min-height: 1.3em; }
+.status-sending .status-main { color: var(--bad); }
+.status-preparing .status-main { color: var(--warn); }
+.status-cadence { position: relative; height: 3px; background: var(--panel-raised); }
+.status-cadence-fill { height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+.status-sending .status-cadence-fill { background: var(--bad); }
+.status-stopped .status-cadence-fill { background: #4a505b; }
+.status-cadence-mark { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--text-dim); }
+@media (prefers-reduced-motion: reduce) {
+  #key-audio .lamp.lamp-flash { animation-duration: 0.3s; }
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 0; margin-top: 8px; border-top: 1px solid var(--border); }
+.nav-item { text-align: left; background: var(--panel); color: var(--text-dim); border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 8px 10px; font: inherit; cursor: pointer; }
+.nav-item:last-child { border-bottom: 0; }
+.nav-item { display: flex; align-items: center; justify-content: space-between; }
+.nav-item:disabled { opacity: 0.6; cursor: default; }
+.nav-item:disabled:hover { background: var(--panel); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #4a505b; flex: none; }
+.dot-green { background: #3fb950; }
+.dot-yellow { background: #d29922; }
+.dot-red { background: #f85149; }
+.nav-item:hover { background: var(--panel-raised); }
+.nav-item.active { background: var(--panel-raised); color: var(--text); font-weight: 600; border-left: var(--sep) solid var(--accent); padding-left: calc(10px - 2px); }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.screen { flex: 1; min-height: 0; box-sizing: border-box; padding: 12px 16px; }
+.screen[hidden] { display: none; }
+.screen-chat { display: flex; flex-direction: column; gap: 8px; }
+.screen-settings, .screen-link { overflow-y: auto; }
+.screen-settings h2, .screen-link h2 { font-size: 1.05rem; margin: 0 0 12px; }
+
+/* Network screen: separate cards with real space between them, each a thin (1px)
+   border — not a shared thick divider. Splitting things into distinct, named cards
+   is what's supposed to make "what is this" legible at a glance. */
+/* A plain div + button, not <details>/<summary>: Chromium hides every non-summary
+   child of a <details> through its own internal slot rendering, not CSS — no amount
+   of `display: ... !important` on a sibling can override that, so a control that
+   must stay visible while collapsed (the channel strip; Test now, below) can't live
+   inside a <details> at all. .block-toggle is a real <button> with aria-expanded;
+   the body is a plain sibling shown/hidden via the [hidden] attribute from main.ts. */
+/* Shared by every collapsible header on this screen (channel-block, net-options, the
+   map, sync and each link-view section): a triangle + label. Containers below add
+   their own background/padding/flex sizing on top of this. */
+.block-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; color: inherit; border: 0; background: none; padding: 0; }
+.block-toggle::before { content: '▾'; color: var(--accent); }
+.block-toggle[aria-expanded="false"]::before { content: '▸'; }
+
+/* A column: a header row sized to its own content, then the body. flex: 1 1 auto on
+   the body (below) is what lets it actually use the extra height a stretched card
+   (see .network-top) is given, instead of leaving it as blank space under the header —
+   a flex-wrap layout with two "lines" (header, body) can't target just one of them. */
+.channel-block { display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--panel); border-radius: 0; }
+.channel-block-head { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.channel-block-head > .block-toggle { flex: 1 1 auto; min-width: 90px; padding: 8px 12px; margin: 0; background: var(--panel-alt); text-align: left; }
+.channel-block-body[hidden] { display: none; }
+.channel-strip { display: flex; flex-wrap: wrap; gap: 0; flex: 1 1 auto; min-width: 0; align-items: center; background: var(--panel-alt); padding: 4px 12px; }
+.channel-cell { min-width: 34px; height: 34px; margin: 0 0 0 -1px; padding: 0; border: 1px solid var(--border); border-radius: 0; background: var(--panel-alt); color: var(--text-dim); font: 600 0.9rem var(--font-mono); font-variant-numeric: tabular-nums; cursor: pointer; position: relative; }
+.channel-cell:first-child { margin-left: 0; }
+.channel-cell:hover { background: var(--panel-raised); z-index: 1; }
+.channel-cell.channel-current { background: var(--accent); color: var(--accent-fg); font-size: 1.15rem; border-color: var(--accent); z-index: 2; }
+/* Every section title on this screen, whether it sits in an <h3> (Stations, Sync, ...)
+   or a plain toggle button with no heading tag (Map, Channels, Network options): set
+   explicitly here so all of them render identically regardless of the wrapping tag. */
+.channel-block-title { font-family: var(--font-mono); font-weight: 600; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.channel-block-body { flex: 1 1 auto; min-height: 0; padding: 10px 12px 12px; border-top: 1px solid var(--border); }
+/* The Channels card's own body (not the Map's, which just centres the graph): a flex
+   column so the waterfall (flex-grow) fills whatever extra height the card was given
+   to match the Map's height, instead of staying its old fixed size. Floor/Ceiling/Fit
+   stay their natural size at the bottom. */
+#channel-block-body { display: flex; flex-direction: column; }
+#channel-block-body .level-controls { flex: none; }
+.channel-block .panel-head { justify-content: flex-start; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0; }
+.clock-block .clock-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.clock-block input[type="number"] { width: 5rem; background: var(--panel-alt); color: inherit; border: 1px solid var(--border); border-radius: 0; padding: 5px; font: inherit; }
+.sync-server { margin-top: 8px; }
+.inline-check { display: inline-flex; align-items: center; gap: 4px; margin: 0; font-size: 0.85rem; }
+.table-wrap { overflow-x: auto; }
+.sync-table { border-collapse: collapse; font-size: 0.8rem; margin-top: 6px; }
+.sync-table th, .sync-table td { padding: 3px 10px 3px 0; text-align: left; white-space: nowrap; }
+.sync-table th { color: var(--text-dim); font-weight: 600; }
+.sync-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Suggestions as a table, not a bulleted list: the call to action always lands in the
+   same right-hand column, so scanning several at once doesn't mean re-finding the button. */
+.clock-hints { width: 100%; border-collapse: collapse; margin: 8px 0 0; font-size: 0.85rem; }
+.clock-hints td { padding: 8px 10px; border-bottom: 1px solid var(--border); border-left: var(--sep) solid var(--warn); vertical-align: middle; }
+.clock-hints tr:last-child td { border-bottom: 0; }
+.clock-hints td.hint-action { border-left: 0; text-align: right; white-space: nowrap; color: var(--text-dim); }
+.inline-field { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-dim); }
+.channel-block .spectrum { border-radius: 0; }
+.chat-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chat-head .level-controls { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin-top: 8px; }
+.level-controls label { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
+.level-controls input[type=range] { width: 120px; }
+.level-controls output { min-width: 4.5em; color: var(--text); font-variant-numeric: tabular-nums; }
+.level-controls button { background: var(--panel-alt); color: inherit; border: 0; border-radius: 0; padding: 4px 10px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+.level-controls button:hover { background: var(--panel-raised); }
+.hint { margin: 0; }
+.header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.header h1 { font-size: 1.2rem; margin: 0; }
+.header-status { display: flex; gap: 8px; flex: 1; }
+.chip { padding: 2px 8px; border-radius: 0; background: var(--panel-alt); font-size: 0.8rem; }
+.chip-warn { background: #4a3a1a; color: #f0d090; }
+.chip-ok { background: #1c3d2a; color: #9fe0b5; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.spectrum { display: block; width: 100%; flex: 1 1 224px; min-height: 224px; border-radius: 0; cursor: pointer; touch-action: none; }
+.hint { margin: 8px 0 0; font-size: 0.85rem; color: var(--text-dim); }
+.error { color: var(--bad); }
+button.primary { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 0; padding: 8px 14px; font: inherit; cursor: pointer; }
+button.primary:hover { filter: brightness(0.9); }
+button.primary:disabled { background: var(--panel-alt); color: var(--text-dim); }
+.tone-controls { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; }
+.tone-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-dim); }
+.tone-controls select, .tone-controls input[type=number] { background: var(--panel-alt); color: inherit; border: 1px solid var(--border); border-radius: 0; padding: 6px; font: inherit; }
+
+
+label.checkbox { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.85rem; color: var(--text-dim); cursor: pointer; }
+
+select { background: var(--panel-alt); color: inherit; border: 1px solid var(--border); border-radius: 0; padding: 6px; font: inherit; }
+.test-tone-head { margin-top: 20px; }
+.test-tone-head h3 { font-size: 0.95rem; margin: 0; }
+
+.rx-list { flex: 1; min-height: 0; list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.bubble { max-width: min(75%, 420px); box-sizing: border-box; padding: 6px 10px; border: 1px solid var(--border); border-radius: 0; font-size: 0.95rem; }
+.bubble-in { align-self: flex-start; background: var(--panel-alt); border-left: var(--sep) solid var(--good); }
+.bubble-out { align-self: flex-end; background: var(--panel-raised); border-right: var(--sep) solid var(--accent); }
+.bubble-text { font: 1rem ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble-foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 2px; font-size: 0.7rem; color: var(--text-dim); }
+.info-toggle { background: none; border: 0; padding: 0 2px; color: inherit; font: inherit; font-size: 0.85rem; cursor: pointer; opacity: 0.8; }
+.info-toggle:hover { opacity: 1; }
+.bubble-details { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim); }
+.bubble-details[hidden] { display: none; }
+.bubble-row { display: flex; gap: 8px; line-height: 1.45; }
+.bubble-key { flex: none; width: 4.2em; color: var(--text-dim); }
+.bubble-row .bubble-action { margin-left: auto; flex: none; background: var(--panel-alt); color: inherit; border: 1px solid var(--border); border-radius: 0; padding: 0 8px; font: inherit; cursor: pointer; }
+.bubble-row .bubble-action:hover:not(:disabled) { background: var(--panel-raised); }
+.bubble-row .bubble-action:disabled { opacity: 0.6; cursor: default; }
+.composer { flex: none; display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.composer button:not(.primary) { background: var(--panel-alt); color: inherit; border: 0; border-radius: 0; padding: 8px 14px; font: inherit; cursor: pointer; }
+.composer button:not(.primary):hover { background: var(--panel-raised); }
+.composer button:disabled { color: var(--text-dim); cursor: default; }
+.composer select { max-width: 9em; border-radius: 0; }
+/* Nickname callout: thick warn border while unset (matches the yellow sidebar dot),
+   settles to a plain border once a nickname is saved. */
+.nick-callout { border: var(--sep) solid var(--warn); background: var(--panel-alt); padding: 12px 16px; margin: 0 0 20px; }
+.nick-callout h3 { margin: 0 0 6px; font-size: 0.9rem; }
+.nick-callout.nick-ok { border-color: var(--border); }
+.nick-row { display: flex; align-items: end; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.nick-row label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-dim); }
+.nick-row input { background: var(--panel); color: inherit; border: 1px solid var(--border); border-radius: 0; padding: 6px 8px; font: 1.1rem ui-monospace, monospace; }
+.notice { align-self: center; padding: 2px 10px; border-radius: 0; background: var(--panel-alt); color: var(--text-dim); font-size: 0.75rem; }
+.bubble-who { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 2px; }
+.bubble-state { font-size: 0.7rem; }
+.bubble-state.state-delivered { color: var(--good); }
+.bubble-state.state-failed { color: var(--bad); cursor: pointer; text-decoration: underline; }
+.composer input { flex: 1; min-width: 0; background: var(--panel-alt); color: inherit; border: 1px solid var(--border); border-radius: 0; padding: 10px 14px; font: 1rem ui-monospace, monospace; }
+
+@media (max-width: 700px) {
+  #app { flex-direction: column; }
+  .sidebar { width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px 12px; gap: 8px; }
+  .sidebar h1 { font-size: 1rem; }
+  .radio { flex: 1 1 200px; }
+  .sidebar-nav { flex-direction: row; margin: 0 0 0 auto; border-top: 0; border-left: 1px solid var(--border); }
+  .nav-item { border-bottom: 0; border-right: 1px solid var(--border); }
+  .nav-item:last-child { border-right: 0; }
+  .nav-item.active { border-left: 0; border-top: var(--sep) solid var(--accent); padding-left: 10px; padding-top: 6px; }
+  /* Collapsed on a phone: a single row of toggle + screens, no title or status tile. */
+  .sidebar-collapsed .sidebar { width: auto; padding: 6px 12px; }
+  .sidebar-collapsed .radio { flex: none; flex-direction: row; align-items: center; }
+  .sidebar-collapsed .radio-keys { grid-template-columns: 1fr 1fr; }
+  .sidebar-collapsed .radio-key { padding: 6px 10px; }
+  .sidebar-collapsed .key-label { display: inline; }
+  .sidebar-collapsed .status-cadence { display: none; }
+  .sidebar-collapsed .nav-item { flex-direction: row; padding: 8px 10px; }
+  .sidebar-collapsed .nav-item.active { padding-left: 10px; }
+  .sidebar-collapsed .nav-short { display: none; }
+  .sidebar-collapsed .nav-label { display: inline; }
+  .sidebar-collapsed .sidebar-head { flex-direction: row; }
+  .logo-word { font-size: 1rem; }
+  .logo-mark { width: 26px; }
+  /* Composer: the text field gets its own line, recipient + Send + Announce below it. */
+  .composer { flex-wrap: wrap; }
+  .composer input { flex-basis: 100%; order: -1; }
+  .composer #send-button { flex: 1; }
+}
+
+
+
+/* Network screen: each area is its own card with a thin border, and real space
+   (not a shared thick line) is what separates one card from the next. On a big
+   screen, align-items: stretch makes the Map and Channels cards match height (each
+   wrapper is a single-item flex row, so its card stretches to fill it); at
+   900px and below they stack to one column, where matched height doesn't apply. */
+.network-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: stretch; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 900px) { .network-top { grid-template-columns: minmax(0, 1fr); } }
+.network-map, .network-waterfall { display: flex; min-width: 0; }
+.network-map > .channel-block, .network-waterfall > .channel-block { flex: 1 1 auto; min-width: 0; }
+/* A collapsed card (see disclosure() in main.ts) drops out of the height match, so it
+   doesn't sit stretched and empty next to a sibling that is still open. */
+.network-map > .channel-block.is-collapsed, .network-waterfall > .channel-block.is-collapsed { align-self: flex-start; }
+.network-graph { min-width: 0; }
+.network-graph .link-section { margin: 0; border: 0; background: transparent; padding: 0; }
+
+/* Options card: a labelled list of switches and selects, so "what does this do" and
+   "is this on" don't depend on every control looking like every other button.
+   Collapsible (a <details>, same pattern as .channel-block above) so it doesn't
+   dominate the screen on mobile — the summary and Test now stay on one row, and
+   Test now is forced visible even while collapsed, same trick as .channel-strip. */
+.net-options { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; border: 1px solid var(--border); background: var(--panel); margin-bottom: 16px; }
+.net-options > .block-toggle { flex: 1 1 auto; min-width: 140px; padding: 8px 12px; margin: 0; background: var(--panel-alt); text-align: left; }
+.net-options-body { flex-basis: 100%; padding: 12px 16px 14px; }
+.net-options-body[hidden] { display: none; }
+/* A real action, styled apart from the switches below: click it, something happens once. */
+.btn-action { display: flex; align-items: center; gap: 0.4em; flex: none; margin: 6px 12px; background: var(--panel-alt); color: var(--text); border: 1px solid var(--border-strong); border-radius: 0; padding: 6px 14px; font: inherit; font-size: 0.85rem; cursor: pointer; }
+.btn-action + .btn-action { margin-left: 0; }
+.btn-action:hover:not(:disabled) { background: var(--panel-raised); }
+.btn-action:disabled { opacity: 0.5; cursor: default; border-color: var(--border); }
+/* Highlighted: the one plain action button on this screen, kept visible even when
+   the options are collapsed, so it should read as the thing to press. */
+.btn-highlight { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; }
+.btn-highlight:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-highlight:disabled { background: var(--panel-alt); color: var(--text-dim); border-color: var(--border); font-weight: 400; }
+/* Two grouped, gridded clusters instead of one long list: on/off switches together,
+   selects together below a subhead — shorter, and the grouping itself says what
+   kind of control each one is. */
+.switch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+/* Each switch is its own bordered tile (not just a label + a switch spread to the
+   tile's far edge by justify-content: space-between): label, switch and an explicit
+   On/Off word sit right next to each other, and the tile's own border is what says
+   they belong together, so a row of several switches can't be misread as which
+   switch goes with which label. The border lights up in the accent colour while on. */
+.switch-tile { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); background: var(--panel-alt); cursor: pointer; }
+.switch-tile:has(input:checked) { border-color: var(--accent); }
+.opt-subhead { margin-top: 12px; padding: 10px 0 2px; border-top: 1px solid var(--border); font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); }
+.field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 20px; margin-top: 8px; }
+.field-tile { display: flex; flex-direction: column; gap: 4px; }
+.field-tile select { width: 100%; }
+.switch-label { font-size: 0.85rem; flex: 1 1 auto; min-width: 0; }
+/* An actual track + thumb, so on/off is a physical-looking toggle, not a colour flip
+   easy to mistake for hover or for one of the plain action buttons nearby. */
+.switch { position: relative; display: inline-flex; width: 40px; height: 22px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch-track { position: absolute; inset: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 11px; }
+.switch-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-dim); transition: transform 0.15s ease, background 0.15s ease; }
+.switch:has(input:checked) .switch-track { background: var(--accent); border-color: var(--accent); }
+.switch:has(input:checked) .switch-thumb { transform: translateX(18px); background: var(--accent-fg); }
+.switch:has(input:focus-visible) .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.switch:has(input:disabled) { opacity: 0.5; }
+/* The word next to the switch, so its state reads without decoding a pill's colour. */
+.switch-state { flex: none; min-width: 2.4em; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); }
+.switch-state::before { content: 'Off'; }
+.switch-tile:has(input:checked) .switch-state { color: var(--accent); }
+.switch-tile:has(input:checked) .switch-state::before { content: 'On'; }
+
+.error-bar { display: flex; align-items: stretch; font-size: 0.85rem; border: 1px solid #6b2f33; background: #2c1a1d; margin-bottom: 16px; }
+.error-bar[hidden] { display: none; }
+.error-title { display: flex; align-items: center; flex: none; padding: 6px 12px; font-size: 0.75rem; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; color: #f0a0a0; background: #22161a; border-right: 1px solid #4a2a2e; }
+.error-text { padding: 8px 12px; color: #f5c6c6; min-width: 0; }
+.activity { display: flex; align-items: stretch; font-size: 0.85rem; border: 1px solid var(--border); background: var(--panel); margin-bottom: 16px; }
+.activity-title { flex: none; line-height: 1.3; padding: 8px 12px; font-size: 0.75rem; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); background: var(--panel-alt); border-right: 1px solid var(--border); }
+.activity-rows { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 12px; min-width: 0; }
+.activity-row { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.activity-label { flex: none; width: 2.6rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.link-section { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--border); background: var(--panel); }
+.link-section h3 { font-size: 0.9rem; margin: 0 0 6px; }
+.link-section h4 { font-size: 0.78rem; margin: 10px 0 4px; color: var(--text-dim); font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.03em; }
+/* Every link-view section (Stations, Signal history, ...) and the static Sync section
+   collapse the same way as the channel/options blocks above: a toggle button in the
+   heading, a sibling body hidden via the [hidden] attribute. */
+.link-section-heading .block-toggle { width: 100%; }
+.link-section-body[hidden] { display: none; }
+.station-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.station-row { display: grid; grid-template-columns: minmax(11rem, 15rem) 1fr; gap: 6px 20px; align-items: start; padding: 10px 12px; background: var(--panel-alt); border-radius: 0; font-size: 0.85rem; border-left: var(--sep) solid var(--text-dim); }
+@media (max-width: 640px) { .station-row { grid-template-columns: 1fr; } }
+.station-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.station-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.station-id { color: var(--text-dim); font-size: 0.85rem; }
+.station-state { display: flex; align-items: baseline; gap: 10px; font-size: 0.95rem; }
+.station-age { font-weight: 600; }
+.station-details { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; align-items: baseline; }
+.station-details dt { color: var(--text-dim); }
+.station-details dd { margin: 0; min-width: 0; }
+.status-active .station-status { color: var(--good); }
+.status-recent .station-status { color: var(--warn); }
+.status-quiet .station-status { color: var(--text-dim); }
+.station-row.status-active { border-left-color: var(--good); }
+.station-row.status-recent { border-left-color: var(--warn); }
+.station-status { font-weight: 600; }
+.link-summary { margin: 0 0 8px; font-size: 0.85rem; color: var(--text-dim); }
+.station-signal { font-weight: 600; }
+.station-signal.level-good { color: var(--good); }
+.station-signal.level-fair { color: var(--warn); }
+.station-signal.level-weak { color: var(--bad); }
+.station-signal.level-none { color: var(--text-dim); }
+
+/* Stations: three interchangeable layouts (Table / Cards / Grid), switched from the same screen. */
+.section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.section-head .link-summary { margin: 0; }
+.view-switch { display: inline-flex; flex: none; border: 1px solid var(--border); }
+.view-switch button { background: var(--panel-alt); color: var(--text-dim); border: 0; border-right: 1px solid var(--border); border-radius: 0; padding: 4px 10px; font: inherit; font-size: 0.78rem; cursor: pointer; }
+.view-switch button:last-child { border-right: 0; }
+.view-switch button:hover { background: var(--panel-raised); color: var(--text); }
+.view-switch button.active { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+
+/* Generic good/fair/weak colouring, used on any table cell or tile: signal dB, timing deviation, ... */
+.lvl-good { color: var(--good); }
+.lvl-warn { color: var(--warn); }
+.lvl-bad { color: var(--bad); font-weight: 600; }
+.lvl-none { color: var(--text-dim); }
+
+.station-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.station-table th, .station-table td { padding: 6px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+.station-table th { color: var(--text-dim); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-mono); }
+.station-table tbody tr:last-child td { border-bottom: 0; }
+.station-table tbody tr:hover td { background: var(--panel-alt); }
+.station-table td.num, .station-table td.lvl-good, .station-table td.lvl-warn, .station-table td.lvl-bad, .station-table td.lvl-none { font-variant-numeric: tabular-nums; }
+.st-name-cell { font-weight: 700; }
+.st-id { color: var(--text-dim); font-weight: 400; margin-left: 5px; font-size: 0.85em; }
+.st-badge { margin-left: 6px; color: var(--text); }
+.status-active td.st-status { color: var(--good); }
+.status-recent td.st-status { color: var(--warn); }
+.status-quiet td.st-status { color: var(--text-dim); }
+.st-notes { color: var(--text-dim); font-size: 0.8rem; white-space: normal; }
+
+.station-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.station-tile { padding: 10px 12px; background: var(--panel-alt); border-left: var(--sep) solid var(--text-dim); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.station-tile.status-active { border-left-color: var(--good); }
+.station-tile.status-recent { border-left-color: var(--warn); }
+.tile-name { font-weight: 700; overflow-wrap: anywhere; }
+.tile-id { color: var(--text-dim); font-weight: 400; font-size: 0.85em; }
+.tile-badge { color: var(--text); }
+.tile-signal { font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.tile-meta { font-size: 0.76rem; color: var(--text-dim); }
+.tile-timing { font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.tile-note { font-size: 0.75rem; color: var(--text-dim); overflow-wrap: anywhere; }
+.graph-chart { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
+/* Honeycomb background: dim cells like the unlit segments of an old LCD; stations are lit cells. */
+.hex-cell { fill: var(--panel-alt); stroke: var(--border); stroke-width: 1; }
+.graph-node { fill: var(--panel-raised); stroke: var(--text-dim); stroke-width: 1.5; }
+.graph-me { fill: #ffffff; stroke: #000000; stroke-width: 2; }
+.graph-chart .chart-label { paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.graph-repeater { fill: none; stroke: var(--text-dim); stroke-width: 1.5; }
+.graph-repeater-dark { stroke: rgba(0, 0, 0, 0.6); }
+.station-repeater { color: var(--text); font-weight: 600; }
+.graph-id { fill: var(--text); font-size: 13px; font-weight: 600; }
+.graph-chart .graph-id-dark { fill: #000000; }
+.station-name { font-weight: 700; font-size: 1.35rem; line-height: 1.15; overflow-wrap: anywhere; }
+.station-seen { color: var(--text-dim); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+/* Signal by channel: same header and row rules as the Stations table; cells use the shared
+   signal levels as coloured text on a faint tint, so nothing here outshouts the rest of the screen. */
+.signal-matrix { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.signal-matrix th { color: var(--text-dim); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; font-family: var(--font-mono); white-space: nowrap; }
+.signal-matrix thead th { padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: center; }
+.signal-matrix .sm-corner { text-align: left; padding-left: 10px; }
+.signal-matrix th.sm-station { padding: 4px 16px 4px 10px; text-align: left; color: var(--text); font-family: inherit; font-size: 0.83rem; text-transform: none; letter-spacing: 0; font-weight: 700; max-width: 12rem; overflow: hidden; text-overflow: ellipsis; }
+.signal-matrix .sm-corner, .signal-matrix th.sm-station { position: sticky; left: 0; z-index: 1; background: var(--panel); }
+.sm-summary th.sm-station { color: var(--accent); }
+.sm-summary tr > * { padding-block: 8px; border-bottom: 1px solid var(--border-strong); }
+.sm-group th { text-align: left; padding: 14px 10px 4px; }
+.sm-cell { position: relative; min-width: 2.6rem; padding: 4px; text-align: center; border: 1px solid var(--bg); font-weight: 600; }
+.sm-cell.level-good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.sm-cell.level-fair { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.sm-cell.level-weak { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.sm-empty { color: var(--text-dim); font-weight: 400; }
+/* Accent border = the one we would use (top three for everyone; the channel we send on to a station). */
+.sm-cell.sm-pick { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sm-rank { position: absolute; top: 2px; left: 4px; font-size: 0.68rem; font-weight: 700; color: var(--accent); line-height: 1; }
+.history-chart { width: 100%; height: auto; display: block; }
+.chart-wrap { position: relative; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-axis { fill: var(--text-dim); font-size: 10px; }
+.chart-label { fill: var(--text); font-size: 11px; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 4px; font-size: 0.8rem; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 0; display: inline-block; }
+.graph-wrap { position: relative; max-width: 520px; margin: 0 auto; }
+.graph-tip { white-space: pre-line; text-align: left; z-index: 2; }
+.graph-hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: default; }
+.graph-chart line.graph-hot { stroke-width: 4; }
+.graph-chart g { cursor: default; }
+.graph-chart g.graph-hot .graph-node { stroke: #ffffff; stroke-width: 2.5; }
+.chart-tip { position: absolute; transform: translate(-50%, calc(-100% - 10px)); background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: 0; padding: 4px 8px; font-size: 0.75rem; white-space: nowrap; pointer-events: none; }
+.table-scroll { overflow-x: auto; }
+.link-table { border-collapse: collapse; font-size: 0.8rem; min-width: 34rem; }
+.link-table th { text-align: left; padding: 4px 12px 4px 0; color: var(--text-dim); cursor: pointer; white-space: nowrap; border-bottom: 1px solid var(--border); }
+.link-table td { padding: 3px 12px 3px 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.link-table tbody tr:nth-child(even) { background: var(--panel-alt); }
+.best-ch { font-weight: 700; }
+
+.stored-data { margin-top: 20px; }
+.stored-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+
+/* Users screen: contact list */
+.contact-list { list-style: none; margin: 8px 0 0; padding: 0; max-width: 640px; }
+.contact { border-bottom: 1px solid var(--border); }
+.contact-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 6px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.contact-row:hover:not(:disabled) { background: var(--panel-alt); }
+.contact-row:disabled { cursor: default; }
+.contact-self { opacity: 0.75; }
+.contact-avatar { position: relative; flex: none; width: 2.9rem; height: 2.9rem; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 1.1rem; color: #0b0b0b; background: hsl(var(--hue, 210) 55% 65%); }
+.contact-presence { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--bg); background: #4a505b; }
+.presence-active { background: #3fb950; }
+.presence-recent { background: #d29922; }
+.contact-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.contact-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.contact-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contact-time { flex: none; font-size: 0.75rem; color: var(--text-dim); margin-left: auto; }
+.contact-since { flex: none; min-width: 5.5rem; text-align: right; font-size: 0.75rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.contact-preview { font-size: 0.85rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Click a bubble to reply */
+.bubble-reply { cursor: pointer; }
+.bubble-reply:hover { filter: brightness(1.12); }
+.composer select.blink { animation: recipient-blink 0.3s ease-in-out 3; }
+@keyframes recipient-blink {
+  0%, 100% { background: var(--panel-alt); border-color: var(--border); }
+  50% { background: #fff; border-color: #fff; color: #0b0b0b; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer select.blink { animation-duration: 0.6s; animation-iteration-count: 1; }
+}
+
+/* Chat dot: blinks green until the Chat screen is opened (before .dot-blink so a white flash still wins) */
+.dot.dot-pulse { animation: dot-pulse 1s ease-in-out infinite; }
+@keyframes dot-pulse { 50% { background: #4a505b; box-shadow: none; } 0%, 100% { box-shadow: 0 0 6px #3fb950; } }
+@media (prefers-reduced-motion: reduce) {
+  .dot.dot-pulse { animation-duration: 2s; }
+}
+
+/* White blink: sidebar indicators, channel cells; red = input overloaded */
+.dot.dot-blink { animation: white-blink-dot 0.3s ease-in-out 3; }
+@keyframes white-blink-dot { 50% { background: #fff; transform: scale(1.5); } }
+.channel-cell.channel-blink { animation: white-blink-cell 0.3s ease-in-out 3; }
+@keyframes white-blink-cell { 50% { background: #fff; color: #0b0b0b; } }
+.channel-cell.channel-over { background: var(--warn); color: var(--accent-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .dot.dot-blink, .channel-cell.channel-blink { animation-duration: 0.6s; animation-iteration-count: 1; }
+}
+
+.frame-filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin-bottom: 8px; }
+.frame-filters label { display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; color: var(--text-dim); }
+.frame-filters input { width: 9rem; }
+.frame-filters input[type="number"] { width: 5rem; }
+.frame-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+.frame-toolbar .hint { margin: 0; }
+.frame-scroll { max-height: 28rem; overflow: auto; }
+.frame-grid { min-width: 60rem; }
+.frame-grid th { position: sticky; top: 0; background: var(--panel); }
+.frame-hex, .frame-detail { font: 0.75rem ui-monospace, monospace; }
+.frame-detail { white-space: normal; min-width: 14rem; overflow-wrap: anywhere; }
+.frame-grid .frame-tx td:nth-child(3) { color: #6fb0f5; }
+.frame-grid .frame-rx td:nth-child(3) { color: #5cc98a; }
+.station-sync { background: var(--panel-alt); color: inherit; border: 0; border-radius: 0; padding: 3px 8px; font: inherit; cursor: pointer; }
+.station-sync:disabled { opacity: 0.55; cursor: default; }
+.frame-filters label.frame-check { flex-direction: row; align-items: center; gap: 6px; color: inherit; font-size: 0.85rem; }
