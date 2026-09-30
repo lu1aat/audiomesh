@@ -870,6 +870,50 @@ autoSoundInterval.addEventListener('change', () => {
   settings.autoSoundIntervalMin = Number(autoSoundInterval.value);
   saveSettings(settings);
 });
+/**
+ * Network options back to their defaults, through each control's own change
+ * handler so every side effect (engine, chat, redraws) happens as if clicked.
+ * Asks for a second click first. Protocol goes last: changing it reloads.
+ */
+const resetButton = el<HTMLButtonElement>('net-options-reset');
+let resetArmedTimer: ReturnType<typeof setTimeout> | undefined;
+resetButton.addEventListener('click', () => {
+  if (resetArmedTimer === undefined) {
+    resetButton.textContent = 'Click again to reset';
+    resetArmedTimer = setTimeout(() => {
+      resetArmedTimer = undefined;
+      resetButton.textContent = 'Reset to defaults';
+    }, 4000);
+    return;
+  }
+  clearTimeout(resetArmedTimer);
+  resetArmedTimer = undefined;
+  resetButton.textContent = 'Reset to defaults';
+  const d = DEFAULT_SETTINGS;
+  const boxes: [HTMLInputElement, boolean][] = [
+    [allowTx, d.allowTx],
+    [autoChannel, d.autoChannel],
+    [autoSound, d.autoSound],
+    [repeaterBox, d.repeater],
+    [deepBox, d.deepDecode && !deepBox.disabled],
+  ];
+  const selects: [HTMLSelectElement, string][] = [
+    [autoSoundInterval, String(d.autoSoundIntervalMin)],
+    [bandSelect, d.band],
+    [protocolSelect, d.protocol],
+  ];
+  for (const [box, on] of boxes) {
+    if (box.checked === on) continue;
+    box.checked = on;
+    box.dispatchEvent(new Event('change'));
+  }
+  for (const [select, value] of selects) {
+    if (select.value === value) continue;
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+  }
+});
+
 /** Any beacon, automatic or "Test", restarts the Auto test wait. */
 let lastSoundMs = Date.now();
 // Checked every 10 s so a changed interval takes effect without a reload.

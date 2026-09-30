@@ -303,6 +303,7 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
    switch goes with which label. The border lights up in the accent colour while on. */
 .switch-tile { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); background: var(--panel-alt); cursor: pointer; }
 .switch-tile:has(input:checked) { border-color: var(--accent); }
+.opt-reset { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .opt-subhead { margin-top: 12px; padding: 10px 0 2px; border-top: 1px solid var(--border); font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); }
 .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 20px; margin-top: 8px; }
 .field-tile { display: flex; flex-direction: column; gap: 4px; }
