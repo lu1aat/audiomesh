@@ -100,6 +100,31 @@ export const GFSK8_LONG: ProtocolSpec = {
  * more dB of sensitivity than Long - not yet measured. Meant for a link too weak
  * or too poorly timed for anything else, not for chat: a message takes minutes.
  */
+/**
+ * 8x Normal's baud: further than JS8 goes (JS8's own fastest, Turbo, is roughly
+ * 4x its Normal - about our own Fast). 50 baud, 0.02 s symbols, 1.58 s on air,
+ * 400 Hz occupied - too wide for the low band (200 Hz total) or the ultrasonic
+ * band's fixed 10 channels (spacing would need to be >=400 Hz across 3500 Hz,
+ * which only 9 channels allow; `bandsFor` drops it, leaving only the audible
+ * band). A protocol this fast is squarely audible there (its lowest channel
+ * starts right at the band's 300 Hz floor), so this is a testing tool for
+ * nearby devices, not a mode meant for daily use. Clock allowance +-0.45 s,
+ * half of Fast's - the tightest of any protocol here, likely tighter even than
+ * the +-0.5 s Fast originally shipped with before its own real-world decode
+ * problems led to widening it to +-0.9 s. Expect this one to need both
+ * stations' clocks closely synced to decode at all.
+ */
+export const GFSK8_TURBO: ProtocolSpec = {
+  ...GFSK8_NORMAL,
+  id: 'gfsk8-turbo',
+  name: '8-GFSK 50 baud (turbo)',
+  baud: 50,
+  toneSpacingHz: 50,
+  slotSec: 2.5,
+  // 1.58 s frame + 2 x 0.45 s = 2.48 s window, inside the 2.5 s slot.
+  maxTimeOffsetSec: 0.45,
+};
+
 export const GFSK8_DEEP: ProtocolSpec = {
   ...GFSK8_NORMAL,
   id: 'gfsk8-deep',

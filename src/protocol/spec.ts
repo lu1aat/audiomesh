@@ -10,7 +10,7 @@
  */
 
 /** Add a member here when a new protocol is registered in registry.ts. */
-export type ProtocolId = 'gfsk8-normal' | 'gfsk8-medium' | 'gfsk8-fast' | 'gfsk8-long' | 'gfsk8-deep';
+export type ProtocolId = 'gfsk8-normal' | 'gfsk8-medium' | 'gfsk8-fast' | 'gfsk8-long' | 'gfsk8-deep' | 'gfsk8-turbo';
 
 export interface ProtocolSpec {
   readonly id: ProtocolId;

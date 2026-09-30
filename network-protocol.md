@@ -109,34 +109,51 @@ indices:    0..6       7..35       36..42     43..71      72..78
 
 ## 4. Protocol variants
 
-Five registered protocols, same codec/Costas/modulator family, different baud
+Six registered protocols, same codec/Costas/modulator family, different baud
 rates (`src/protocol/gfsk8/spec.ts`). The user picks one in Settings; it applies
-after a page reload, and **both stations must use the same protocol**. Three
-speed up from Normal (Medium, Fast); two slow down from it (Long, Deep) —
+after a page reload, and **both stations must use the same protocol**. Four
+speed up from Normal (Medium, Fast, Turbo); two slow down from it (Long, Deep) —
 bandwidth is just `8 × baud`, so choosing a mode is really choosing one number,
 baud, and everything else (frame duration, slot length, sensitivity) follows.
 
-| | Normal (A) | Medium (B) | Fast (C) | Long (L) | Deep (D) |
-|---|---|---|---|---|---|
-| `id` | `gfsk8-normal` | `gfsk8-medium` | `gfsk8-fast` | `gfsk8-long` | `gfsk8-deep` |
-| Baud / tone spacing | 6.25 Hz | 12.5 Hz | 25 Hz | 3.125 Hz | 1.5625 Hz |
-| Symbol duration | 0.16 s | 0.08 s | 0.04 s | 0.32 s | 0.64 s |
-| Frame on air (79 symbols) | 12.64 s | 6.32 s | 3.16 s | 25.28 s | 50.56 s |
-| Slot length | 15 s | 10 s | 5 s | 30 s | 60 s |
-| Clock allowance (`maxTimeOffsetSec`) | ±2 s | ±1.5 s | ±0.9 s | ±2 s | ±3 s |
-| Receive window (frame + 2×allowance) | 16.64 s | 9.32 s | 4.96 s | 29.28 s | 56.56 s |
-| Deep-decode extra each side | 3 s | 3 s | 1.35 s | 3 s | 3 s |
-| Occupied bandwidth (8 tones) | 50 Hz | 100 Hz | 200 Hz | 25 Hz | 12.5 Hz |
-| Channel spacing (ultrasonic band) | ~383 Hz | ~377 Hz | ~366 Hz | ~386 Hz | ~387 Hz |
-| Low band (100–300 Hz) usable | yes | no | no | yes | yes |
-| Throughput vs Normal | 1× | 1.5× | 3× | 0.5× | 0.25× |
-| Sensitivity vs Normal | baseline (-18 dB reliable) | ~3 dB better than Fast | ~6 dB worse (measured: reliable to -11 dB in 2500 Hz; 11/12 at -12/-13 dB, 4/12 at -14 dB; never a wrong payload) | ~3 dB better (measured: reliable to -21 dB; 19/24 at -22, 3/12 at -23, 0/24 at -24; never a wrong payload) | ~5-6 dB better (measured: reliable to -23 dB; 23/24 at -24, 8/12 at -25, 4/24 at -26, 0/24 at -28; never a wrong payload) |
+| | Normal (A) | Medium (B) | Fast (C) | Long (L) | Deep (D) | Turbo (T) |
+|---|---|---|---|---|---|---|
+| `id` | `gfsk8-normal` | `gfsk8-medium` | `gfsk8-fast` | `gfsk8-long` | `gfsk8-deep` | `gfsk8-turbo` |
+| Baud / tone spacing | 6.25 Hz | 12.5 Hz | 25 Hz | 3.125 Hz | 1.5625 Hz | 50 Hz |
+| Symbol duration | 0.16 s | 0.08 s | 0.04 s | 0.32 s | 0.64 s | 0.02 s |
+| Frame on air (79 symbols) | 12.64 s | 6.32 s | 3.16 s | 25.28 s | 50.56 s | 1.58 s |
+| Slot length | 15 s | 10 s | 5 s | 30 s | 60 s | 2.5 s |
+| Clock allowance (`maxTimeOffsetSec`) | ±2 s | ±1.5 s | ±0.9 s | ±2 s | ±3 s | ±0.45 s |
+| Receive window (frame + 2×allowance) | 16.64 s | 9.32 s | 4.96 s | 29.28 s | 56.56 s | 2.48 s |
+| Deep-decode extra each side | 3 s | 3 s | 1.35 s | 3 s | 3 s | 0.55 s |
+| Occupied bandwidth (8 tones) | 50 Hz | 100 Hz | 200 Hz | 25 Hz | 12.5 Hz | 400 Hz |
+| Channel spacing (ultrasonic band) | ~383 Hz | ~377 Hz | ~366 Hz | ~386 Hz | ~387 Hz | doesn't fit |
+| Bands it fits | all 3 | audible, ultrasonic | audible, ultrasonic | all 3 | all 3 | **audible only** |
+| Throughput vs Normal | 1× | 1.5× | 3× | 0.5× | 0.25× | 6× |
+| Sensitivity vs Normal | baseline (-18 dB reliable) | ~3 dB better than Fast | ~6 dB worse (measured: reliable to -11 dB in 2500 Hz; 11/12 at -12/-13 dB, 4/12 at -14 dB; never a wrong payload) | ~3 dB better (measured: reliable to -21 dB; 19/24 at -22, 3/12 at -23, 0/24 at -24; never a wrong payload) | ~5-6 dB better (measured: reliable to -23 dB; 23/24 at -24, 8/12 at -25, 4/24 at -26, 0/24 at -28; never a wrong payload) | ~9 dB worse (measured: reliable to -9 dB; 15/24 at -10, 2/24 at -11, 0/24 at -12; never a wrong payload) |
 
 `payloadBits` (77), `toneCount` (8), `symbolCount` (79) and the Costas pattern
-are identical across all five; only the baud rate (and therefore slot length,
+are identical across all six; only the baud rate (and therefore slot length,
 clock allowance and channel width) changes. `deepExtraSec(spec)` =
 `max(0, min(3, slotSec/2 − 0.25 − maxTimeOffsetSec))` — the search of one slot
 must never reach into the next one's.
+
+**Turbo is audible, and is a testing tool, not a daily-use mode.** At 400 Hz
+occupied bandwidth it's too wide for the low band (200 Hz total) and — the more
+consequential limit — too wide for the ultrasonic band's *fixed* 10-channel
+plan (`channelCount` is a property of the band, not the protocol, so a wider
+protocol can't just get fewer, wider channels there automatically; `bandsFor`
+simply drops the band once its channels no longer fit). That leaves only the
+audible band, where Turbo's lowest channel starts right at the 300 Hz floor —
+squarely in the middle of human hearing, not the inaudible-in-practice top of
+the ultrasonic band the rest of this project is built around. It's also the
+only protocol whose clock allowance (±0.45 s) is *tighter* than the ±0.5 s Fast
+originally shipped with before real-world decode problems led to widening Fast
+to ±0.9 s (§4's over-the-air notes) — Turbo should be expected to need both
+stations' clocks closely synced (e.g. via the Sync feature) to decode at all,
+more so than any protocol below it. Intended use: verifying the physical layer
+at high speed between two nearby, easily-synced devices, not a mode for actual
+deployment.
 
 Long and Deep keep Normal's frame-to-slot ratio (~84% frame, ~16% guard) by
 scaling the clock allowance up roughly in step with the slot rather than
@@ -163,11 +180,15 @@ against Normal's own ~0.3 s per channel-window (§8). Accepted as-is for now;
 `FREQ_SEARCH_HZ`'s scaling is the lever to pull if this cost becomes a real
 problem later (e.g. an always-on control channel decoding continuously).
 
-Notes from initial over-the-air testing: Fast's first try did not decode though
-the signal was audible; suspects are room echo against 0.04 s symbols and/or
-clock/latency error exceeding the old ±0.5 s allowance (since widened). Medium,
-Long and Deep have not yet been tried over the air. Normal has been tried over
-the air and works, especially in the ultrasonic band.
+Notes from over-the-air testing: Fast's first try did not decode though the
+signal was audible; suspects at the time were room echo against 0.04 s symbols
+and/or clock/latency error exceeding the old ±0.5 s allowance. Since widened to
+±0.9 s, Fast has since been used regularly over the air in the ultrasonic band
+at a few metres and decodes reliably — the allowance widening is the leading
+candidate for the fix, though this wasn't isolated against the room-echo
+theory, so it's not certain the echo risk is gone at other distances/rooms.
+Medium, Long and Deep have not yet been tried over the air. Normal has also
+been tried over the air and works, especially in the ultrasonic band.
 
 ## 5. Band plan and channel numbering
 

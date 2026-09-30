@@ -478,7 +478,7 @@ applyLevels(settings.floorDb, settings.ceilDb);
 
 /**
  * Modes as the user knows them: A/B/C are Normal/Medium/Fast, speed-ordered from
- * when there were only three. Long and Deep (slower and more sensitive than
+ * when there were only three. Long, Deep and Turbo (slower or faster than
  * Normal) came after, so they're lettered by their own initial instead.
  */
 const MODE_LETTER: Record<string, string> = {
@@ -487,6 +487,7 @@ const MODE_LETTER: Record<string, string> = {
   'gfsk8-fast': 'C',
   'gfsk8-long': 'L',
   'gfsk8-deep': 'D',
+  'gfsk8-turbo': 'T',
 };
 
 /** Protocol choice. Both stations must use the same one; it applies after a reload, which rebuilds the audio path. */

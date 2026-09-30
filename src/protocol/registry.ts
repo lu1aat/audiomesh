@@ -1,6 +1,6 @@
 import type { Protocol } from './protocol';
 import type { ProtocolId } from './spec';
-import { gfsk8Deep, gfsk8Fast, gfsk8Long, gfsk8Medium, gfsk8Normal } from './gfsk8';
+import { gfsk8Deep, gfsk8Fast, gfsk8Long, gfsk8Medium, gfsk8Normal, gfsk8Turbo } from './gfsk8';
 
 /**
  * The only place that knows which protocols exist. Typed as a full Record over
@@ -13,6 +13,7 @@ const PROTOCOLS: Record<ProtocolId, Protocol> = {
   'gfsk8-fast': gfsk8Fast,
   'gfsk8-long': gfsk8Long,
   'gfsk8-deep': gfsk8Deep,
+  'gfsk8-turbo': gfsk8Turbo,
 };
 
 export const DEFAULT_PROTOCOL_ID: ProtocolId = 'gfsk8-normal';

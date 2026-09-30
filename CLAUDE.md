@@ -57,19 +57,23 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
   `bandLowHz + (n - firstNumber) * channelSpacingHz(spec, band)`. No sample rate or runtime state, so every client agrees. Channel numbers
   from different protocols do not line up; a number only means something together
   with a protocol id.
-- **Five protocols are registered:** `gfsk8-normal` (below), `gfsk8-medium` (12.5 baud,
+- **Six protocols are registered:** `gfsk8-normal` (below), `gfsk8-medium` (12.5 baud,
   6.32 s frames in 10 s slots, 100 Hz channels, +-1.5 s; reliable to -14 dB) and
   `gfsk8-fast`, the same codec, Costas sync and modulator at 25 baud: 0.04 s symbols,
   3.16 s frames in 5 s UTC slots, 200 Hz channels, clock allowance +-0.9 s (it must also
-  cover speaker and mic latency). The first over-the-air try of Fast did not decode
-  (signal audible); suspects: room echo against 0.04 s symbols, latency + clock beyond the
-  old +-0.5 s. The chat status line now reports the best sync score and dt per slot when
-  nothing decodes (noise scores ~0.23, a real frame 0.3+). Three times the throughput, about 6 dB
-  less sensitive (measured, 48 kHz, unknown timing: reliable to -11 dB in 2500 Hz, 11/12
-  at -12 and -13, 4/12 at -14, never a wrong payload; ~150 ms to decode a window). The
+  cover speaker and mic latency). Its first over-the-air try did not decode (signal
+  audible); suspects at the time: room echo against 0.04 s symbols, latency + clock
+  beyond the old +-0.5 s allowance. Since widened to +-0.9 s, the user has since used
+  Fast over the air regularly in the ultrasonic band at a few metres and it decodes
+  reliably; the allowance widening is the leading candidate for the fix but this was
+  not isolated against the room-echo theory. The chat status line now reports the best
+  sync score and dt per slot when nothing decodes (noise scores ~0.23, a real frame
+  0.3+). Three times the throughput, about 6 dB less sensitive (measured, 48 kHz,
+  unknown timing: reliable to -11 dB in 2500 Hz, 11/12 at -12 and -13, 4/12 at -14,
+  never a wrong payload; ~150 ms to decode a window). The
   low band (100..300 Hz) cannot hold a 200 Hz channel, so `bandsFor(spec)` drops it and
   its channel numbers are skipped. The user picks the protocol in Settings; it applies
-  after a page reload, and both stations must match. Not yet tried over the air.
+  after a page reload, and both stations must match.
   The demodulator keeps 32 baseband samples per symbol and scales its filter, frequency
   grid and suppression window with the baud rate, so its cost per window is the same
   going faster than Normal. Two protocols go the other way, slower and more sensitive:
@@ -89,6 +93,20 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
   (Normal's own per-channel figure is the ~0.3 s below). Accepted for now; revisit
   `FREQ_SEARCH_HZ`'s scaling if the cost becomes a real problem (e.g. for an always-on
   control channel). Not yet tried over the air.
+  A sixth, `gfsk8-turbo` (Mode T, 8x Normal's baud: 50, 1.58 s frames in a 2.5 s slot,
+  400 Hz channels), goes faster than Fast - too wide for the low band or the
+  ultrasonic band's fixed 10 channels (`bandsFor` leaves only the audible band, where
+  its lowest channel starts right at the 300 Hz floor: squarely audible). A testing
+  tool for nearby devices, not a mode meant for daily use, both because of that and
+  because its clock allowance (+-0.45 s) is the tightest here, likely tighter than the
+  +-0.5 s Fast itself originally shipped with before real-world problems widened it to
+  +-0.9 s - expect Turbo to need both stations' clocks closely synced. Measured (48 kHz,
+  unknown timing, nominal frequency, never a wrong payload): reliable to -9 dB in
+  2500 Hz (15/24 at -10, 2/24 at -11, 0/24 at -12) - a smaller sensitivity loss than
+  extrapolating from Medium/Fast predicted (~-7 to -8 dB expected). Cost is the cheapest
+  of any protocol here to decode (~0.2 s/window in Node, faster than Normal's own
+  ~0.3 s), since the demodulator's cost-scaling favours going faster, not slower (see
+  above). Not yet tried over the air.
 - `src/protocol/gfsk8/` is the first protocol. The spec and **modulator** are real
   (Gaussian 8-FSK, BT 2.0, continuous phase, rendered on the fly per block so the
   worklet never stalls; `tests/gfsk8-modulator.test.ts` decodes the tones back out at
