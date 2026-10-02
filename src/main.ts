@@ -1,5 +1,6 @@
 /** Wiring only. Logic belongs in protocol/, band/, audio/ or render/. */
 
+import { autoBeaconDue } from './ale/tx-policy';
 import { AudioEngine } from './audio/engine';
 import { DEFAULT_BAND, bandsFor, listChannels, referenceTonesHz, type Band } from './band/band-plan';
 import { DEFAULT_PROTOCOL_ID, getProtocol, isProtocolId, listProtocols } from './protocol/registry';
@@ -28,6 +29,8 @@ const SETTINGS_KEY = 'audiochat:settings';
 interface Settings {
   band: string;
   channel: number | null;
+  /** Channels switched off for transmitting (tap cycle: normal, selected, blocked), by protocol id. */
+  blockedChannels: Record<string, number[]>;
   decodeWhileSending: boolean;
   listenAll: boolean;
   autoChannel: boolean;
@@ -74,6 +77,7 @@ interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   band: DEFAULT_BAND.name,
   channel: null,
+  blockedChannels: {},
   decodeWhileSending: false,
   listenAll: true,
   autoChannel: true,
@@ -319,9 +323,16 @@ el('name-banner-set').addEventListener('click', () => {
   showScreen('settings');
   nicknameInput.focus();
 });
-nicknameInput.value = settings.nickname;
+nicknameInput.value = settings.nickname.toUpperCase();
 updateNickCallout();
+// The wire code is upper case only, so show what will be sent while typing (caret kept).
+nicknameInput.addEventListener('input', () => {
+  const { selectionStart, selectionEnd } = nicknameInput;
+  nicknameInput.value = nicknameInput.value.toUpperCase();
+  nicknameInput.setSelectionRange(selectionStart, selectionEnd);
+});
 nicknameInput.addEventListener('change', () => {
+  nicknameInput.value = nicknameInput.value.toUpperCase();
   settings.nickname = nicknameInput.value;
   session.setNickname(settings.nickname);
   saveSettings(settings);
@@ -737,7 +748,7 @@ function renderStrip(): void {
     cell.className = 'channel-cell';
     cell.dataset.channel = String(c.number);
     cell.textContent = String(c.number);
-    cell.title = `Channel ${c.number}: click to select, click again to clear. With Auto beacon off, a selected channel carries every transmission.`;
+    cell.title = `Channel ${c.number}: each click moves it on: select, then block (nothing is sent on it; we still listen), then normal. With Auto beacon off, a selected channel carries every transmission.`;
     cell.addEventListener('click', () => toggleChannel(c.number));
     strip.append(cell);
   }
@@ -757,8 +768,59 @@ function selectChannel(number: number | null): void {
   applyListen();
 }
 /** Clicking the selected channel again clears the selection: frames go back to the best / quietest channel. */
+const blockedNow = new Set<number>((settings.blockedChannels?.[protocol.spec.id] ?? []));
+const unblockButton = el<HTMLButtonElement>('channel-unblock');
+const toast = el('toast');
+let toastTimer = 0;
+function showToast(text: string, undo?: () => void): void {
+  toast.replaceChildren(text);
+  if (undo) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'Undo';
+    b.addEventListener('click', () => {
+      undo();
+      toast.hidden = true;
+    });
+    toast.append(b);
+  }
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => (toast.hidden = true), 4000);
+}
+function applyBlocked(): void {
+  settings.blockedChannels = { ...settings.blockedChannels, [protocol.spec.id]: [...blockedNow] };
+  saveSettings(settings);
+  display.setBlocked(blockedNow);
+  chat.setBlockedChannels(blockedNow);
+  for (const cell of strip.children) {
+    const n = Number((cell as HTMLElement).dataset.channel);
+    cell.classList.toggle('channel-blocked', blockedNow.has(n));
+  }
+  const count = channels.filter((c) => blockedNow.has(c.number)).length;
+  unblockButton.hidden = count === 0;
+  unblockButton.textContent = `${count} blocked · Unblock all`;
+}
+unblockButton.addEventListener('click', () => {
+  blockedNow.clear();
+  applyBlocked();
+});
+/** Each tap moves a channel on: normal, selected, blocked (nothing is sent on it; we still listen), normal. */
 function toggleChannel(number: number): void {
-  selectChannel(settings.channel === number ? null : number);
+  if (blockedNow.has(number)) {
+    blockedNow.delete(number);
+    applyBlocked();
+  } else if (settings.channel === number) {
+    selectChannel(null);
+    blockedNow.add(number);
+    applyBlocked();
+    showToast(`Channel ${number} blocked for sending`, () => {
+      blockedNow.delete(number);
+      applyBlocked();
+    });
+  } else {
+    selectChannel(number);
+  }
 }
 display.onSelect = toggleChannel;
 
@@ -774,8 +836,9 @@ function selectBand(next: Band): void {
   display.setViewRange(Math.max(0, band.lowHz - margin), band.highHz + margin);
   display.setPlan(channels, bandwidthHz(protocol.spec), referenceTonesHz(band));
   settings.band = band.name;
-  const current = channels.find((c) => c.number === settings.channel);
+  const current = channels.find((c) => c.number === settings.channel && !blockedNow.has(c.number));
   selectChannel(current ? current.number : null);
+  applyBlocked();
   if (engine.running) {
     showError(null);
     warnIfRateTooLow();
@@ -1066,8 +1129,7 @@ resetButton.addEventListener('click', () => {
 let lastSoundMs = Date.now();
 // Checked every 10 s so a changed interval takes effect without a reload.
 setInterval(() => {
-  if (!settings.autoSound || !engine.running || !settings.autoChannel) return;
-  if (Date.now() - lastSoundMs < settings.autoSoundIntervalMin * 60_000) return;
+  if (!autoBeaconDue(settings.autoSound, engine.running, lastSoundMs, Date.now(), settings.autoSoundIntervalMin)) return;
   lastSoundMs = Date.now();
   chat.sound();
 }, 10_000);

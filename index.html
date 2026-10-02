@@ -202,6 +202,7 @@
                     <span class="channel-block-title">Channels</span>
                   </button>
                   <span id="channel-strip" class="channel-strip" role="group" aria-label="Channels"></span>
+                  <button type="button" id="channel-unblock" class="channel-unblock" hidden></button>
                 </div>
                 <div id="channel-block-body" class="channel-block-body">
                   <canvas id="spectrum" class="spectrum" aria-label="Spectrum and waterfall with channel plan"></canvas>
@@ -535,5 +536,6 @@
       </main>
     </div>
     <script type="module" src="/src/main.ts"></script>
+    <div id="toast" class="toast" role="status" hidden></div>
   </body>
 </html>

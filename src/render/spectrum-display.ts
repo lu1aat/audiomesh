@@ -96,6 +96,7 @@ export class SpectrumDisplay {
   private markersHz: readonly number[] = [];
   private selected: number | null = null;
   private overloaded: ReadonlySet<number> = new Set();
+  private blocked: ReadonlySet<number> = new Set();
   /** The channel our frame is going out on (or waiting for its slot), drawn red. */
   private sending: number | null = null;
   /** performance.now() at which each channel's white flash started (a frame from another station was decoded there). */
@@ -179,6 +180,11 @@ export class SpectrumDisplay {
   /** Channels to draw in yellow: the signal there overloaded the input. */
   setOverloaded(channelNumbers: ReadonlySet<number>): void {
     this.overloaded = channelNumbers;
+  }
+
+  /** Channels the user switched off for transmitting: drawn black with a cross. */
+  setBlocked(channelNumbers: ReadonlySet<number>): void {
+    this.blocked = channelNumbers;
   }
 
   /** Flash a channel's box white, like the channel strip's cell (three 0.3 s blinks; one 0.6 s blink with reduced motion). */
@@ -360,7 +366,39 @@ export class SpectrumDisplay {
       }
       ctx.fillStyle = isTx ? '#ffb3b3' : isOver ? '#ffe9a8' : isSel ? '#bfe3ff' : 'rgba(255, 255, 255, 0.75)';
       ctx.fillText(String(ch.number), (x0 + x1) / 2, 4 * dpr);
+      if (this.blocked.has(ch.number)) this.drawBlocked(x0, x1, height, dpr);
     }
+  }
+
+  /** A blocked channel: dark box, hatching and a cross at the top, over whatever the spectrum shows. */
+  private drawBlocked(x0: number, x1: number, height: number, dpr: number): void {
+    const { ctx } = this;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x0, 0, x1 - x0, height);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+    ctx.fillRect(x0, 0, x1 - x0, height);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.lineWidth = dpr;
+    const step = 10 * dpr;
+    ctx.beginPath();
+    for (let y = -(x1 - x0); y < height; y += step) {
+      ctx.moveTo(x0, y + (x1 - x0));
+      ctx.lineTo(x1, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+    const mid = (x0 + x1) / 2;
+    const r = Math.min(6 * dpr, (x1 - x0) / 2 - dpr);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(mid - r, 18 * dpr);
+    ctx.lineTo(mid + r, 18 * dpr + 2 * r);
+    ctx.moveTo(mid + r, 18 * dpr);
+    ctx.lineTo(mid - r, 18 * dpr + 2 * r);
+    ctx.stroke();
   }
 
   private drawAxis(w: number, top: number, axisH: number, dpr: number): void {

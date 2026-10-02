@@ -17,6 +17,7 @@ import type { Notifier } from './notifier';
 import { normalizeText } from '../chat/charset6';
 import { defaultIconIndex, emojiFor, ICON_COUNT } from '../chat/emoji-table';
 import { BROADCAST, MAX_TEXT_CHARS, decodeFrame, repeaterTag, viaOf, type ChatFrame } from '../chat/frames';
+import { pinnedReason } from '../ale/tx-policy';
 import { LOAD_WINDOW_SLOTS, channelLoad, quietestChannel, type HeardOn } from '../ale/channel-load';
 import type { ChatSession, InMessage, OutMessage, TxOut, Via } from '../chat/session';
 import { paletteToString, pixelsToString, spriteColours, spriteFrameCount, viewFromStrings, viewOf, type Sprite } from '../chat/sprite';
@@ -248,6 +249,7 @@ export class ChatPanel {
   private currentTx: { what: string; channel: number } | null = null;
   /** Destination -> channel we used for it last, kept while it stays among the best. */
   private readonly lastChannelFor = new Map<number, number>();
+  private blocked: ReadonlySet<number> = new Set();
 
   /** Chat messages kept (sent and received; notices do not count). */
   get messageCount(): number {
@@ -494,6 +496,11 @@ export class ChatPanel {
     this.refresh();
   }
 
+  /** Channels the user switched off: nothing is sent on them (receiving goes on). All blocked = none blocked. */
+  setBlockedChannels(numbers: ReadonlySet<number>): void {
+    this.blocked = numbers;
+  }
+
   setBandChannels(channels: readonly Channel[]): void {
     this.bandChannels = channels;
     this.refresh();
@@ -589,14 +596,17 @@ export class ChatPanel {
    * the worst case over every station we hear), steering off channels other stations
    * are busy on and keeping the channel used last for that destination; with no link
    * data, on the quietest channel (the selected one on a tie). Auto off: the selected
-   * channel, or the middle of the band if none is selected. Auto beacon off with a
-   * channel selected: everything (sounds too) goes on the selected channel.
+   * channel, or the middle of the band if none is selected. Auto channel off, or Auto beacon off,
+   * with a channel selected: everything (sounds too) goes on the selected channel.
    */
   private txChannel({ payload, dst, survey }: TxOut, slot: number): { number: number; baseHz: number; why: string } {
-    const band = this.bandChannels;
-    const byNumber = (n: number): Channel | undefined => band.find((c) => c.number === n) ?? this.channels.find((c) => c.number === n);
+    const all = this.bandChannels;
+    const open = all.filter((c) => !this.blocked.has(c.number));
+    const band = open.length > 0 ? open : all;
+    const byNumber = (n: number): Channel | undefined => all.find((c) => c.number === n) ?? this.channels.find((c) => c.number === n);
     const numbers = band.map((c) => c.number);
-    if (!this.autoSound && this.selected) return { ...this.selected, why: 'selected channel, auto beacon off' };
+    const pinned = pinnedReason(this.selected !== null, this.autoChannel, this.autoSound);
+    if (pinned && this.selected) return { ...this.selected, why: pinned };
     const isSound = survey === true || decodeFrame(payload)?.kind === 'sound';
     // An answer to a probe (dst = the prober) picks its channel like any directed frame.
     if (isSound && dst === BROADCAST && numbers.length > 0) {
