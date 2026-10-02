@@ -6,7 +6,7 @@
  * Everything from the air (nicknames) goes in through textContent only.
  */
 
-import { ageColor, buildLinkModel, formatAge, signalLevel, type GraphEdge, type LinkModel, type RepeaterInfo, type SignalLevel, type StationInfo, type StationStatus } from '../ale/link-model';
+import { FAIR_DB, GOOD_DB, ageColor, buildLinkModel, formatAge, signalLevel, type GraphEdge, type LinkModel, type RepeaterInfo, type SignalLevel, type StationInfo, type StationStatus } from '../ale/link-model';
 import type { LqaTable } from '../ale/lqa';
 import { decodeRecord, stationClocks, stationDelays, type FrameLog, type StationDelay } from '../chat/frame-log';
 import type { ServerClock } from '../sync/server-clock';
@@ -68,6 +68,11 @@ const HISTORY_RANGES: readonly { readonly label: string; readonly min: number }[
   { label: '6h', min: 360 },
   { label: '12h', min: 720 },
 ];
+
+/** A station silent this long gets a broken line in the signal history. */
+const HISTORY_GAP_MIN = 10;
+/** Up to this many frames in the chart, each marker carries its channel number. */
+const HISTORY_CHANNEL_LABELS_MAX = 60;
 
 /** Points of a pointy-top hexagon of circumradius `r` around (cx, cy). */
 function hexPoints(r: number, cx = 0, cy = 0): string {
@@ -645,7 +650,7 @@ export class LinkView {
     const nodes = model.nodes;
     this.graph = null;
     if (nodes.length === 0) return s;
-    const W = 360, C = W / 2, NR = 24;
+    const W = 360, C = W / 2, NR = 30;
     const chart = svg('svg', { viewBox: `0 0 ${W} ${W}`, class: 'graph-chart', role: 'img', 'aria-label': `Stations and the links between them: ${model.edges.length} links` });
     // The legend as a description, not a title: a title would show as a tooltip over the whole graph.
     const legend = svg('desc', {});
@@ -799,11 +804,20 @@ export class LinkView {
       g.append(body);
       // A repeater: a hexagon like any station, with a second border inside it.
       if (repeaters.has(id)) g.append(svg('polygon', { points: hexPoints(NR - 6), class: `graph-repeater${dark ? ' graph-repeater-dark' : ''}`, 'pointer-events': 'none' }));
-      // In the cell: how long ago the station was last heard (blank for us). Under it: the nickname
+      // In the cell: the station's emoji and under it how long ago it was last heard (only the emoji for us). Outside it: the nickname
       // (ours from Settings), or the #id when there is none.
-      const inner = svg('text', { x: 0, y: 5, class: `graph-id${dark ? ' graph-id-dark' : ''}`, 'text-anchor': 'middle' });
-      inner.textContent = id === me ? '' : age === undefined || !Number.isFinite(age) ? '–' : shortAge(age);
-      g.append(inner);
+      // The station's emoji sits above the time (ours alone, centred: there is no time for us).
+      const emoji = this.iconOf(id);
+      if (emoji) {
+        const pic = svg('text', { x: 0, y: id === me ? 7 : 1, class: 'graph-emoji', 'text-anchor': 'middle', 'pointer-events': 'none' });
+        pic.textContent = emoji;
+        g.append(pic);
+      }
+      if (id !== me) {
+        const inner = svg('text', { x: 0, y: emoji ? 16 : 5, class: `graph-id${dark ? ' graph-id-dark' : ''}`, 'text-anchor': 'middle' });
+        inner.textContent = age === undefined || !Number.isFinite(age) ? '–' : shortAge(age);
+        g.append(inner);
+      }
       const nick = id === me ? this.getMyName() : this.names.get(id) ?? '';
       // Other stations: the name above the cell. Us: below it (the arrows come from above).
       const label = svg('text', { x: 0, y: id === me ? NR + 12 : -NR - 2, class: 'chart-label', 'text-anchor': 'middle' });
@@ -1012,7 +1026,7 @@ export class LinkView {
   private historySection(model: LinkModel, nowMs: number): HTMLElement {
     const rangeMin = this.historyRange;
     const rangeLabel = HISTORY_RANGES.find((r) => r.min === rangeMin)?.label ?? `${rangeMin} min`;
-    const { root: s, body } = this.section('history', 'Signal history', `SNR of every frame we decoded, last ${rangeLabel}. One line per station.`);
+    const { root: s, body } = this.section('history', 'Signal history');
     const head = el('div', 'section-head');
     head.append(el('div'), this.historyRangeSwitch());
     body.insertBefore(head, body.firstChild);
@@ -1020,15 +1034,22 @@ export class LinkView {
       body.append(el('p', 'hint', `No frames decoded in the last ${rangeLabel}.`));
       return s;
     }
-    const W = 680, H = 240, L = 40, R = 90, T = 12, B = 26;
+    const W = 900, H = 200, L = 32, R = 70, T = 8, B = 20;
     const t1 = nowMs, t0 = nowMs - rangeMin * 60 * 1000;
     const yMin = -24, yMax = 6;
     const x = (ms: number): number => L + ((ms - t0) / (t1 - t0)) * (W - L - R);
     const y = (v: number): number => T + ((yMax - Math.max(yMin, Math.min(yMax, v))) / (yMax - yMin)) * (H - T - B);
 
     const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'history-chart', role: 'img', 'aria-label': `SNR of decoded frames over the last ${rangeLabel}, one line per station; the table below has the same numbers` });
-    for (const v of [-20, -10, 0]) {
-      chart.append(svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: 'chart-grid' }));
+    // Quality bands behind everything, in the same green / yellow / red as the rest of the screen.
+    for (const [hi, lo, cls, name] of [[yMax, GOOD_DB, 'good', 'good'], [GOOD_DB, FAIR_DB, 'fair', 'fair'], [FAIR_DB, yMin, 'weak', 'weak']] as const) {
+      chart.append(svg('rect', { x: L, y: y(hi), width: W - L - R, height: y(lo) - y(hi), class: `chart-band chart-band-${cls}` }));
+      const t = svg('text', { x: L + 6, y: y(hi) + 9, class: `chart-band-name chart-band-name-${cls}` });
+      t.textContent = name;
+      chart.append(t);
+    }
+    for (const v of [-24, -18, -12, -6, 0]) {
+      chart.append(svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v === GOOD_DB || v === FAIR_DB ? 'chart-threshold' : 'chart-grid' }));
       const t = svg('text', { x: L - 6, y: y(v) + 4, class: 'chart-axis', 'text-anchor': 'end' });
       t.textContent = `${v}`;
       chart.append(t);
@@ -1038,7 +1059,7 @@ export class LinkView {
     for (let m = 0; m <= rangeMin; m += stepMin) {
       const ms = t1 - m * 60 * 1000;
       chart.append(svg('line', { x1: x(ms), x2: x(ms), y1: T, y2: H - B, class: 'chart-grid' }));
-      const t = svg('text', { x: x(ms), y: H - 8, class: 'chart-axis', 'text-anchor': 'middle' });
+      const t = svg('text', { x: x(ms), y: H - 6, class: 'chart-axis', 'text-anchor': 'middle' });
       t.textContent = m === 0 ? 'now' : m % 60 === 0 ? `−${m / 60} h` : `−${m} min`;
       chart.append(t);
     }
@@ -1058,9 +1079,30 @@ export class LinkView {
       const mine = model.samples.filter((p) => p.station === st.id);
       if (mine.length === 0) continue;
       const xy = mine.map((p) => ({ px: x(p.slot * this.slotSec * 1000), py: y(p.snrDb), p }));
-      chart.append(svg('polyline', { points: xy.map((q) => `${q.px.toFixed(1)},${q.py.toFixed(1)}`).join(' '), fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+      // A silence longer than HISTORY_GAP_MIN breaks the line: a dotted hint across the gap, solid only where frames came.
+      let run: typeof xy = [];
+      const flush = (): void => {
+        if (run.length > 1) chart.append(svg('polyline', { points: run.map((q) => `${q.px.toFixed(1)},${q.py.toFixed(1)}`).join(' '), fill: 'none', stroke: color, 'stroke-width': 1.2, 'stroke-linejoin': 'round' }));
+        run = [];
+      };
       for (const q of xy) {
-        chart.append(svg('circle', { cx: q.px.toFixed(1), cy: q.py.toFixed(1), r: 4, fill: color, stroke: '#1a1a19', 'stroke-width': 2 }));
+        const prev = run[run.length - 1];
+        if (prev && (q.p.slot - prev.p.slot) * this.slotSec > HISTORY_GAP_MIN * 60) {
+          flush();
+          chart.append(svg('line', { x1: prev.px, y1: prev.py, x2: q.px, y2: q.py, stroke: color, 'stroke-width': 1, 'stroke-dasharray': '2 4', 'stroke-opacity': 0.5 }));
+        }
+        run.push(q);
+      }
+      flush();
+      // Small dots; with few enough frames the channel number rides above each.
+      const labelled = model.samples.length <= HISTORY_CHANNEL_LABELS_MAX;
+      for (const q of xy) {
+        chart.append(svg('circle', { cx: q.px.toFixed(1), cy: q.py.toFixed(1), r: 2.2, fill: color }));
+        if (labelled) {
+          const c = svg('text', { x: q.px.toFixed(1), y: (q.py - 4.5).toFixed(1), class: 'chart-channel', 'text-anchor': 'middle' });
+          c.textContent = String(q.p.channel);
+          chart.append(c);
+        }
         points.push({ px: q.px, py: q.py, text: `${this.name(st.id)} · ${db(q.p.snrDb)} dB · ch ${q.p.channel} · ${dateTime(q.p.slot * this.slotSec * 1000)}` });
       }
       const last = xy[xy.length - 1]!;

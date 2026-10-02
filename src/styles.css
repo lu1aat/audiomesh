@@ -36,6 +36,14 @@ h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-sp
   #app:has(.status-sending) .lm-on { animation: none; }
   .lm-off.lm-rx { animation: none; }
 }
+.sidebar-tools { display: flex; gap: 6px; }
+.sidebar-tool { flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 6px; background: none; color: var(--text-dim); border: 1px solid var(--border); border-radius: 0; padding: 4px 6px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+.sidebar-tool:hover { color: var(--text); background: var(--panel-raised); }
+.sidebar-tool[aria-pressed="true"] { color: var(--text); border-color: var(--accent); }
+.sidebar-tool[hidden] { display: none; }
+/* Rotate 180: the body turns (fixed children, like the toast, turn with it); a modal dialog sits in the top layer and turns itself. */
+html.rotated body { transform: rotate(180deg); }
+html.rotated dialog[open] { transform: rotate(180deg); }
 .sidebar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .sidebar-toggle { flex: none; background: none; color: var(--text-dim); border: 1px solid var(--border); border-radius: 0; padding: 0 7px; font: inherit; line-height: 1.5; cursor: pointer; }
 .sidebar-toggle:hover { color: var(--text); background: var(--panel-raised); }
@@ -44,6 +52,8 @@ h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-sp
 .sidebar-collapsed .sidebar { width: 56px; padding: 12px 6px; }
 .sidebar-collapsed .sidebar-head { flex-direction: column; gap: 10px; }
 .sidebar-collapsed .logo { justify-content: center; }
+.sidebar-collapsed .sidebar-tools { flex-direction: column; }
+.sidebar-collapsed .tool-label { display: none; }
 .sidebar-collapsed .logo-word, .sidebar-collapsed .radio-readout, .sidebar-collapsed .key-label, .sidebar-collapsed .nav-label { display: none; }
 .sidebar-collapsed .radio { padding: 6px 4px; gap: 6px; }
 .sidebar-collapsed .radio-keys { grid-template-columns: 1fr; }
@@ -93,9 +103,10 @@ h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-sp
 .dot-green { background: #3fb950; }
 .dot-yellow { background: #d29922; }
 .dot-red { background: #f85149; }
-/* Sync section header: a dot only while a sync is needed. */
+/* Section header dots: Capture shows one only while capturing (yellow); Sync always has one, between the arrow and the title. */
 .block-toggle .dot { margin-left: 8px; align-self: center; }
-.block-toggle .dot:not(.dot-yellow) { display: none; }
+.block-toggle .dot:not([data-dot="sync"]):not(.dot-yellow) { display: none; }
+.block-toggle .dot[data-dot="sync"] { margin-left: 0; }
 .nav-item:hover { background: var(--panel-raised); }
 .nav-item.active { background: var(--panel-raised); color: var(--text); font-weight: 600; border-left: var(--sep) solid var(--accent); padding-left: calc(10px - 2px); }
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -164,12 +175,21 @@ h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-sp
 .inline-field { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-dim); }
 .channel-block .spectrum { border-radius: 0; }
 .chat-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.chat-head .level-controls { display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; margin-top: 8px; }
-.level-controls label { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-dim); }
-.level-controls input[type=range] { width: 120px; }
-.level-controls output { min-width: 4.5em; color: var(--text); font-variant-numeric: tabular-nums; }
-.level-controls button { background: var(--panel-alt); color: inherit; border: 0; border-radius: 0; padding: 4px 10px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+/* Waterfall levels: one row, Floor and Ceiling each a name + readout over a full-width slider, Fit at the end. */
+.level-controls { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 8px 20px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.level-controls label { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px; font-size: 0.8rem; color: var(--text-dim); min-width: 0; }
+.level-controls .lc-name { font-family: var(--font-mono); font-weight: 600; }
+.level-controls output { color: var(--text); font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.level-controls input[type=range] { grid-column: 1 / -1; width: 100%; margin: 0; height: 20px; background: none; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.level-controls input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--border-strong); opacity: 0.5; }
+.level-controls input[type=range]::-moz-range-track { height: 2px; background: var(--border); }
+.level-controls input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 18px; margin-top: -8px; background: var(--accent); border: 1px solid var(--accent-fg); border-radius: 0; }
+.level-controls input[type=range]::-moz-range-thumb { width: 8px; height: 16px; background: var(--accent); border: 1px solid var(--accent-fg); border-radius: 0; }
+.level-controls input[type=range]:focus-visible { outline: 1px solid var(--accent-fg); outline-offset: 2px; }
+.level-controls button { background: var(--panel-alt); color: var(--text); border: 1px solid var(--border-strong); border-radius: 0; padding: 4px 12px; height: 28px; font: inherit; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
 .level-controls button:hover { background: var(--panel-raised); }
+.level-controls button:focus-visible { outline: 1px solid var(--accent-fg); outline-offset: 2px; }
+@media (max-width: 560px) { .level-controls { grid-template-columns: 1fr 1fr; } .level-controls button { grid-column: 1 / -1; } }
 .hint { margin: 0; }
 .header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .header h1 { font-size: 1.2rem; margin: 0; }
@@ -247,6 +267,9 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
   .sidebar h1 { font-size: 1rem; }
   .sidebar-head { order: 2; }
   .sidebar-toggle, .logo-word { display: none; }
+  .sidebar-tools { order: 4; }
+  .sidebar-tool { padding: 6px 10px; }
+  .tool-label { display: none; }
   .sidebar-nav { order: 1; flex: 1 1 100%; min-width: 0; margin: 0; border-left: 0; border-top: 0; }
   .sidebar-nav .nav-item { flex: 1 1 auto; justify-content: center; gap: 4px; padding: 8px 4px; font-size: 0.85rem; }
   .sidebar-nav .nav-item.active { padding-left: 4px; }
@@ -357,11 +380,28 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .error-bar[hidden] { display: none; }
 .error-title { display: flex; align-items: center; flex: none; padding: 6px 12px; font-size: 0.75rem; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; color: #f0a0a0; background: #22161a; border-right: 1px solid #4a2a2e; }
 .error-text { padding: 8px 12px; color: #f5c6c6; min-width: 0; }
-.activity { display: flex; align-items: stretch; font-size: 0.85rem; border: 1px solid var(--border); background: var(--panel); margin-bottom: 16px; }
-.activity-title { flex: none; line-height: 1.3; padding: 8px 12px; font-size: 0.75rem; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); background: var(--panel-alt); border-right: 1px solid var(--border); }
-.activity-rows { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 12px; min-width: 0; }
-.activity-row { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
-.activity-label { flex: none; width: 2.6rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+/* Network activity: what just happened and what comes next, one row each (icon, label, words, age).
+   A coloured edge on each row and a faint wash on the panel follow the transmitter: grey = off, teal = listening,
+   amber = something queued or pending, red = on the air. */
+.activity { --act: var(--text-dim); display: flex; align-items: stretch; font-size: 0.9rem; border: 1px solid var(--border); background: color-mix(in srgb, var(--act) 7%, var(--panel)); margin-bottom: 16px; transition: background-color 0.4s; }
+.activity[data-state="listen"] { --act: var(--accent); }
+.activity[data-state="wait"] { --act: var(--warn); }
+.activity[data-state="air"] { --act: var(--bad); background: color-mix(in srgb, var(--act) 12%, var(--panel)); }
+.activity-title { flex: none; align-self: stretch; display: flex; align-items: center; line-height: 1.3; padding: 8px 12px; font-size: 0.75rem; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); background: var(--panel-alt); border-right: 1px solid var(--border); }
+.activity-rows { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 4px 0; }
+.activity-row { --edge: var(--text-dim); display: grid; grid-template-columns: 1.6rem 2.8rem minmax(0, 1fr) auto; align-items: center; gap: 0 8px; padding: 5px 12px 5px 10px; border-left: 3px solid var(--edge); line-height: 1.35; }
+.activity-row[data-dir="rx"] { --edge: var(--accent); }
+.activity-row[data-dir="tx"] { --edge: var(--bad); }
+.activity-row[data-state="listen"] { --edge: var(--accent); }
+.activity-row[data-state="wait"] { --edge: var(--warn); }
+.activity-row[data-state="air"] { --edge: var(--bad); }
+.activity-row + .activity-row { margin-top: 2px; }
+.activity-icon { font-size: 1.15rem; text-align: center; line-height: 1; }
+.activity-label { color: var(--text-dim); font-size: 0.75rem; font-weight: 600; font-family: var(--font-mono); }
+.activity-text { min-width: 0; color: var(--text); overflow-wrap: anywhere; }
+.activity-age { color: var(--text-dim); font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 560px) { .activity { flex-direction: column; } .activity-title { border-right: 0; border-bottom: 1px solid var(--border); } }
+@media (prefers-reduced-motion: reduce) { .activity { transition: none; } }
 .link-section { margin: 0 0 16px; padding: 14px 16px; border: 1px solid var(--border); background: var(--panel); }
 .link-section h3 { font-size: 0.9rem; margin: 0 0 6px; }
 .link-section h4 { font-size: 0.78rem; margin: 10px 0 4px; color: var(--text-dim); font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.03em; }
@@ -445,7 +485,8 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .graph-repeater { fill: none; stroke: var(--text-dim); stroke-width: 1.5; }
 .graph-repeater-dark { stroke: rgba(0, 0, 0, 0.6); }
 .station-repeater { color: var(--text); font-weight: 600; }
-.graph-id { fill: var(--text); font-size: 13px; font-weight: 600; }
+.graph-id { fill: var(--text); font-size: 12px; font-weight: 600; }
+.graph-emoji { font-size: 17px; }
 .graph-chart .graph-id-dark { fill: #000000; }
 .station-name { font-weight: 700; font-size: 1.35rem; line-height: 1.15; overflow-wrap: anywhere; }
 .station-seen { color: var(--text-dim); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
@@ -471,11 +512,20 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .history-chart { width: 100%; height: auto; display: block; }
 .chart-wrap { position: relative; }
 .chart-grid { stroke: var(--border); stroke-width: 1; }
-.chart-axis { fill: var(--text-dim); font-size: 10px; }
-.chart-label { fill: var(--text); font-size: 11px; }
-.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 4px; font-size: 0.8rem; }
+.chart-band-good { fill: var(--good); fill-opacity: 0.07; }
+.chart-band-fair { fill: var(--warn); fill-opacity: 0.07; }
+.chart-band-weak { fill: var(--bad); fill-opacity: 0.07; }
+.chart-band-name { font-size: 7px; fill-opacity: 0.8; }
+.chart-band-name-good { fill: var(--good); }
+.chart-band-name-fair { fill: var(--warn); }
+.chart-band-name-weak { fill: var(--bad); }
+.chart-threshold { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 4; }
+.chart-channel { fill: var(--text-dim); font-size: 6px; pointer-events: none; }
+.chart-axis { fill: var(--text-dim); font-size: 8px; }
+.chart-label { fill: var(--text); font-size: 8.5px; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0 0 2px; font-size: 0.72rem; }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
-.legend-swatch { width: 10px; height: 10px; border-radius: 0; display: inline-block; }
+.legend-swatch { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .graph-wrap { position: relative; max-width: 520px; margin: 0 auto; }
 .graph-tip { white-space: pre-line; text-align: left; z-index: 2; }
 /* Direction on the graph's arrows: faint dashes drifting slowly from the sender toward the arrowhead. */

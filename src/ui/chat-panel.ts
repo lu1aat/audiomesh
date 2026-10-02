@@ -8,7 +8,8 @@
  * radio is untrusted input.
  */
 
-import { soundChannel, type LqaTable } from '../ale/lqa';
+import { VIABLE_DB, soundChannel, type LqaTable } from '../ale/lqa';
+import { pickRetryChannel } from '../ale/retry-channel';
 import type { Channel } from '../band/band-plan';
 import type { AudioEngine, DecodeResult } from '../audio/engine';
 import { FrameLog, hexPayload, payloadHex } from '../chat/frame-log';
@@ -16,6 +17,7 @@ import type { UndecodedSync } from '../chat/clock-hint';
 import type { Notifier } from './notifier';
 import { normalizeText } from '../chat/charset6';
 import { defaultIconIndex, emojiFor, ICON_COUNT } from '../chat/emoji-table';
+import { iconOf as frameIcon } from '../chat/sequence';
 import { BROADCAST, MAX_TEXT_CHARS, decodeFrame, repeaterTag, viaOf, type ChatFrame } from '../chat/frames';
 import { pinnedReason } from '../ale/tx-policy';
 import { LOAD_WINDOW_SLOTS, channelLoad, quietestChannel, type HeardOn } from '../ale/channel-load';
@@ -246,9 +248,11 @@ export class ChatPanel {
   private shownSecond = -1;
   private sendingAtMs = 0;
   /** What is on the air (or waiting for its slot), for the activity lines. */
-  private currentTx: { what: string; channel: number } | null = null;
+  private currentTx: { what: string; channel: number; icon: string } | null = null;
   /** Destination -> channel we used for it last, kept while it stays among the best. */
   private readonly lastChannelFor = new Map<number, number>();
+  /** `dst:msgId` -> the round last sent, its channel and every channel the message has used, so a retransmit round can go elsewhere. */
+  private readonly retryRounds = new Map<string, { round: number; channel: number; used: number[] }>();
   private blocked: ReadonlySet<number> = new Set();
 
   /** Chat messages kept (sent and received; notices do not count). */
@@ -262,7 +266,7 @@ export class ChatPanel {
     return this.engine.sending ? this.currentTx?.channel ?? null : null;
   }
   /** The newest thing that happened: a frame received or sent. */
-  lastAction: { atMs: number; text: string } | null = null;
+  lastAction: { atMs: number; text: string; icon: string; dir: 'rx' | 'tx' } | null = null;
   private readonly outBubbles = new Map<number, { state: HTMLElement | null; status: HTMLElement; entry: LogEntry; levelPct: number }>();
   /** Sprites being received: the session's message uid -> its chat line, until it is final. */
   private readonly spriteBubbles = new Map<number, { entry: LogEntry; parts: Bubble }>();
@@ -335,7 +339,7 @@ export class ChatPanel {
       if (e.key === 'Enter' && !this.button.disabled) this.onSendClicked();
     });
     engine.onFrameDone = () => {
-      if (this.currentTx) this.lastAction = { atMs: Date.now(), text: `sent ${this.currentTx.what} on ch ${this.currentTx.channel}` };
+      if (this.currentTx) this.lastAction = { atMs: Date.now(), text: `sent ${this.currentTx.what} on ch ${this.currentTx.channel}`, icon: this.currentTx.icon, dir: 'tx' };
       this.currentTx = null;
       this.refresh();
       this.pump();
@@ -582,7 +586,7 @@ export class ChatPanel {
     if (decodeFrame(tx.payload)?.kind === 'hello') this.onOwnHello?.();
     const symbols = this.codec.encode(tx.payload);
     this.sendingAtMs = this.engine.sendFrame(symbols, channel.baseHz, this.getLevel());
-    this.currentTx = { what: this.describeTx(tx.payload, tx.dst), channel: channel.number };
+    this.currentTx = { what: this.describeTx(tx.payload, tx.dst), channel: channel.number, icon: this.iconOfPayload(tx.payload) };
     this.frames.add({ atMs: this.sendingAtMs, dir: 'tx', channel: channel.number, snrDb: null, hex: payloadHex(tx.payload) });
     this.status.textContent = viaOf(tx.payload)
       ? `repeating a frame on channel ${channel.number} (${channel.why})`
@@ -599,7 +603,7 @@ export class ChatPanel {
    * channel, or the middle of the band if none is selected. Auto channel off, or Auto beacon off,
    * with a channel selected: everything (sounds too) goes on the selected channel.
    */
-  private txChannel({ payload, dst, survey }: TxOut, slot: number): { number: number; baseHz: number; why: string } {
+  private txChannel({ payload, dst, survey, msgId, round }: TxOut, slot: number): { number: number; baseHz: number; why: string } {
     const all = this.bandChannels;
     const open = all.filter((c) => !this.blocked.has(c.number));
     const band = open.length > 0 ? open : all;
@@ -621,9 +625,25 @@ export class ChatPanel {
         return k > 0 ? `, ${k} other station${k === 1 ? '' : 's'} on it lately` : '';
       };
       const to = dst === BROADCAST ? this.lqa.stations(slot) : [dst];
+      // A retransmit round of a directed message: all its frames on one channel, and not the one that just got no ack.
+      const key = msgId !== undefined && round !== undefined ? `${dst}:${msgId}` : null;
+      const last = key ? this.retryRounds.get(key) : undefined;
+      if (last && round !== undefined && round > 1 && last.round === round) {
+        return { ...byNumber(last.channel)!, why: `retry round ${round}` };
+      }
+      if (key && last && round !== undefined && round > last.round) {
+        const ranked = this.lqa.rankChannels([dst], numbers, slot).filter((s) => s.score >= VIABLE_DB).map((s) => s.channel);
+        const r = pickRetryChannel(last.used, numbers, ranked);
+        if (r !== undefined) {
+          this.noteRetryChannel(key, round, r, last.used);
+          this.lastChannelFor.set(dst, r);
+          return { ...byNumber(r)!, why: `retry round ${round}, not channel ${last.channel}` };
+        }
+      }
       let n = this.lqa.chooseChannel(to, numbers, slot, Math.random, { load, prefer: this.lastChannelFor.get(dst) });
       if (n !== undefined) {
         this.lastChannelFor.set(dst, n);
+        if (key && round !== undefined) this.noteRetryChannel(key, round, n, last?.used ?? []);
         return { ...byNumber(n)!, why: `best link${busy(n)}` };
       }
       // Nothing known about the link: everyone hears the whole band, so take the quietest channel.
@@ -631,6 +651,11 @@ export class ChatPanel {
       if (n !== home.number) return { ...byNumber(n)!, why: `no link data yet, channel ${home.number} busy` };
     }
     return { ...home, why: this.selected ? 'selected channel' : 'no link data yet' };
+  }
+
+  private noteRetryChannel(key: string, round: number, channel: number, used: readonly number[]): void {
+    this.retryRounds.set(key, { round, channel, used: used.includes(channel) ? [...used] : [...used, channel] });
+    if (this.retryRounds.size > 32) this.retryRounds.delete(this.retryRounds.keys().next().value!);
   }
 
   /**
@@ -733,6 +758,8 @@ export class ChatPanel {
       this.lastAction = {
         atMs: Date.now(),
         text: `received ${this.describeRx(h.frame.payload)} on ch ${this.channelNumber(h.baseFreqHz)}, ${signed(h.frame.snrDb, 0)} dB${more}`,
+        icon: this.iconOfPayload(h.frame.payload),
+        dir: 'rx',
       };
     }
     for (const h of heard) this.session.receive(h.frame.payload, slot, h.frame.snrDb, this.channelNumber(h.baseFreqHz));
@@ -770,37 +797,46 @@ export class ChatPanel {
     return `${kindText(f)} from ${this.label(f.src)}${to}${f.via ? ' through a repeater' : ''}`;
   }
 
-  /** What this station will do next, in words, for the activity line. */
-  nextAction(nowMs = Date.now()): string {
-    if (!this.engine.running) return 'audio is off';
-    if (!this.engine.transmitAllowed) return 'listening only: transmit is off';
+  private iconOfPayload(payload: Uint8Array): string {
+    const f = decodeFrame(payload);
+    return f ? frameIcon(f) : '📡';
+  }
+
+  /**
+   * What this station will do next, for the activity panel: the words, a picture and a state
+   * (`air` = on the air or about to be, `wait` = something is queued or pending, `listen`, `off`).
+   */
+  nextAction(nowMs = Date.now()): { text: string; icon: string; state: 'off' | 'listen' | 'wait' | 'air' } {
+    const as = (state: 'off' | 'listen' | 'wait' | 'air', icon: string, text: string) => ({ text, icon, state });
+    if (!this.engine.running) return as('off', '⏸️', 'audio is off');
+    if (!this.engine.transmitAllowed) return as('off', '🔇', 'listening only: transmit is off');
     const secs = (ms: number): number => Math.max(0, Math.ceil(ms / 1000));
     const tx = this.transmitWindow;
     if (tx && this.currentTx) {
       const what = `${this.currentTx.what} on ch ${this.currentTx.channel}`;
-      if (nowMs < tx.startMs) return `waiting ${secs(tx.startMs - nowMs)} s for the slot to transmit ${what}`;
-      return `transmitting ${what}, ${secs(tx.endMs - nowMs)} s left`;
+      if (nowMs < tx.startMs) return as('air', this.currentTx.icon, `waiting ${secs(tx.startMs - nowMs)} s for the slot to transmit ${what}`);
+      return as('air', this.currentTx.icon, `transmitting ${what}, ${secs(tx.endMs - nowMs)} s left`);
     }
-    if (!this.canTransmit) return 'listening: choose a channel (or turn on Auto channel) to transmit';
+    if (!this.canTransmit) return as('off', '👂', 'listening: choose a channel (or turn on Auto channel) to transmit');
     const o = this.session.outlook();
     const slotMs = this.protocol.spec.slotSec * 1000;
     const nextSlot = `next slot in ${secs(slotMs - (nowMs % slotMs))} s`;
-    if (o.ackDue) return `sending an ack to ${this.label(o.ackDue.to)} (${nextSlot})`;
-    if (o.repeats) return `repeating ${o.repeats} frame${o.repeats === 1 ? '' : 's'} from others (${nextSlot})`;
+    if (o.ackDue) return as('wait', '✅', `sending an ack to ${this.label(o.ackDue.to)} (${nextSlot})`);
+    if (o.repeats) return as('wait', '🔁', `repeating ${o.repeats} frame${o.repeats === 1 ? '' : 's'} from others (${nextSlot})`);
     // A beacon waits for a quiet slot after our last frame.
     const nowSlot = Math.floor(nowMs / slotMs);
     const beaconWait = o.beaconFromSlot !== null && o.beaconFromSlot > nowSlot + 1
       ? `after a quiet slot, in ${secs(o.beaconFromSlot * slotMs - nowMs)} s`
       : nextSlot;
-    if (o.hello) return `sending an announcement (${beaconWait})`;
+    if (o.hello) return as('wait', '📣', `sending an announcement (${beaconWait})`);
     if (o.waitingAck) {
       const queued = o.queued ? `; ${o.queued} more message${o.queued === 1 ? '' : 's'} queued` : '';
-      return `waiting for an ack from ${this.who(o.waitingAck.dst)} (up to ${secs((o.waitingAck.untilSlot + 1) * slotMs - nowMs)} s)${queued}`;
+      return as('wait', '⏳', `waiting for an ack from ${this.who(o.waitingAck.dst)} (up to ${secs((o.waitingAck.untilSlot + 1) * slotMs - nowMs)} s)${queued}`);
     }
-    if (o.sending) return `sending a ${o.sending.sprite ? 'sprite' : 'message'} to ${this.who(o.sending.dst)}: ${o.sending.left} of ${o.sending.total} frames to go (${nextSlot})`;
-    if (o.queued) return `sending ${o.queued} queued message${o.queued === 1 ? '' : 's'} (${nextSlot})`;
-    if (o.sound) return `sending a network probe (${beaconWait})`;
-    return `listening (${nextSlot})`;
+    if (o.sending) return as('wait', o.sending.sprite ? '🖼️' : '💬', `sending a ${o.sending.sprite ? 'sprite' : 'message'} to ${this.who(o.sending.dst)}: ${o.sending.left} of ${o.sending.total} frames to go (${nextSlot})`);
+    if (o.queued) return as('wait', '💬', `sending ${o.queued} queued message${o.queued === 1 ? '' : 's'} (${nextSlot})`);
+    if (o.sound) return as('wait', '📡', `sending a network probe (${beaconWait})`);
+    return as('listen', '👂', `listening (${nextSlot})`);
   }
 
   /** Tell the user, at most every two minutes, that the microphone signal is clipping. */

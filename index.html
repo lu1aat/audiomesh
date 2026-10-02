@@ -32,6 +32,10 @@
             <div id="status-cadence-mark" class="status-cadence-mark"></div>
           </div>
         </div>
+        <div class="sidebar-tools">
+          <button id="rotate-button" type="button" class="sidebar-tool" aria-pressed="false" title="Turn the screen upside down, so the phone's speaker and microphone (at its bottom edge) point at the other stations"><span aria-hidden="true">⟳</span><span class="tool-label">Rotate 180°</span></button>
+          <button id="fullscreen-button" type="button" class="sidebar-tool" aria-pressed="false" title="Full screen" hidden><span aria-hidden="true">⛶</span><span class="tool-label">Full screen</span></button>
+        </div>
         <div class="sidebar-nav">
           <button class="nav-item" data-screen="chat" title="Messages"><span class="nav-label">Messages</span><span class="nav-short" aria-hidden="true">M</span><span class="dot" data-dot="chat"></span></button>
           <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">N</span><span class="dot" data-dot="network"></span></button>
@@ -116,11 +120,21 @@
             <div id="error-text" class="error-text"></div>
             <button id="error-close" type="button" class="error-close" aria-label="Close this message" title="Close (it comes back if the page is reloaded and the problem is still there)">✕</button>
           </div>
-          <div class="activity" role="group" aria-labelledby="activity-title">
+          <div id="activity" class="activity" data-state="off" role="group" aria-labelledby="activity-title">
             <div id="activity-title" class="activity-title">Network activity</div>
             <div class="activity-rows" aria-live="polite">
-              <div class="activity-row"><span class="activity-label">Last</span><span id="activity-last">nothing yet</span></div>
-              <div class="activity-row"><span class="activity-label">Next</span><span id="activity-next"></span></div>
+              <div id="activity-last-row" class="activity-row" data-dir="none">
+                <span id="activity-last-icon" class="activity-icon" aria-hidden="true">·</span>
+                <span class="activity-label">Last</span>
+                <span id="activity-last" class="activity-text">nothing yet</span>
+                <span id="activity-last-age" class="activity-age"></span>
+              </div>
+              <div id="activity-next-row" class="activity-row" data-state="off">
+                <span id="activity-next-icon" class="activity-icon" aria-hidden="true">⏸️</span>
+                <span class="activity-label">Next</span>
+                <span id="activity-next" class="activity-text"></span>
+                <span class="activity-age"></span>
+              </div>
             </div>
           </div>
           <div id="net-options" class="net-options">
@@ -208,16 +222,16 @@
                   <canvas id="spectrum" class="spectrum" aria-label="Spectrum and waterfall with channel plan"></canvas>
                   <div class="level-controls">
                     <label>
-                      Floor
+                      <span class="lc-name">Floor</span>
+                      <output id="level-floor-value" for="level-floor">-100 dB</output>
                       <input id="level-floor" type="range" min="-120" max="-10" step="1" value="-100" />
-                      <output id="level-floor-value">-100 dB</output>
                     </label>
                     <label>
-                      Ceiling
+                      <span class="lc-name">Ceiling</span>
+                      <output id="level-ceil-value" for="level-ceil">-30 dB</output>
                       <input id="level-ceil" type="range" min="-110" max="0" step="1" value="-30" />
-                      <output id="level-ceil-value">-30 dB</output>
                     </label>
-                    <button id="level-fit" type="button">Fit to signal</button>
+                    <button id="level-fit" type="button" title="Set floor and ceiling from the current signal">Fit to signal</button>
                   </div>
                 </div>
               </div>
@@ -226,7 +240,7 @@
           <section id="sync-block" class="link-section clock-block" aria-labelledby="clock-title">
             <h3 id="clock-title" class="link-section-heading">
               <button type="button" id="sync-block-toggle" class="block-toggle" aria-expanded="true" aria-controls="sync-block-body">
-                <span class="channel-block-title">Sync</span><span class="dot" data-dot="sync" title="The clock differs from the server's: use Sync"></span>
+                <span class="dot" data-dot="sync" title="No clock check yet"></span><span class="channel-block-title">Sync</span>
               </button>
             </h3>
             <div id="sync-block-body" class="link-section-body">
@@ -462,6 +476,24 @@
                     </label>
                   </div>
                   <p class="hint">Adds a Capture section to the Network screen. Capturing keeps the audio of receive windows in memory, to replay a failed decode offline; it starts only when you press Start capture there, and stops after 30 minutes. Nothing leaves this browser until you press Download. Switching this off stops and clears any capture.</p>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-screen-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-screen-body">
+                    <span class="channel-block-title">Screen</span>
+                  </button>
+                </div>
+                <div id="set-screen-body" class="channel-block-body">
+                  <div class="switch-grid">
+                    <label class="switch-tile" title="Turn the whole screen upside down, so the phone's speaker and microphone (at its bottom edge) point at the other stations">
+                      <span class="switch-label">Rotate screen 180°</span>
+                      <span class="switch"><input id="rotate-180" type="checkbox" /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                      <span class="switch-state" aria-hidden="true"></span>
+                    </label>
+                  </div>
+                  <p class="hint">On a phone the speaker and microphone are at the bottom edge. Rotating the screen 180° lets you hold the phone upside down, pointing them at the other stations. The Rotate 180° button in the sidebar does the same.</p>
                 </div>
               </div>
 

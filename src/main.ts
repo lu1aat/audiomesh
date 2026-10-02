@@ -68,6 +68,7 @@ interface Settings {
   stationsView: StationsView;
   /** Sidebar narrowed to the status colour and the screen dots. */
   sidebarCollapsed: boolean;
+  rotate180: boolean;
   /** Size of one sprite pixel in the chat and the editor, CSS pixels (2..40). */
   spritePixelSize: number;
   /** How a partly received sprite shows its missing pixels. */
@@ -104,6 +105,7 @@ const DEFAULT_SETTINGS: Settings = {
   allowTx: true,
   stationsView: 'table',
   sidebarCollapsed: false,
+  rotate180: false,
   spritePixelSize: DEFAULT_PIXEL_PX,
   spriteHoles: 'fill',
 };
@@ -290,8 +292,17 @@ function updateClockBanner(): void {
     el('clock-banner-text').textContent = text;
   }
   clockBanner.hidden = !off || clockBannerClosed;
-  // The Sync section's own dot stays on while a sync is needed, whether or not the bar was closed.
-  setDot('sync', off ? 'yellow' : null);
+  // The Sync section's own dot, whether or not the bar was closed: red = out of sync against the
+  // server, yellow = a slot offset is being applied, green = no offset and no deviation, grey = no check yet.
+  const applied = settings.slotOffsetMs !== 0;
+  const syncDot: DotColour = off ? 'red' : applied ? 'yellow' : r ? 'green' : null;
+  setDot('sync', syncDot);
+  const syncTitle = off ? "Out of sync: the clock differs from the server's"
+    : applied ? `Applying a slot offset of ${(settings.slotOffsetMs / 1000).toFixed(2)} s`
+    : r ? 'In sync with the server, no offset applied'
+    : 'No clock check against the server yet';
+  const syncDotEl = dots.get('sync');
+  if (syncDotEl && syncDotEl.title !== syncTitle) syncDotEl.title = syncTitle;
 }
 el('clock-banner-use').addEventListener('click', () => el('sync-server-use').click());
 el('clock-banner-close').addEventListener('click', () => {
@@ -417,6 +428,36 @@ sidebarToggle.addEventListener('click', () => {
   saveSettings(settings);
   applySidebar();
 });
+/** Rotate 180 (phones: the speaker and mic sit at the bottom edge, so the phone is held upside down to point them at the other stations; the system rotation often does not do it) and full screen. */
+const rotateButton = el<HTMLButtonElement>('rotate-button');
+const rotateBox = el<HTMLInputElement>('rotate-180');
+function applyRotate(): void {
+  document.documentElement.classList.toggle('rotated', settings.rotate180);
+  rotateButton.setAttribute('aria-pressed', String(settings.rotate180));
+  rotateBox.checked = settings.rotate180;
+}
+function setRotate(on: boolean): void {
+  settings.rotate180 = on;
+  saveSettings(settings);
+  applyRotate();
+}
+settings.rotate180 = settings.rotate180 === true;
+applyRotate();
+rotateButton.addEventListener('click', () => setRotate(!settings.rotate180));
+rotateBox.addEventListener('change', () => setRotate(rotateBox.checked));
+const fullscreenButton = el<HTMLButtonElement>('fullscreen-button');
+// iPhone Safari only allows full screen for video: no button there.
+if (document.fullscreenEnabled) {
+  fullscreenButton.hidden = false;
+  fullscreenButton.addEventListener('click', () => {
+    void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const on = document.fullscreenElement !== null;
+    fullscreenButton.setAttribute('aria-pressed', String(on));
+    fullscreenButton.title = on ? 'Leave full screen' : 'Full screen';
+  });
+}
 el('station-id').textContent = `#${settings.stationId}`;
 const display = new SpectrumDisplay(el<HTMLCanvasElement>('spectrum'));
 display.setSlotMs(protocol.spec.slotSec * 1000);
@@ -543,7 +584,7 @@ disclosure('map-block-toggle', 'map-block-body', settings.mapOpen, (open) => {
   saveSettings(settings);
 });
 disclosure('capture-block-toggle', 'capture-block-body', false, () => {});
-for (const name of ['notify', 'listen', 'announce', 'capture', 'sprites', 'stored', 'tone']) {
+for (const name of ['notify', 'listen', 'announce', 'capture', 'screen', 'sprites', 'stored', 'tone']) {
   disclosure(`set-${name}-toggle`, `set-${name}-body`, true, () => {});
 }
 // Capture is for debugging decodes: never stored, off at every start (see CaptureView).
@@ -853,7 +894,7 @@ bandSelect.addEventListener('change', () => {
  * The status block: state (stopped / listening / sending), the time left until the
  * next action. Only touches the DOM when a string changes.
  */
-const shown = { status: '', main: '', count: '', last: '', next: '' };
+const shown = { status: '', main: '', count: '', last: '', lastAge: '', next: '', nextState: '' };
 const keyAudio = el<HTMLButtonElement>('key-audio');
 const keyTx = el<HTMLButtonElement>('key-tx');
 /** When a frame from another station was last decoded: the Audio lamp flashes and the panel says so for a moment. */
@@ -906,10 +947,24 @@ function updateStatus(): void {
 
   // Network screen: the last thing that happened and what comes next.
   const act = chat.lastAction;
-  const last = act ? `${act.text} · ${formatAge((now - act.atMs) / 1000)}` : 'nothing yet';
+  const last = act ? act.text : 'nothing yet';
+  const lastAge = act ? formatAge((now - act.atMs) / 1000) : '';
+  if (last !== shown.last) {
+    el('activity-last').textContent = shown.last = last;
+    el('activity-last-icon').textContent = act?.icon ?? '·';
+    el('activity-last-row').dataset.dir = act?.dir ?? 'none';
+  }
+  if (lastAge !== shown.lastAge) el('activity-last-age').textContent = shown.lastAge = lastAge;
   const next = chat.nextAction(now);
-  if (last !== shown.last) el('activity-last').textContent = shown.last = last;
-  if (next !== shown.next) el('activity-next').textContent = shown.next = next;
+  if (next.text !== shown.next) {
+    el('activity-next').textContent = shown.next = next.text;
+    el('activity-next-icon').textContent = next.icon;
+  }
+  if (next.state !== shown.nextState) {
+    shown.nextState = next.state;
+    el('activity-next-row').dataset.state = next.state;
+    el('activity').dataset.state = next.state;
+  }
 }
 
 const audioOn = el<HTMLInputElement>('audio-on');

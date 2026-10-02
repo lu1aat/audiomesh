@@ -207,8 +207,11 @@ const DEDUP_SLOTS = 5;
 const bit = (i: number): number => 1 << i;
 
 /** What the session has lined up, for the "next action" line. Read-only: asking changes nothing. */
-/** A frame to send and who it is for. `survey`: a sound's stand-in (a hello sent because there was nothing to report), so the panel still rotates its channel. */
-export type TxOut = { payload: Uint8Array; dst: number; survey?: boolean };
+/**
+ * A frame to send and who it is for. `survey`: a sound's stand-in (a hello sent because there was nothing to report), so the panel still rotates its channel.
+ * `msgId` and `round` (1 = first pass) are set on the frames of a directed message, so the panel can send each retransmit round on another channel.
+ */
+export type TxOut = { payload: Uint8Array; dst: number; survey?: boolean; msgId?: number; round?: number };
 
 /** The newest frame from a station that reached us through a repeater. */
 export interface RelayedFrom {
@@ -981,7 +984,7 @@ export class ChatSession {
       }
     }
     this.events.outgoing?.(msg);
-    return own({ dst: msg.dst, payload: encodeFrame(frame) });
+    return own({ dst: msg.dst, payload: encodeFrame(frame), ...(msg.dst !== BROADCAST ? { msgId: msg.msgId, round: msg.round } : {}) });
   }
 }
 

@@ -82,7 +82,8 @@ export function bubbleText(atMs: number, nowMs: number): string {
 
 const quoted = (text: string): string => `"${text.trimEnd()}"`;
 
-function iconOf(f: ChatFrame): string {
+/** The emoji for a frame's kind; the history diagram and the activity panel share it. */
+export function iconOf(f: ChatFrame): string {
   switch (f.kind) {
     case 'hello': return '📣';
     case 'sound': return f.probe ? '🔎' : '📡';
