@@ -12,6 +12,7 @@
 #   ./web.sh -H localhost         # only this machine
 #   ./web.sh -i                   # plain http (the mic then works only via localhost)
 #   ./web.sh -n                   # skip the build, serve dist/ as it stands
+#   ./web.sh -w                   # build, then keep rebuilding dist/ when src/ changes
 #   (-b, force a rebuild, is still accepted: building is the default now)
 #
 # https uses certs/dev-cert.pem and certs/dev-key.pem (shared with the vite dev
@@ -26,6 +27,7 @@ HOST=0.0.0.0
 SKIP_BUILD=0
 PORT_EXPLICIT=0
 HTTPS=1
+WATCH=0
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIST="$ROOT/dist"
@@ -34,17 +36,18 @@ CERT="$ROOT/certs/dev-cert.pem"
 KEY="$ROOT/certs/dev-key.pem"
 
 usage() {
-  sed -n '3,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,21p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
-while getopts ":p:H:bnih" opt; do
+while getopts ":p:H:bnihw" opt; do
   case "$opt" in
     p) PORT="$OPTARG"; PORT_EXPLICIT=1 ;;
     H) HOST="$OPTARG" ;;
     b) ;; # kept for old habits: building is the default
     n) SKIP_BUILD=1 ;;
     i) HTTPS=0 ;;
+    w) WATCH=1 ;;
     h) usage ;;
     \?) echo "Unknown option: -$OPTARG" >&2; exit 2 ;;
     :) echo "Option -$OPTARG requires an argument" >&2; exit 2 ;;
@@ -179,7 +182,19 @@ echo
 echo "Ctrl-C to stop."
 echo
 
+# Rebuild on change. PHP reads dist/ per request, so nothing restarts; reload the
+# page (the service worker may need a second reload to pick up the new build).
+# emptyOutDir off so dist/ is never half-empty while a request arrives.
+WATCH_PID=
+if [ "$WATCH" -eq 1 ]; then
+  echo "Watching src/ for changes (vite build --watch)..."
+  (cd "$ROOT" && exec npx vite build --watch --emptyOutDir=false) &
+  WATCH_PID=$!
+  trap 'kill "$WATCH_PID" ${PHP_PID:-} 2>/dev/null' EXIT INT TERM
+fi
+
 if [ "$HTTPS" -eq 0 ]; then
+  [ "$WATCH" -eq 1 ] && { php -S "$HOST:$PORT" -t "$DIST" "$ROUTER"; exit; }
   exec php -S "$HOST:$PORT" -t "$DIST" "$ROUTER"
 fi
 
@@ -188,6 +203,6 @@ INNER_PORT="$(php -r '$s = stream_socket_server("tcp://127.0.0.1:0");
   echo explode(":", stream_socket_get_name($s, false))[1];')"
 php -S "127.0.0.1:$INNER_PORT" -t "$DIST" "$ROUTER" &
 PHP_PID=$!
-trap 'kill "$PHP_PID" 2>/dev/null' EXIT INT TERM
+trap 'kill "$PHP_PID" ${WATCH_PID:-} 2>/dev/null' EXIT INT TERM
 
 node "$ROOT/tls-proxy.mjs" "$HOST" "$PORT" "$CERT" "$KEY" "$INNER_PORT"

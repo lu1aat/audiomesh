@@ -4,11 +4,12 @@
  * The order is part of the wire format: a change makes other stations show other
  * pictures. All 256 slots are used, so a new table means a new wire format.
  * Single code points only (no ZWJ or skin-tone sequences).
+ * The first 32 are devices and gear (computer, phone, robot, speakers, wifi ...), so the picker opens on them.
  */
 
 export const EMOJI: readonly string[] = [
-  '😀', '😁', '😂', '😃', '😄', '😅', '😆', '😇', '😈', '😉', '😊', '😋', '😌', '😍', '😎', '😏',
-  '😐', '😑', '😒', '😓', '😔', '😕', '😖', '😗', '😘', '😙', '😚', '😛', '😜', '😝', '😞', '😟',
+  '💻', '📱', '🤖', '🔊', '📶', '📞', '📟', '📺', '📷', '📹', '🔋', '🔌', '💾', '💿', '📀', '📲',
+  '⌚', '🔉', '🔈', '📢', '📣', '🔬', '👾', '🛸', '🧭', '⚡', '📼', '🔦', '📠', '🧮', '💽', '🔧',
   '🐀', '🐁', '🐂', '🐃', '🐄', '🐅', '🐆', '🐇', '🐈', '🐉', '🐊', '🐋', '🐌', '🐍', '🐎', '🐏',
   '🐐', '🐑', '🐒', '🐓', '🐔', '🐕', '🐖', '🐗', '🐘', '🐙', '🐚', '🐛', '🐜', '🐝', '🐞', '🐟',
   '🐠', '🐡', '🐢', '🐣', '🐤', '🐥', '🐦', '🐧', '🐨', '🐩', '🐪', '🐫', '🐬', '🐭', '🐮', '🐯',
