@@ -279,7 +279,7 @@ export class ChatPanel {
   /** Icon index announced by each station (hello); absent = use the hash default. */
   private readonly icons = new Map<number, number>();
   private log: LogEntry[] = [];
-  private readonly chatSaver = new DeferredSaver(() => saveJson(CHAT_KEY, this.log));
+  private readonly chatSaver = new DeferredSaver(() => saveJson(CHAT_KEY, this.log.filter((e) => e.kind !== 'notice')));
   private readonly stationsSaver = new DeferredSaver(() => saveJson(STATIONS_KEY, [...this.known].map(([id, name]) => (this.icons.has(id) ? [id, name, this.icons.get(id)] : [id, name]))));
   /** Called when a complete message from another station arrives. */
   onIncoming: (() => void) | null = null;
@@ -308,9 +308,9 @@ export class ChatPanel {
     this.input.maxLength = MAX_TEXT_CHARS;
     this.restoreStations();
     this.fillRecipients();
-    const restoredAtMs = Date.now();
     for (const entry of parseLog(loadJson(CHAT_KEY))) {
-      if (entry.kind === 'notice' && restoredAtMs - entry.atMs >= NOTICE_TTL_MS) continue;
+      // Notices belong to the session that raised them (older builds saved them): never restored.
+      if (entry.kind === 'notice') continue;
       this.log.push(entry);
       this.render(entry);
     }

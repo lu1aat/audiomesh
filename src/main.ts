@@ -262,8 +262,16 @@ setInterval(() => {
 if (!settings.serverClockOff) void checkServerClock();
 el('sync-server-use').addEventListener('click', () => {
   const r = serverClock.latest;
-  if (r) link.setOffsetMs(Math.round(r.offsetMs));
+  if (!r) return;
+  link.setOffsetMs(Math.round(r.offsetMs));
+  // Say what happened: the offset is clamped, so a big error may not be fully corrected.
+  const wantMs = Math.round(r.offsetMs);
+  const gotMs = settings.slotOffsetMs;
+  clockBannerFlash = Math.abs(wantMs - gotMs) < 20
+    ? { text: `Server time applied: the slot grid moved by ${(gotMs / 1000).toFixed(2)} s.`, until: Date.now() + 5000 }
+    : { text: `Only ${(gotMs / 1000).toFixed(2)} s of ${(wantMs / 1000).toFixed(2)} s could be applied (the limit is 0.4 of a slot). Fix this device's clock.`, until: Date.now() + 15000 };
   updateClockBanner();
+  setTimeout(updateClockBanner, 5100);
 });
 
 /**
@@ -274,7 +282,9 @@ el('sync-server-use').addEventListener('click', () => {
 const clockBanner = el('clock-banner');
 let clockBannerClosed = false;
 let clockBannerText = '';
+let clockBannerFlash: { text: string; until: number } | null = null;
 function updateClockBanner(): void {
+  if (clockBannerFlash && Date.now() >= clockBannerFlash.until) clockBannerFlash = null;
   const r = serverClock.latest;
   // What is left after our slot offset: "Use server time" sets the offset to the measurement.
   const leftMs = r ? r.offsetMs - settings.slotOffsetMs : 0;
@@ -287,11 +297,14 @@ function updateClockBanner(): void {
       `Stations with the right time may not decode (this mode tolerates ${protocol.spec.maxTimeOffsetSec} s in total). ` +
       'If nothing decodes but the waterfall shows activity in the channels, this is probably why.';
   }
+  // Right after "Use server time" the bar shows the result, even if the clock is fine now.
+  if (clockBannerFlash) text = clockBannerFlash.text;
   if (text !== clockBannerText) {
     clockBannerText = text;
     el('clock-banner-text').textContent = text;
   }
-  clockBanner.hidden = !off || clockBannerClosed;
+  clockBanner.hidden = clockBannerFlash ? false : !off || clockBannerClosed;
+  el('clock-banner-use').hidden = clockBannerFlash !== null;
   // The Sync section's own dot, whether or not the bar was closed: red = out of sync against the
   // server, yellow = a slot offset is being applied, green = no offset and no deviation, grey = no check yet.
   const applied = settings.slotOffsetMs !== 0;
@@ -634,26 +647,12 @@ el('level-fit').addEventListener('click', () => {
 });
 applyLevels(settings.floorDb, settings.ceilDb);
 
-/**
- * Modes as the user knows them: A/B/C are Normal/Medium/Fast, speed-ordered from
- * when there were only three. Long, Deep and Turbo (slower or faster than
- * Normal) came after, so they're lettered by their own initial instead.
- */
-const MODE_LETTER: Record<string, string> = {
-  'gfsk8-normal': 'A',
-  'gfsk8-medium': 'B',
-  'gfsk8-fast': 'C',
-  'gfsk8-long': 'L',
-  'gfsk8-deep': 'D',
-  'gfsk8-turbo': 'T',
-};
-
 /** Protocol choice. Both stations must use the same one; it applies after a reload, which rebuilds the audio path. */
 const protocolSelect = el<HTMLSelectElement>('protocol-select');
 for (const p of listProtocols()) {
   const o = document.createElement('option');
   o.value = p.spec.id;
-  o.textContent = `Mode ${MODE_LETTER[p.spec.id] ?? '?'} · ${p.spec.name} · ${p.spec.slotSec} s slots`;
+  o.textContent = `${p.spec.label} · ${p.spec.name} · ${p.spec.slotSec} s slots`;
   protocolSelect.append(o);
 }
 protocolSelect.value = protocol.spec.id;
@@ -1037,7 +1036,8 @@ function frame(): void {
   updateStatus();
   display.setTiming(settings.slotOffsetMs, engine.running ? engine.spectrumLagMs : 0);
   display.setSending(chat.sendingChannel);
-  display.render(engine.getSpectrum(), engine.sampleRate);
+  // A collapsed Channels block draws no waterfall at all.
+  if (!el('channel-block-body').hidden) display.render(engine.getSpectrum(), engine.sampleRate);
   chat.tick();
   link.tick();
   users.tick();

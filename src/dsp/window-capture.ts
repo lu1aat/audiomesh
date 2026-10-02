@@ -18,7 +18,7 @@ export const CAPTURE_MIN_SYNC = 0.3;
  * (real captures 0.1-0.4); the tail or head of a neighbour slot's frame 4.6, 5.6 and 13.3 dB.
  */
 export const CAPTURE_MAX_BLOCK_IMBALANCE_DB = 3;
-/** Audio kept in memory, 16-bit: about 12 windows of Mode A at 48 kHz. */
+/** Audio kept in memory, 16-bit: about 12 windows of Normal at 48 kHz. */
 export const CAPTURE_MAX_BYTES = 24 * 1024 * 1024;
 
 /** What a capture needs from one analysed window (a subset of the engine's DecodeResult). */

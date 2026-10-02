@@ -155,6 +155,7 @@ html.rotated dialog[open] { transform: rotate(180deg); }
    to match the Map's height, instead of staying its old fixed size. Floor/Ceiling/Fit
    stay their natural size at the bottom. */
 #channel-block-body { display: flex; flex-direction: column; }
+#channel-block-body[hidden] { display: none; }
 #channel-block-body .level-controls { flex: none; }
 .channel-block .panel-head { justify-content: flex-start; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0; }
 .clock-block .clock-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -487,6 +488,7 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .station-repeater { color: var(--text); font-weight: 600; }
 .graph-id { fill: var(--text); font-size: 12px; font-weight: 600; }
 .graph-emoji { font-size: 17px; }
+.graph-snr { fill: var(--text); font-size: 8.5px; font-weight: 600; opacity: 0.85; }
 .graph-chart .graph-id-dark { fill: #000000; }
 .station-name { font-weight: 700; font-size: 1.35rem; line-height: 1.15; overflow-wrap: anywhere; }
 .station-seen { color: var(--text-dim); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
@@ -733,6 +735,7 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .help-lead { margin: 0 0 4px; color: var(--text-dim); }
 .help-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 .help-table th, .help-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.help-table .mode-letter { color: var(--text-dim); font-weight: 400; }
 .help-table th { color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 .help-table .help-pick { background: var(--panel-raised); }
 @media (max-width: 700px) {

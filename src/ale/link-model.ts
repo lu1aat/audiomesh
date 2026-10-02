@@ -34,18 +34,21 @@ export function signalLevel(snrDb: number): SignalLevel {
   return snrDb >= GOOD_DB ? 'good' : snrDb >= FAIR_DB ? 'fair' : 'weak';
 }
 
-/** Map colour by time since a station was last heard: green for the first minute, then through
- * orange and red to grey at RECENT_SEC, when the map fades the station. [ageSec, r, g, b]. */
+/** Map colour by time since a station was last heard: green for the first 10 s, then through
+ * orange and red to grey at RECENT_SEC, when the map fades the station. [ageSec, r, g, b].
+ * The age is taken in AGE_STEP_SEC steps, so the colour visibly drops a notch every 10 s. */
+export const AGE_STEP_SEC = 10;
 const AGE_STOPS: readonly (readonly [number, number, number, number])[] = [
-  [60, 74, 222, 128], // --good
-  [200, 240, 160, 70], // orange
-  [400, 240, 119, 107], // --bad
+  [AGE_STEP_SEC, 74, 222, 128], // --good
+  [120, 240, 160, 70], // orange
+  [300, 240, 119, 107], // --bad
   [RECENT_SEC, 110, 116, 128], // grey
 ];
 
 /** Fill for a station heard `ageSec` ago, and whether dark text reads better on it than light.
  * `opacity` < 1: the fill is drawn that see-through over a dark background (text choice allows for it). */
-export function ageColor(ageSec: number, opacity = 1): { fill: string; darkText: boolean } {
+export function ageColor(rawAgeSec: number, opacity = 1): { fill: string; darkText: boolean } {
+  const ageSec = Number.isFinite(rawAgeSec) ? Math.floor(rawAgeSec / AGE_STEP_SEC) * AGE_STEP_SEC : rawAgeSec;
   let c: readonly number[] = AGE_STOPS[AGE_STOPS.length - 1]!.slice(1);
   if (ageSec <= AGE_STOPS[0]![0]) c = AGE_STOPS[0]!.slice(1);
   else {

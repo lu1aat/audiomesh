@@ -8,12 +8,13 @@ import { gfsk8Deep, gfsk8Fast, gfsk8Long, gfsk8Medium, gfsk8Normal, gfsk8Turbo }
  * compile error.
  */
 const PROTOCOLS: Record<ProtocolId, Protocol> = {
-  'gfsk8-normal': gfsk8Normal,
-  'gfsk8-medium': gfsk8Medium,
+  // Fastest first: this order is the one the Protocol selector shows.
+  'gfsk8-turbo': gfsk8Turbo,
   'gfsk8-fast': gfsk8Fast,
+  'gfsk8-medium': gfsk8Medium,
+  'gfsk8-normal': gfsk8Normal,
   'gfsk8-long': gfsk8Long,
   'gfsk8-deep': gfsk8Deep,
-  'gfsk8-turbo': gfsk8Turbo,
 };
 
 export const DEFAULT_PROTOCOL_ID: ProtocolId = 'gfsk8-normal';

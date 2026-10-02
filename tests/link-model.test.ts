@@ -124,14 +124,20 @@ describe('link graph', () => {
 });
 
 describe('ageColor', () => {
-  it('is green for the first minute, then passes orange and red to grey at 10 minutes', () => {
+  it('is green for the first 10 s, then passes orange and red to grey at 10 minutes', () => {
     expect(ageColor(0).fill).toBe('rgb(74,222,128)');
-    expect(ageColor(60).fill).toBe('rgb(74,222,128)');
-    expect(ageColor(200).fill).toBe('rgb(240,160,70)');
-    expect(ageColor(400).fill).toBe('rgb(240,119,107)');
+    expect(ageColor(9).fill).toBe('rgb(74,222,128)');
+    expect(ageColor(120).fill).toBe('rgb(240,160,70)');
+    expect(ageColor(300).fill).toBe('rgb(240,119,107)');
     expect(ageColor(600).fill).toBe('rgb(110,116,128)');
     expect(ageColor(Infinity).fill).toBe('rgb(110,116,128)');
     expect(ageColor(0).darkText).toBe(true);
     expect(ageColor(Infinity).darkText).toBe(false);
+  });
+
+  it('drops a notch every 10 s and holds the colour in between', () => {
+    expect(ageColor(10).fill).not.toBe(ageColor(20).fill);
+    expect(ageColor(20).fill).toBe(ageColor(29.9).fill);
+    expect(ageColor(30).fill).not.toBe(ageColor(29.9).fill);
   });
 });

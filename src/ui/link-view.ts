@@ -114,7 +114,7 @@ const dateTime = (ms: number): string => {
 };
 const signed = (v: number, digits: number): string => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(digits)}`;
 /** Compact age for a map cell: "12s", "4m", "2h". */
-const shortAge = (sec: number): string => (sec < 60 ? `${Math.round(sec)}s` : sec < 3600 ? `${Math.floor(sec / 60)}m` : `${Math.floor(sec / 3600)}h`);
+const shortAge = (sec: number): string => (sec < 60 ? `${Math.floor(sec / 10) * 10}s` : sec < 3600 ? `${Math.floor(sec / 60)}m` : `${Math.floor(sec / 3600)}h`);
 const db = (v: number | undefined): string => (v === undefined ? '–' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(0)}`);
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -199,6 +199,9 @@ export class LinkView {
         return SERIES[this.colorIndex.get(id)!] ?? SERIES_OTHER;
       },
     );
+    // Scrolling moves the graph under a still pointer and no pointerleave comes until the scroll
+    // ends, so the redraw pause for hovering would freeze the screen while the page scrolls.
+    window.addEventListener('scroll', () => { this.hovering = false; }, { capture: true, passive: true });
   }
 
   /** Call every animation frame; redraws at most every 4 s, only while the screen is showing. */
@@ -809,14 +812,21 @@ export class LinkView {
       // The station's emoji sits above the time (ours alone, centred: there is no time for us).
       const emoji = this.iconOf(id);
       if (emoji) {
-        const pic = svg('text', { x: 0, y: id === me ? 7 : 1, class: 'graph-emoji', 'text-anchor': 'middle', 'pointer-events': 'none' });
+        const pic = svg('text', { x: 0, y: id === me ? 7 : -5, class: 'graph-emoji', 'text-anchor': 'middle', 'pointer-events': 'none' });
         pic.textContent = emoji;
         g.append(pic);
       }
       if (id !== me) {
-        const inner = svg('text', { x: 0, y: emoji ? 16 : 5, class: `graph-id${dark ? ' graph-id-dark' : ''}`, 'text-anchor': 'middle' });
+        const inner = svg('text', { x: 0, y: emoji ? 9 : 2, class: `graph-id${dark ? ' graph-id-dark' : ''}`, 'text-anchor': 'middle' });
         inner.textContent = age === undefined || !Number.isFinite(age) ? '–' : shortAge(age);
         g.append(inner);
+        // How loud we hear it (SNR of its last frames at our end), when we have heard it at all.
+        const heard = model.edges.find((e) => e.from === id && e.to === me);
+        if (heard) {
+          const snr = svg('text', { x: 0, y: emoji ? 21 : 14, class: `graph-snr${dark ? ' graph-id-dark' : ''}`, 'text-anchor': 'middle', 'pointer-events': 'none' });
+          snr.textContent = `${db(heard.snrDb)} dB`;
+          g.append(snr);
+        }
       }
       const nick = id === me ? this.getMyName() : this.names.get(id) ?? '';
       // Other stations: the name above the cell. Us: below it (the arrows come from above).

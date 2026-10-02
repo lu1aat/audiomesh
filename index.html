@@ -37,10 +37,10 @@
           <button id="fullscreen-button" type="button" class="sidebar-tool" aria-pressed="false" title="Full screen" hidden><span aria-hidden="true">⛶</span><span class="tool-label">Full screen</span></button>
         </div>
         <div class="sidebar-nav">
-          <button class="nav-item" data-screen="chat" title="Messages"><span class="nav-label">Messages</span><span class="nav-short" aria-hidden="true">M</span><span class="dot" data-dot="chat"></span></button>
-          <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">N</span><span class="dot" data-dot="network"></span></button>
-          <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">S</span><span class="dot" data-dot="settings"></span></button>
-          <button class="nav-item" data-screen="help" title="Help"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">?</span></button>
+          <button class="nav-item" data-screen="chat" title="Messages"><span class="nav-label">Messages</span><span class="nav-short" aria-hidden="true">💬</span><span class="dot" data-dot="chat"></span></button>
+          <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">📡</span><span class="dot" data-dot="network"></span></button>
+          <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">⚙️</span><span class="dot" data-dot="settings"></span></button>
+          <button class="nav-item" data-screen="help" title="Help"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">❓</span></button>
         </div>
       </nav>
 
@@ -295,6 +295,16 @@
           <div class="help-body">
             <p class="help-lead">audiomesh sends short text messages between devices using only a speaker and a microphone. No internet, no server: your device plays the signal, the other one hears it. It is slow on purpose, so it can work far away and in noise.</p>
 
+            <h3>In plain words</h3>
+            <p>Think of it as a walkie-talkie for text. One device makes a short sound, the other one listens and turns it back into letters. You do not need Wi-Fi, a phone signal or an account: just a speaker and a microphone. The sound is high-pitched and quiet (you may not hear it at all), and a message takes a while, because each piece is sent slowly on purpose so it still gets through in a noisy room.</p>
+            <ul>
+              <li><b>Two phones in the same room.</b> Open audiomesh on both, put a name on each in <b>Settings</b>, switch <b>Audio</b> and <b>Allow transmit</b> on, and choose the same band and speed on both. After a minute or two each phone shows the other one on <b>Network</b>.</li>
+              <li><b>A message for everyone.</b> Open <b>Messages</b>, pick <b>Public</b>, type something short and press Send. Everyone close enough hears it. You will not know who got it.</li>
+              <li><b>A message for one person.</b> Tap their name in the list on the left and write. The other device answers with a small "got it", so you can see when it arrived. If a piece is lost, it is sent again by itself.</li>
+              <li><b>A drawing.</b> In a conversation, press <b>Sprite</b>. Paint a small picture (up to 16 by 16 squares, a few colours), or pick one from the gallery, and press Send. The picture appears on the other device while it arrives: first blurry, then sharper with every piece.</li>
+            </ul>
+            <p class="hint">Keep the devices a few metres apart with nothing loud nearby, and do not turn the volume all the way up. Messages are short (about 140 characters) and a full one takes a minute or more; the table below shows how long each speed takes.</p>
+
             <h3>Set up your station</h3>
             <ol>
               <li><b>Set your name.</b> Open <b>Settings</b>, find <b>Station name</b> and type a name of up to 8 characters. (The yellow "Set your name" bar at the top takes you there.) Without a name, other stations only see a random id. The name is sent when you press <b>Announce</b>.</li>
@@ -308,16 +318,16 @@
               <table class="help-table">
                 <thead><tr><th>Mode</th><th>Slot</th><th>142 chars</th><th>Down to</th><th>Best for</th></tr></thead>
                 <tbody>
-                  <tr><td><b>D</b> Deep</td><td>60 s</td><td>16 min</td><td>-23 dB</td><td><b>Longest range</b>, weakest signals</td></tr>
-                  <tr><td><b>L</b> Long</td><td>30 s</td><td>8 min</td><td>-21 dB</td><td>Long range</td></tr>
-                  <tr><td><b>A</b> Normal</td><td>15 s</td><td>4 min</td><td>-18 dB</td><td>General use</td></tr>
-                  <tr><td><b>B</b> Medium</td><td>10 s</td><td>2 min 40 s</td><td>-14 dB</td><td>Faster, medium distance</td></tr>
-                  <tr class="help-pick"><td><b>C</b> Fast</td><td>5 s</td><td>1 min 20 s</td><td>-11 dB</td><td><b>Devices nearby</b> (same room): recommended</td></tr>
-                  <tr><td><b>T</b> Turbo</td><td>2.5 s</td><td>40 s</td><td>-9 dB</td><td>Fastest; a testing tool for devices very close</td></tr>
+                  <tr><td><b>Turbo</b> <span class="mode-letter">(T)</span></td><td>2.5 s</td><td>40 s</td><td>-9 dB</td><td>Fastest; a testing tool for devices very close</td></tr>
+                  <tr class="help-pick"><td><b>Fast</b> <span class="mode-letter">(C)</span></td><td>5 s</td><td>1 min 20 s</td><td>-11 dB</td><td><b>Devices nearby</b> (same room): recommended</td></tr>
+                  <tr><td><b>Medium</b> <span class="mode-letter">(B)</span></td><td>10 s</td><td>2 min 40 s</td><td>-14 dB</td><td>Faster, medium distance</td></tr>
+                  <tr><td><b>Normal</b> <span class="mode-letter">(A)</span></td><td>15 s</td><td>4 min</td><td>-18 dB</td><td>General use</td></tr>
+                  <tr><td><b>Long</b> <span class="mode-letter">(L)</span></td><td>30 s</td><td>8 min</td><td>-21 dB</td><td>Long range</td></tr>
+                  <tr><td><b>Deep</b> <span class="mode-letter">(D)</span></td><td>60 s</td><td>16 min</td><td>-23 dB</td><td><b>Longest range</b>, weakest signals</td></tr>
                 </tbody>
               </table>
             </div>
-            <p class="hint">If you are unsure, use <b>C</b> for devices in the same room and <b>A</b> for anything farther. Changing the mode reloads the page.</p>
+            <p class="hint">If you are unsure, use <b>Fast</b> for devices in the same room and <b>Normal</b> for anything farther. Changing the mode reloads the page.</p>
             <p><b>Band:</b> <i>ultrasonic</i> (17.5 to 21 kHz) is inaudible and has the most channels, so it is a good default when your speakers and microphones reach it (it needs a 48 kHz sound card). <i>Audible</i> works with any hardware but you will hear it. <i>Low</i> (100 to 300 Hz) is a narrow band for special cases.</p>
 
             <h3>Talk to other stations</h3>
@@ -349,7 +359,7 @@
             <h3>Troubleshooting</h3>
             <ul>
               <li><b>Nobody appears.</b> Check that both stations use the <b>same band and the same mode</b>, that Audio is on, and that one of them is sending (press Test). Get closer and turn the volume up.</li>
-              <li><b>Frames are heard but do not decode, or arrive at the wrong time.</b> The clocks are out of sync. Transmissions happen in slots aligned to UTC and the receiver tolerates only a small error (about 2 seconds in mode A, less in faster modes, under half a second in T). Use the <b>Sync</b> section on <b>Network</b>:
+              <li><b>Frames are heard but do not decode, or arrive at the wrong time.</b> The clocks are out of sync. Transmissions happen in slots aligned to UTC and the receiver tolerates only a small error (about 2 seconds in Normal, less in faster modes, under half a second in T). Use the <b>Sync</b> section on <b>Network</b>:
                 <ul>
                   <li><b>Check against server</b>, then <b>Use server time</b>, to align with the clock of the server this page came from. The page checks it by itself at startup and every 10 minutes, and shows a warning bar if the difference is large.</li>
                   <li><b>Sync to this station</b>, on a station row, to copy the timing of a station you do hear.</li>

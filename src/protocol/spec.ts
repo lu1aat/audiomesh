@@ -15,6 +15,10 @@ export type ProtocolId = 'gfsk8-normal' | 'gfsk8-medium' | 'gfsk8-fast' | 'gfsk8
 export interface ProtocolSpec {
   readonly id: ProtocolId;
   readonly name: string;
+  /** Name shown to users (Turbo, Fast, Medium, Normal, Long, Deep). */
+  readonly label: string;
+  /** Normalised one-letter code (A normal, B medium, C fast, L long, D deep, T turbo); reference only, not shown as the name. */
+  readonly letter: string;
   /** Number of FSK tones (8 for 8-GFSK). Bits per symbol is log2 of this. */
   readonly toneCount: number;
   readonly baud: number;

@@ -21,9 +21,9 @@ optional same-origin clock check.
 
 ## Features
 
-- **Six modes**, from fast to deep: T (turbo, 2.5 s slots), C (fast, 5 s),
-  B (medium, 10 s), A (normal, 15 s), L (long, 30 s) and D (deep, 60 s). Slower
-  modes are more sensitive, down to about −23 dB for mode D; mode T only reaches
+- **Six modes**, from fast to deep: Turbo (2.5 s slots), Fast (5 s),
+  Medium (10 s), Normal (15 s), Long (30 s) and Deep (60 s). Slower
+  modes are more sensitive, down to about −23 dB for Deep; Turbo only reaches
   about −9 dB and is meant for testing between nearby devices. All stations must
   use the same mode.
 - **Three bands** with fixed channel numbering: low (100–300 Hz), audible

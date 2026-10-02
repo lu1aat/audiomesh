@@ -21,9 +21,9 @@ una verificación opcional de hora contra el mismo origen.
 
 ## Características
 
-- **Seis modos**, de rápido a profundo: T (turbo, ranuras de 2,5 s), C (rápido,
-  5 s), B (medio, 10 s), A (normal, 15 s), L (largo, 30 s) y D (profundo, 60 s). Los
-  modos más lentos son más sensibles, hasta unos −23 dB en el modo D; el modo T solo
+- **Seis modos**, de rápido a profundo: Turbo (ranuras de 2,5 s), Fast (5 s),
+  Medium (10 s), Normal (15 s), Long (30 s) y Deep (60 s). Los
+  modos más lentos son más sensibles, hasta unos −23 dB en Deep; Turbo solo
   llega a unos −9 dB y está pensado para pruebas entre dispositivos cercanos. Todas
   las estaciones tienen que usar el mismo modo.
 - **Tres bandas** con numeración fija de canales: baja (100–300 Hz), audible
