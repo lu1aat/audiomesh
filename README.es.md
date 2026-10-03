@@ -17,7 +17,10 @@ tramas hasta unos −18 dB de SNR en 2500 Hz.
 
 Sin servidor, sin cuenta, sin subir nada. El audio se procesa en la pestaña y nunca
 sale del dispositivo; una Content Security Policy bloquea toda petición de red salvo
-una verificación opcional de hora contra el mismo origen.
+una verificación opcional de hora contra el mismo origen y, solo si activás
+"Publish Network Stats" (apagado por defecto), una conexión a un broker MQTT público que
+comparte metadatos de las tramas (ids de estación, canal, señal, tipo de trama; nunca
+audio, texto de mensajes ni imágenes).
 
 ## Características
 

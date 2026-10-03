@@ -16,8 +16,10 @@ correction and UTC-aligned time slots. The default mode decodes frames down to
 about −18 dB SNR in 2500 Hz.
 
 No backend, no account, no upload. Audio is processed in the tab and never leaves
-the device; a Content Security Policy blocks every network request except one
-optional same-origin clock check.
+the device; a Content Security Policy blocks every network request except an
+optional same-origin clock check and, only if you turn on "Publish Network Stats"
+(off by default), a connection to a public MQTT broker that shares frame metadata
+(station ids, channel, signal, frame type; never audio, message text or pictures).
 
 ## Features
 

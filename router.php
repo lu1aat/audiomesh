@@ -86,7 +86,7 @@ if ($extension === 'html') {
         "img-src 'self' data: blob:; " .
         "media-src 'self' blob:; " .
         "worker-src 'self' blob:; " .
-        "connect-src 'self'; " .
+        "connect-src 'self' wss://broker.emqx.io:8084; " .
         "form-action 'none'; " .
         "base-uri 'self'; " .
         "frame-ancestors 'none'"

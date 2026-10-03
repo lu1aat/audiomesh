@@ -795,3 +795,12 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .channel-unblock { margin-left: 8px; padding: 2px 8px; font-size: 0.8rem; }
 .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50; display: flex; gap: 12px; align-items: center; padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-raised); color: var(--text); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
 .toast[hidden] { display: none; }
+
+/* Stats screen */
+.stats-status-line { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+#stats-status[data-state="green"] { color: var(--good, #3fb26b); }
+#stats-status[data-state="red"] { color: var(--bad, #d9534f); }
+.stats-map { max-width: 420px; margin: 8px 0 16px; }
+.stats-chart { width: 100%; height: auto; display: block; }
+.stats-node { fill: var(--panel-alt); stroke: var(--accent); stroke-width: 1.5; }
+.stats-table td { white-space: nowrap; }

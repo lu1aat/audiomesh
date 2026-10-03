@@ -39,6 +39,7 @@
         <div class="sidebar-nav">
           <button class="nav-item" data-screen="chat" title="Messages"><span class="nav-label">Messages</span><span class="nav-short" aria-hidden="true">💬</span><span class="dot" data-dot="chat"></span></button>
           <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">📡</span><span class="dot" data-dot="network"></span></button>
+          <button class="nav-item" data-screen="stats" id="nav-stats" title="Network stats" hidden><span class="nav-label">Stats</span><span class="nav-short" aria-hidden="true">🌐</span></button>
           <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">⚙️</span><span class="dot" data-dot="settings"></span></button>
           <button class="nav-item" data-screen="help" title="Help"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">❓</span></button>
         </div>
@@ -290,6 +291,20 @@
         </section>
 
 
+        <section id="screen-stats" class="screen screen-stats" hidden>
+          <h2>Network stats</h2>
+          <p class="hint">Stations that turned on <b>Publish Network Stats</b> in Settings share what they hear and send. Only frame metadata is shared (station ids, names, channel, signal, frame type); never audio, message text or pictures.</p>
+          <p class="stats-status-line"><span id="stats-status" data-state="grey">Off</span></p>
+          <p id="stats-hint" class="hint"></p>
+          <div id="stats-map" class="stats-map"></div>
+          <div class="table-scroll">
+            <table class="help-table stats-table">
+              <thead><tr><th>Time</th><th>Station</th><th></th><th>Band · mode</th><th>Ch</th><th>Signal</th><th>Frame</th><th>From → to</th><th>Detail</th></tr></thead>
+              <tbody id="stats-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
         <section id="screen-help" class="screen screen-help" hidden>
           <h2>Help</h2>
           <div class="help-body">
@@ -419,6 +434,24 @@
                   <p class="hint">Shows a system notification for a new message or an announcement while this page is in the background.</p>
                   <div class="opt-reset"><button id="notify-test" type="button" class="btn-action btn-inline">Send a test notification</button></div>
                   <p id="notifications-hint" class="hint"></p>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-stats-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-stats-body">
+                    <span class="channel-block-title">Network stats</span>
+                  </button>
+                </div>
+                <div id="set-stats-body" class="channel-block-body">
+                  <div class="switch-grid">
+                    <label class="switch-tile" title="Share frame metadata with a public broker so a global map of the network can be built">
+                      <span class="switch-label">Publish Network Stats</span>
+                      <span class="switch"><input id="publish-stats" type="checkbox" /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                      <span class="switch-state" aria-hidden="true"></span>
+                    </label>
+                  </div>
+                  <p class="hint">Off by default. When on, this station connects to a public MQTT broker (broker.emqx.io) and publishes one small record per frame it sends or hears: its station id and name, band and mode, channel, signal, frame type and who it was from and to. A new <b>Stats</b> screen shows what all the stations that do this have heard. Never audio, never message text or pictures. This is the only connection to another server besides the clock check.</p>
                 </div>
               </div>
 

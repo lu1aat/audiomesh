@@ -88,6 +88,8 @@ export class FrameLog {
   private rows: FrameRecord[] = [];
   private nextId = 1;
   onChange: () => void = () => {};
+  /** Called with each record as it is added (not on restore). */
+  onAdd: ((r: FrameRecord) => void) | null = null;
 
   get all(): readonly FrameRecord[] {
     return this.rows;
@@ -98,9 +100,11 @@ export class FrameLog {
   }
 
   add(r: Omit<FrameRecord, 'id'>): void {
-    this.rows.push({ ...r, id: this.nextId++ });
+    const row = { ...r, id: this.nextId++ };
+    this.rows.push(row);
     if (this.rows.length > MAX_FRAMES_KEPT) this.rows.splice(0, this.rows.length - MAX_FRAMES_KEPT);
     this.onChange();
+    this.onAdd?.(row);
   }
 
   /** Remove the records with these ids; returns how many went. */

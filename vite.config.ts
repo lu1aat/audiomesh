@@ -22,7 +22,9 @@ const CSP = [
   "img-src 'self' data: blob:",
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
-  "connect-src 'self'",
+  // 'self' for the Sync clock check; the one MQTT broker only matters while "Publish Network Stats" is on
+  // (src/stats/stats-record.ts STATS_BROKER_URL; keep the two in step).
+  "connect-src 'self' wss://broker.emqx.io:8084",
   "form-action 'none'",
   "base-uri 'self'",
 ].join('; ');

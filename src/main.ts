@@ -10,6 +10,9 @@ import { LqaTable } from './ale/lqa';
 import { formatAge, type RepeaterInfo } from './ale/link-model';
 import { ChatSession } from './chat/session';
 import { randomStationId } from './chat/frames';
+import { StatsClient } from './stats/stats-client';
+import { statsRecord } from './stats/stats-record';
+import { StatsView } from './stats/stats-view';
 import { ChatPanel } from './ui/chat-panel';
 import { Notifier } from './ui/notifier';
 import { CaptureView } from './ui/capture-view';
@@ -52,6 +55,8 @@ interface Settings {
   /** Slot grid moved against UTC to match another station ("Sync" on the Network screen). */
   slotOffsetMs: number;
   notifications: boolean;
+  /** Share frame metadata with the public MQTT broker (Settings > Network stats). Off by default. */
+  publishStats: boolean;
   protocol: string;
   /** Repeat every frame heard from others (Network screen). */
   repeater: boolean;
@@ -97,6 +102,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoSoundIntervalMin: 5,
   slotOffsetMs: 0,
   notifications: false,
+  publishStats: false,
   protocol: DEFAULT_PROTOCOL_ID,
   repeater: false,
   deepDecode: false,
@@ -334,6 +340,34 @@ const users = new UsersView(
   (id) => chat.selectRecipient(id),
 );
 chat.onThreadChange = () => users.render();
+
+// Publish Network Stats (opt-in, off by default): metadata of every frame we send or hear goes to the
+// shared broker, and the Stats screen shows what all publishing stations report.
+const statsClient = new StatsClient(() => ({ node: settings.stationId, band: band.name, mode: protocol.spec.id }));
+const statsView = new StatsView(
+  statsClient,
+  () => !el('screen-stats').hidden,
+  (id) => (id === settings.stationId ? settings.nickname || `#${id}` : session.stations.get(id) || `#${id}`),
+);
+chat.frames.onAdd = (r) => {
+  if (statsClient.status === 'connected') statsClient.publish(statsRecord(r, { node: settings.stationId, band: band.name, mode: protocol.spec.id }));
+};
+const statsBox = el<HTMLInputElement>('publish-stats');
+const applyPublishStats = (): void => {
+  el('nav-stats').hidden = !settings.publishStats;
+  if (settings.publishStats) void statsClient.start();
+  else {
+    statsClient.stop();
+    if (!el('screen-stats').hidden) showScreen('settings');
+  }
+  statsView.render();
+};
+statsBox.checked = settings.publishStats;
+statsBox.addEventListener('change', () => {
+  settings.publishStats = statsBox.checked;
+  saveSettings(settings);
+  applyPublishStats();
+});
 
 const nicknameInput = el<HTMLInputElement>('nickname');
 const nickCallout = el('nick-callout');
@@ -597,7 +631,7 @@ disclosure('map-block-toggle', 'map-block-body', settings.mapOpen, (open) => {
   saveSettings(settings);
 });
 disclosure('capture-block-toggle', 'capture-block-body', false, () => {});
-for (const name of ['notify', 'listen', 'announce', 'capture', 'screen', 'sprites', 'stored', 'tone']) {
+for (const name of ['notify', 'stats', 'listen', 'announce', 'capture', 'screen', 'sprites', 'stored', 'tone']) {
   disclosure(`set-${name}-toggle`, `set-${name}-body`, true, () => {});
 }
 // Capture is for debugging decodes: never stored, off at every start (see CaptureView).
@@ -740,6 +774,7 @@ function showScreen(name: string): void {
     el(`screen-${item.dataset.screen}`).hidden = !active;
   }
   if (name === 'network') link.render();
+  if (name === 'stats') statsView.render();
   if (name === 'settings') showStoredCounts();
   if (name === 'chat') {
     users.render();
@@ -750,6 +785,7 @@ function showScreen(name: string): void {
 for (const item of navItems) item.addEventListener('click', () => showScreen(item.dataset.screen!));
 // The Network screen is where audio is turned on and the network shows up: start there.
 showScreen('network');
+applyPublishStats();
 /** Channels flagged as overloaded, with the wall-clock time the flag runs out. */
 const overUntilMs = new Map<number, number>();
 const OVERLOAD_HOLD_MS = 60_000;
@@ -1041,6 +1077,7 @@ function frame(): void {
   chat.tick();
   link.tick();
   users.tick();
+  statsView.tick();
   updateDots();
   updateClockBanner();
   requestAnimationFrame(frame);
