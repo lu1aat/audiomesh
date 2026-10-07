@@ -10,7 +10,15 @@
  */
 
 /** Add a member here when a new protocol is registered in registry.ts. */
-export type ProtocolId = 'gfsk8-normal' | 'gfsk8-medium' | 'gfsk8-fast' | 'gfsk8-long' | 'gfsk8-deep' | 'gfsk8-turbo';
+export type ProtocolId =
+  | 'gfsk8-normal'
+  | 'gfsk8-medium'
+  | 'gfsk8-fast'
+  | 'gfsk8-long'
+  | 'gfsk8-deep'
+  | 'gfsk8-turbo'
+  | 'gfsk8-spread'
+  | 'gfsk8-burst';
 
 export interface ProtocolSpec {
   readonly id: ProtocolId;
@@ -39,12 +47,32 @@ export interface ProtocolSpec {
   readonly maxTimeOffsetSec: number;
   /** Information bits per frame handed to the framing layer, before FEC and CRC. */
   readonly payloadBits: number;
+  /**
+   * Q65-style spread tolerance (default 1 = none). Each tone is `binsPerTone` fine bins wide
+   * (`toneSpacingHz` = binsPerTone x baud, odd) and the receiver adds the energy of the bins of a
+   * tone, so a tone smeared by Doppler, wobble or sound-card drift is still collected. The price
+   * is noise from all those bins: about 10 log10(binsPerTone) dB at no spread.
+   */
+  readonly binsPerTone?: number;
+  /**
+   * ISCAT-style repetition (default 1 = none). The frame (`symbolCount` symbols, Costas included)
+   * is sent this many times back to back in one slot, and the receiver adds the copies' tone
+   * energies before the LDPC decode. A copy lost to a fade or a burst of noise only costs its share.
+   */
+  readonly repeats?: number;
 }
 
 export const symbolDurationSec = (spec: ProtocolSpec): number => 1 / spec.baud;
 
-/** Time on air for one frame. Always shorter than the slot; the rest is guard. */
-export const frameDurationSec = (spec: ProtocolSpec): number => spec.symbolCount / spec.baud;
+export const binsPerTone = (spec: ProtocolSpec): number => spec.binsPerTone ?? 1;
+
+export const repeatCount = (spec: ProtocolSpec): number => spec.repeats ?? 1;
+
+/** Symbols actually transmitted per slot: every copy of the frame. */
+export const transmitSymbolCount = (spec: ProtocolSpec): number => repeatCount(spec) * spec.symbolCount;
+
+/** Time on air for one transmission (all copies). Always shorter than the slot; the rest is guard. */
+export const frameDurationSec = (spec: ProtocolSpec): number => transmitSymbolCount(spec) / spec.baud;
 
 /** Occupied width of one transmission, lowest tone to highest tone plus one spacing. */
 export const bandwidthHz = (spec: ProtocolSpec): number => spec.toneCount * spec.toneSpacingHz;

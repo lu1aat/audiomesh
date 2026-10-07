@@ -1,4 +1,4 @@
-import type { ProtocolSpec } from '../spec';
+import { repeatCount, type ProtocolSpec } from '../spec';
 
 /** Small seeded PRNG (mulberry32): a test signal that changes between runs is a flaky test. */
 function mulberry32(seed: number): () => number {
@@ -23,5 +23,9 @@ export function buildTestFrame(spec: ProtocolSpec, seed = 1): Uint8Array {
   const symbols = new Uint8Array(spec.symbolCount);
   for (let i = 0; i < symbols.length; i++) symbols[i] = Math.floor(random() * spec.toneCount);
   for (const start of spec.syncStarts) symbols.set(spec.syncPattern, start);
-  return symbols;
+  const repeats = repeatCount(spec);
+  if (repeats === 1) return symbols;
+  const all = new Uint8Array(repeats * symbols.length);
+  for (let k = 0; k < repeats; k++) all.set(symbols, k * symbols.length);
+  return all;
 }

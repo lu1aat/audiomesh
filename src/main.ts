@@ -5,6 +5,7 @@ import { AudioEngine } from './audio/engine';
 import { DEFAULT_BAND, bandsFor, listChannels, referenceTonesHz, type Band } from './band/band-plan';
 import { DEFAULT_PROTOCOL_ID, getProtocol, isProtocolId, listProtocols } from './protocol/registry';
 import { bandwidthHz, deepExtraSec, frameDurationSec } from './protocol/spec';
+import { DEFAULT_THEME_ID, THEMES, themeById } from './render/waterfall-themes';
 import { DEFAULT_CEIL_DB, DEFAULT_FLOOR_DB, MIN_LEVEL_SPAN_DB, SpectrumDisplay } from './render/spectrum-display';
 import { LqaTable } from './ale/lqa';
 import { formatAge, type RepeaterInfo } from './ale/link-model';
@@ -78,6 +79,7 @@ interface Settings {
   spritePixelSize: number;
   /** How a partly received sprite shows its missing pixels. */
   spriteHoles: HoleStyle;
+  waterfallTheme: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -114,6 +116,7 @@ const DEFAULT_SETTINGS: Settings = {
   rotate180: false,
   spritePixelSize: DEFAULT_PIXEL_PX,
   spriteHoles: 'fill',
+  waterfallTheme: DEFAULT_THEME_ID,
 };
 
 function loadSettings(): Settings {
@@ -557,12 +560,14 @@ el('notify-test').addEventListener('click', async () => {
   notifyHint.textContent = notifyHint.textContent || result;
 });
 
-/** Listen on every channel of the band (costs CPU, ~0.3 s per channel per slot) or only the selected one. */
+/**
+ * Listen on every channel of the band (costs CPU) or only the selected one. Blocking is for sending
+ * only, so blocked channels are decoded either way (blocking the selected channel also unselects it).
+ */
 const listenAll = el<HTMLInputElement>('listen-all');
 listenAll.checked = settings.listenAll;
 function applyListen(): void {
-  const selected = channels.find((c) => c.number === settings.channel);
-  const listen = settings.listenAll ? channels : selected ? [selected] : [];
+  const listen = settings.listenAll ? channels : channels.filter((c) => c.number === settings.channel || blockedNow.has(c.number));
   engine.setListenChannels(listen.map((c) => c.baseHz));
 }
 listenAll.addEventListener('change', () => {
@@ -631,7 +636,7 @@ disclosure('map-block-toggle', 'map-block-body', settings.mapOpen, (open) => {
   saveSettings(settings);
 });
 disclosure('capture-block-toggle', 'capture-block-body', false, () => {});
-for (const name of ['notify', 'stats', 'listen', 'announce', 'capture', 'screen', 'sprites', 'stored', 'tone']) {
+for (const name of ['notify', 'stats', 'listen', 'announce', 'capture', 'screen', 'waterfall', 'sprites', 'stored', 'tone']) {
   disclosure(`set-${name}-toggle`, `set-${name}-body`, true, () => {});
 }
 // Capture is for debugging decodes: never stored, off at every start (see CaptureView).
@@ -706,6 +711,9 @@ function chatAttention(): void {
   setDot('chat', 'green', true);
 }
 chat.onIncoming = chatAttention;
+chat.isChatVisible = () => !el('screen-chat').hidden;
+chat.onUnreadChange = () => users.render();
+document.addEventListener('visibilitychange', () => chat.markRead());
 chat.onDelivered = chatAttention;
 
 const dots = new Map<string, HTMLElement>();
@@ -752,7 +760,8 @@ function updateDots(): void {
   const sec = Math.floor(nowMs / 1000);
   if (sec === dotsAtSec) return;
   dotsAtSec = sec;
-  setDot('chat', chatNews ? 'green' : null, chatNews);
+  const chatDotOn = chatNews || chat.totalUnread() > 0;
+  setDot('chat', chatDotOn ? 'green' : null, chatDotOn);
   const slot = Math.floor(nowMs / (protocol.spec.slotSec * 1000));
   const relayed = [...session.relayedStations.values()];
   // A station heard only through a repeater counts too.
@@ -777,12 +786,20 @@ function showScreen(name: string): void {
   if (name === 'stats') statsView.render();
   if (name === 'settings') showStoredCounts();
   if (name === 'chat') {
+    chat.markRead();
     users.render();
     chatNews = false;
-    setDot('chat', null);
+    setDot('chat', chat.totalUnread() > 0 ? 'green' : null);
   }
 }
 for (const item of navItems) item.addEventListener('click', () => showScreen(item.dataset.screen!));
+// Help: the chips at the top scroll to their section (not links: a hash would fight the screen switcher).
+for (const chip of document.querySelectorAll<HTMLButtonElement>('[data-help-jump]')) {
+  chip.addEventListener('click', () => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById(chip.dataset.helpJump!)?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  });
+}
 // The Network screen is where audio is turned on and the network shows up: start there.
 showScreen('network');
 applyPublishStats();
@@ -869,6 +886,7 @@ function applyBlocked(): void {
   saveSettings(settings);
   display.setBlocked(blockedNow);
   chat.setBlockedChannels(blockedNow);
+  applyListen();
   for (const cell of strip.children) {
     const n = Number((cell as HTMLElement).dataset.channel);
     cell.classList.toggle('channel-blocked', blockedNow.has(n));
@@ -1151,6 +1169,18 @@ spriteHoles.addEventListener('change', () => {
   applySpriteStyle();
 });
 applySpriteStyle();
+
+/** Waterfall look (Settings > Waterfall). */
+const waterfallTheme = el<HTMLSelectElement>('waterfall-theme');
+for (const t of THEMES) waterfallTheme.append(new Option(t.label, t.id));
+settings.waterfallTheme = themeById(String(settings.waterfallTheme)).id;
+waterfallTheme.value = settings.waterfallTheme;
+display.setTheme(settings.waterfallTheme);
+waterfallTheme.addEventListener('change', () => {
+  settings.waterfallTheme = themeById(waterfallTheme.value).id;
+  saveSettings(settings);
+  display.setTheme(settings.waterfallTheme);
+});
 
 let lastAnnounceMs = Date.now();
 /** Any hello of ours (Announce, auto, or an Auto beacon with nothing to report) restarts the auto announce wait. */

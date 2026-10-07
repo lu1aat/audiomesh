@@ -28,6 +28,19 @@ const PARITY_TAPS: readonly Uint8Array[] = GENERATOR.map((row) => {
   return Uint8Array.from(taps);
 });
 
+/**
+ * Edge index of each (check, position in that check): bit n's j-th check is slot n * 3 + j of
+ * the check-to-bit messages, so EDGE_SLOTS[m][i] is that slot for bit CHECK_BITS[m][i].
+ */
+const EDGE_SLOTS: readonly Int32Array[] = CHECK_BITS.map((bits, m) =>
+  Int32Array.from(bits, (n) => {
+    const j = BIT_CHECKS[n]!.indexOf(m);
+    if (j < 0) throw new Error(`LDPC tables disagree: bit ${n} not in check ${m}`);
+    return n * 3 + j;
+  }),
+);
+const MAX_CHECK_DEGREE = Math.max(...CHECK_BITS.map((bits) => bits.length));
+
 /** message: 91 bits, one per byte. Writes the 174-bit codeword into `out`. */
 export function ldpcEncode(message: Uint8Array, out: Uint8Array): void {
   if (message.length !== LDPC_K) throw new RangeError(`message must be ${LDPC_K} bits`);
@@ -63,6 +76,7 @@ export class LdpcDecoder {
   private readonly bitToCheck: Float64Array[] = CHECK_BITS.map((c) => new Float64Array(c.length));
   private readonly hard = new Uint8Array(LDPC_N);
   private readonly best = new Uint8Array(LDPC_N);
+  private readonly scratch = new Float64Array(MAX_CHECK_DEGREE);
 
   /**
    * `llr`: 174 log-likelihood ratios. Returns the best guess over the iterations.
@@ -70,7 +84,7 @@ export class LdpcDecoder {
    */
   decode(llr: Float32Array, maxIterations = 30): LdpcResult {
     if (llr.length !== LDPC_N) throw new RangeError(`need ${LDPC_N} LLRs`);
-    const { checkToBit, bitToCheck, hard, best } = this;
+    const { checkToBit, bitToCheck, hard, best, scratch } = this;
     checkToBit.fill(0);
     let bestFailed = LDPC_M + 1;
 
@@ -91,27 +105,33 @@ export class LdpcDecoder {
       // Bit -> check: channel LLR plus messages from the bit's other checks.
       for (let m = 0; m < LDPC_M; m++) {
         const bits = CHECK_BITS[m]!;
+        const slots = EDGE_SLOTS[m]!;
         const out = bitToCheck[m]!;
         for (let i = 0; i < bits.length; i++) {
           const n = bits[i]!;
+          const own = slots[i]!;
           let t = llr[n]!;
-          const checks = BIT_CHECKS[n]!;
-          for (let j = 0; j < 3; j++) if (checks[j] !== m) t += checkToBit[n * 3 + j]!;
+          for (let e = n * 3; e < n * 3 + 3; e++) if (e !== own) t += checkToBit[e]!;
           out[i] = Math.tanh(-t / 2);
         }
       }
 
-      // Check -> bit: product of the other bits' tanh terms.
-      for (let n = 0; n < LDPC_N; n++) {
-        const checks = BIT_CHECKS[n]!;
-        for (let j = 0; j < 3; j++) {
-          const m = checks[j]!;
-          const bits = CHECK_BITS[m]!;
-          const terms = bitToCheck[m]!;
-          let product = 1;
-          for (let i = 0; i < bits.length; i++) if (bits[i] !== n) product *= terms[i]!;
-          product = Math.max(-ATANH_LIMIT, Math.min(ATANH_LIMIT, product));
-          checkToBit[n * 3 + j] = -2 * Math.atanh(product);
+      // Check -> bit: product of the other bits' tanh terms, each check's leave-one-out
+      // products from a running prefix and suffix product (O(degree), not O(degree^2)).
+      for (let m = 0; m < LDPC_M; m++) {
+        const slots = EDGE_SLOTS[m]!;
+        const terms = bitToCheck[m]!;
+        const degree = terms.length;
+        let prefix = 1;
+        for (let i = 0; i < degree; i++) {
+          scratch[i] = prefix;
+          prefix *= terms[i]!;
+        }
+        let suffix = 1;
+        for (let i = degree - 1; i >= 0; i--) {
+          const product = Math.max(-ATANH_LIMIT, Math.min(ATANH_LIMIT, scratch[i]! * suffix));
+          checkToBit[slots[i]!] = -2 * Math.atanh(product);
+          suffix *= terms[i]!;
         }
       }
     }

@@ -158,3 +158,54 @@ export const GFSK8_DEEP: ProtocolSpec = {
   // 50.56 s frame + 2 x 3 s = 56.56 s window, inside the 60 s slot.
   maxTimeOffsetSec: 3,
 };
+
+/**
+ * Q65-style spread tolerance on Normal's timing: 6.25 baud, 15 s slot, but every tone is
+ * three fine bins wide (tone spacing 3 x baud = 18.75 Hz, 150 Hz occupied). The receiver
+ * adds the three bins' energy per tone, so a tone that wanders +-9 Hz (people moving,
+ * a hand-held speaker, sound-card drift, air turbulence at ultrasonic) is still collected
+ * instead of falling out of a 6.25 Hz bin. WSJT-X's Q65 does the same with its wide
+ * submodes (tone spacing 2-8 x baud) for ionoscatter and EME; the code here stays the
+ * LDPC(174,91) frame, not Q65's 65-tone QRA code.
+ * The price is noise from three bins and three times the bandwidth (the low band holds one
+ * channel). Measured (48 kHz, unknown timing, nominal frequency, never a wrong payload):
+ * reliable to -16 dB in 2500 Hz (4/8 at -18), 2 dB short of Normal's -18 in a steady
+ * channel. Against a synthetic Doppler wobble (the signal's delay swung sinusoidally,
+ * +-6 Hz peak at 0.7 Hz) Normal decoded 0/8 even at -8 dB and Spread 8/8 down to -16 dB;
+ * at +-12 Hz both failed (the limit is about +-9 Hz, one bin each side). Real rooms were
+ * not measured. ~0.5 s to decode a window in Node (Normal ~0.23 s).
+ */
+export const GFSK8_SPREAD: ProtocolSpec = {
+  ...GFSK8_NORMAL,
+  id: 'gfsk8-spread',
+  name: '8-GFSK 6.25 baud, 3-bin tones (spread)',
+  label: 'Spread',
+  letter: 'Q',
+  toneSpacingHz: 18.75,
+  binsPerTone: 3,
+};
+
+/**
+ * ISCAT-style repetition: Fast's 25 baud frame (3.16 s) sent four times back to back in
+ * one 15 s slot (12.64 s on air, the same airtime as Normal), 200 Hz occupied. The
+ * receiver finds the sync of all four copies jointly and adds their tone energies before
+ * the LDPC decode; if that fails it tries the subsets, so a copy lost to a fade or a
+ * burst of noise costs only its share. In a steady channel this is a little less
+ * sensitive than Normal (the copies add as energy, not as one long symbol); the point is
+ * fast fading and dropouts, where the diversity of four short looks beats one long one.
+ * Same clock allowance as Normal (+-2 s): the window is the same 16.64 s.
+ * Measured (48 kHz, unknown timing, nominal frequency, never a wrong payload): reliable
+ * to -16 dB in 2500 Hz (1/8 at -18), where one copy alone (Fast) stops at -12; with one
+ * of the four copies wiped out, still 8/8 at -14 dB. ~0.8 s to decode a window in Node,
+ * 3.5x Normal's: ten channels would need most of a slot, so expect to listen on fewer.
+ */
+export const GFSK8_BURST: ProtocolSpec = {
+  ...GFSK8_FAST,
+  id: 'gfsk8-burst',
+  name: '8-GFSK 25 baud x4 (burst)',
+  label: 'Burst',
+  letter: 'I',
+  slotSec: 15,
+  maxTimeOffsetSec: 2,
+  repeats: 4,
+};

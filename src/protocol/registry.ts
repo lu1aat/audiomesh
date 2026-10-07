@@ -1,6 +1,6 @@
 import type { Protocol } from './protocol';
 import type { ProtocolId } from './spec';
-import { gfsk8Deep, gfsk8Fast, gfsk8Long, gfsk8Medium, gfsk8Normal, gfsk8Turbo } from './gfsk8';
+import { gfsk8Burst, gfsk8Deep, gfsk8Fast, gfsk8Long, gfsk8Medium, gfsk8Normal, gfsk8Spread, gfsk8Turbo } from './gfsk8';
 
 /**
  * The only place that knows which protocols exist. Typed as a full Record over
@@ -15,6 +15,9 @@ const PROTOCOLS: Record<ProtocolId, Protocol> = {
   'gfsk8-normal': gfsk8Normal,
   'gfsk8-long': gfsk8Long,
   'gfsk8-deep': gfsk8Deep,
+  // Variants of Normal / Fast, not steps on the speed scale.
+  'gfsk8-spread': gfsk8Spread,
+  'gfsk8-burst': gfsk8Burst,
 };
 
 export const DEFAULT_PROTOCOL_ID: ProtocolId = 'gfsk8-normal';

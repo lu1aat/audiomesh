@@ -9,6 +9,7 @@
  */
 
 import type { Channel } from '../band/band-plan';
+import { buildLut, DEFAULT_THEME_ID, LUT_SIZE, themeBackground, themeById, type BoxColours, type WaterfallTheme } from './waterfall-themes';
 
 /** Default displayed span until setViewRange is called. */
 const DEFAULT_VIEW_LOW_HZ = 200;
@@ -26,52 +27,10 @@ export const MIN_LEVEL_SPAN_DB = 10;
 const HISTORY_W = 1024;
 const HISTORY_H = 256;
 
-/** Slot boundary line drawn over the waterfall. */
-const SLOT_LINE_STYLE = 'rgba(255, 255, 255, 0.6)';
-
 const AXIS_H = 20;
 const AXIS_STEPS_HZ = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 /** Share of the plot (canvas minus axis) for the spectrum: 42 px of a 224 px canvas, the waterfall gets the other 162. */
 const SPECTRUM_FRACTION = 42 / 204;
-
-/**
- * Viridis, the same stops as ../soundrad's colormap.js: perceptually uniform, so
- * equal dB steps look like equal colour steps, and it rises in lightness so
- * "brighter = stronger". Baked once into a 256-entry table: the waterfall colours
- * 1024 cells every frame, too many for per-cell interpolation.
- */
-const VIRIDIS: readonly (readonly [number, readonly [number, number, number]])[] = [
-  [0.0, [68, 1, 84]],
-  [0.25, [59, 82, 139]],
-  [0.5, [33, 145, 140]],
-  [0.75, [94, 201, 98]],
-  [1.0, [253, 231, 37]],
-];
-
-const LUT_SIZE = 256;
-const LUT = (() => {
-  const lut = new Uint8ClampedArray(LUT_SIZE * 3);
-  for (let i = 0; i < LUT_SIZE; i++) {
-    const t = i / (LUT_SIZE - 1);
-    let k = 0;
-    while (k < VIRIDIS.length - 2 && t > VIRIDIS[k + 1]![0]) k++;
-    const [t0, c0] = VIRIDIS[k]!;
-    const [t1, c1] = VIRIDIS[k + 1]!;
-    const f = (t - t0) / (t1 - t0);
-    for (let c = 0; c < 3; c++) lut[i * 3 + c] = c0[c]! + (c1[c]! - c0[c]!) * f;
-  }
-  return lut;
-})();
-
-const BACKGROUND = `rgb(${VIRIDIS[0]![1].join(',')})`;
-
-function rampColor(t: number, out: Uint8ClampedArray, offset: number): void {
-  const i = Math.round(Math.min(1, Math.max(0, t)) * (LUT_SIZE - 1)) * 3;
-  out[offset] = LUT[i]!;
-  out[offset + 1] = LUT[i + 1]!;
-  out[offset + 2] = LUT[i + 2]!;
-  out[offset + 3] = 255;
-}
 
 export class SpectrumDisplay {
   private readonly ctx: CanvasRenderingContext2D;
@@ -90,6 +49,8 @@ export class SpectrumDisplay {
   private hasData = false;
   private floorDb = DEFAULT_FLOOR_DB;
   private ceilDb = DEFAULT_CEIL_DB;
+  private theme: WaterfallTheme = themeById(DEFAULT_THEME_ID);
+  private lut = buildLut(this.theme);
 
   private channels: readonly Channel[] = [];
   private bandwidthHz = 0;
@@ -112,10 +73,29 @@ export class SpectrumDisplay {
     this.history.width = HISTORY_W;
     this.history.height = HISTORY_H;
     this.historyCtx = this.history.getContext('2d')!;
-    this.historyCtx.fillStyle = BACKGROUND;
-    this.historyCtx.fillRect(0, 0, HISTORY_W, HISTORY_H);
+    this.clearHistory();
     this.columnDb.fill(SILENCE_DB);
     canvas.addEventListener('pointerdown', (e) => this.handlePointer(e));
+  }
+
+  private clearHistory(): void {
+    this.historyCtx.fillStyle = themeBackground(this.theme);
+    this.historyCtx.fillRect(0, 0, HISTORY_W, HISTORY_H);
+  }
+
+  /** Switch the look. Rows already in the waterfall keep the colours they were drawn with and scroll off. */
+  setTheme(id: string): void {
+    this.theme = themeById(id);
+    this.lut = buildLut(this.theme);
+    if (!this.hasData) this.clearHistory();
+  }
+
+  private rampColor(t: number, out: Uint8ClampedArray, offset: number): void {
+    const i = Math.round(Math.min(1, Math.max(0, t)) * (LUT_SIZE - 1)) * 3;
+    out[offset] = this.lut[i]!;
+    out[offset + 1] = this.lut[i + 1]!;
+    out[offset + 2] = this.lut[i + 2]!;
+    out[offset + 3] = 255;
   }
 
   setPlan(channels: readonly Channel[], bandwidthHz: number, markersHz: readonly number[]): void {
@@ -143,8 +123,7 @@ export class SpectrumDisplay {
   setViewRange(lowHz: number, highHz: number): void {
     this.viewLowHz = lowHz;
     this.viewHighHz = highHz;
-    this.historyCtx.fillStyle = BACKGROUND;
-    this.historyCtx.fillRect(0, 0, HISTORY_W, HISTORY_H);
+    this.clearHistory();
     this.rowTimes.fill(0);
     this.hasData = false;
   }
@@ -182,7 +161,7 @@ export class SpectrumDisplay {
     this.overloaded = channelNumbers;
   }
 
-  /** Channels the user switched off for transmitting: drawn black with a cross. */
+  /** Channels the user switched off for transmitting: drawn with a translucent dark box and a cross, the waterfall still visible behind. */
   setBlocked(channelNumbers: ReadonlySet<number>): void {
     this.blocked = channelNumbers;
   }
@@ -244,7 +223,7 @@ export class SpectrumDisplay {
         if (v > peak) peak = v;
       }
       this.columnDb[c] = peak;
-      rampColor((peak - this.floorDb) / (this.ceilDb - this.floorDb), data, c * 4);
+      this.rampColor((peak - this.floorDb) / (this.ceilDb - this.floorDb), data, c * 4);
     }
     // Scroll the history down one row, then write the newest row at the top. The
     // rows carry their times so slot lines can be placed without touching the pixels.
@@ -269,7 +248,7 @@ export class SpectrumDisplay {
     const wfTop = specH;
     const wfH = h - axisH - specH;
 
-    ctx.fillStyle = '#0b0d12';
+    ctx.fillStyle = this.theme.canvasBg;
     ctx.fillRect(0, 0, w, h);
 
     ctx.imageSmoothingEnabled = true;
@@ -286,7 +265,7 @@ export class SpectrumDisplay {
         if (c === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = '#e6d75a';
+      ctx.strokeStyle = this.theme.spectrumLine;
       ctx.lineWidth = Math.max(1, dpr);
       ctx.stroke();
     }
@@ -303,8 +282,8 @@ export class SpectrumDisplay {
   private drawSlotLines(w: number, wfTop: number, wfH: number, dpr: number): void {
     if (this.slotMs <= 0) return;
     const { ctx, rowTimes, slotMs } = this;
-    ctx.strokeStyle = SLOT_LINE_STYLE;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.strokeStyle = this.theme.slotLine;
+    ctx.fillStyle = this.theme.slotText;
     ctx.lineWidth = Math.max(1, dpr);
     ctx.font = `${10 * dpr}px system-ui, sans-serif`;
     ctx.textAlign = 'right';
@@ -335,7 +314,7 @@ export class SpectrumDisplay {
   }
 
   private drawChannels(w: number, height: number, dpr: number): void {
-    const { ctx } = this;
+    const { ctx, theme } = this;
     ctx.font = `${11 * dpr}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -354,30 +333,31 @@ export class SpectrumDisplay {
       const isOver = this.overloaded.has(ch.number);
       const isTx = ch.number === this.sending;
       // Sending (red) wins over overload (yellow), which wins over the selection (blue).
-      ctx.fillStyle = isTx ? 'rgba(240, 70, 70, 0.4)' : isOver ? 'rgba(235, 200, 60, 0.35)' : isSel ? 'rgba(90, 180, 255, 0.28)' : 'rgba(255, 255, 255, 0.07)';
+      const box: BoxColours = isTx ? theme.sending : isOver ? theme.overload : isSel ? theme.selected : theme.idle;
+      ctx.fillStyle = box.fill;
       ctx.fillRect(x0, 0, x1 - x0, height);
-      ctx.strokeStyle = isTx ? 'rgba(255, 110, 110, 1)' : isOver ? 'rgba(245, 210, 80, 1)' : isSel ? 'rgba(120, 200, 255, 0.95)' : 'rgba(255, 255, 255, 0.28)';
+      ctx.strokeStyle = box.stroke;
       ctx.lineWidth = isTx ? 2 * dpr : dpr;
       ctx.strokeRect(x0 + 0.5, 0.5, x1 - x0, height - 1);
       const flash = this.flashLevel(ch.number, nowMs);
       if (flash > 0) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.85 * flash})`;
+        ctx.fillStyle = `rgba(${theme.flash}, ${0.85 * flash})`;
         ctx.fillRect(x0, 0, x1 - x0, height);
       }
-      ctx.fillStyle = isTx ? '#ffb3b3' : isOver ? '#ffe9a8' : isSel ? '#bfe3ff' : 'rgba(255, 255, 255, 0.75)';
+      ctx.fillStyle = box.text;
       ctx.fillText(String(ch.number), (x0 + x1) / 2, 4 * dpr);
       if (this.blocked.has(ch.number)) this.drawBlocked(x0, x1, height, dpr);
     }
   }
 
-  /** A blocked channel: dark box, hatching and a cross at the top, over whatever the spectrum shows. */
+  /** A blocked channel: translucent dark box, hatching and a cross at the top; the waterfall stays visible behind. */
   private drawBlocked(x0: number, x1: number, height: number, dpr: number): void {
     const { ctx } = this;
     ctx.save();
     ctx.beginPath();
     ctx.rect(x0, 0, x1 - x0, height);
     ctx.clip();
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.fillRect(x0, 0, x1 - x0, height);
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
     ctx.lineWidth = dpr;
@@ -403,11 +383,11 @@ export class SpectrumDisplay {
 
   private drawAxis(w: number, top: number, axisH: number, dpr: number): void {
     const { ctx } = this;
-    ctx.fillStyle = '#14171d';
+    ctx.fillStyle = this.theme.axisBg;
     ctx.fillRect(0, top, w, axisH);
     ctx.font = `${10 * dpr}px system-ui, sans-serif`;
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#9aa3b2';
+    ctx.fillStyle = this.theme.axisText;
     ctx.textAlign = 'center';
     // Coarsest step that keeps the labels from crowding (about 10 across the view).
     const span = this.viewHighHz - this.viewLowHz;
@@ -418,7 +398,7 @@ export class SpectrumDisplay {
       ctx.fillText(hz >= 1000 ? `${hz / 1000} kHz` : `${hz}`, x, top + axisH * 0.65);
     }
     // Reference tones: small triangles on the axis.
-    ctx.fillStyle = '#e6d75a';
+    ctx.fillStyle = this.theme.marker;
     for (const hz of this.markersHz) {
       const x = this.xForHz(hz, w);
       ctx.beginPath();

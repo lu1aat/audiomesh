@@ -23,8 +23,11 @@ optional same-origin clock check and, only if you turn on "Publish Network Stats
 
 ## Features
 
-- **Six modes**, from fast to deep: Turbo (2.5 s slots), Fast (5 s),
-  Medium (10 s), Normal (15 s), Long (30 s) and Deep (60 s). Slower
+- **Eight modes**: from fast to deep, Turbo (2.5 s slots), Fast (5 s),
+  Medium (10 s), Normal (15 s), Long (30 s) and Deep (60 s); plus two variants
+  for difficult rooms, Spread (wide tones that tolerate a wobbling or drifting
+  signal, after WSJT-X's Q65) and Burst (the frame sent four times in a slot and
+  combined, after ISCAT). Slower
   modes are more sensitive, down to about −23 dB for Deep; Turbo only reaches
   about −9 dB and is meant for testing between nearby devices. All stations must
   use the same mode.

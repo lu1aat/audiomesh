@@ -6,6 +6,7 @@
  */
 
 export const CHAT_KEY = 'audiochat:chat';
+export const UNREAD_KEY = 'audiochat:unread';
 export const STATIONS_KEY = 'audiochat:stations';
 export const DEBUG_KEY = 'audiochat:debug';
 export const LINK_KEY = 'audiochat:link';

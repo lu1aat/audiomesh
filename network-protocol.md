@@ -132,8 +132,43 @@ baud, and everything else (frame duration, slot length, sensitivity) follows.
 | Throughput vs Normal | 1× | 1.5× | 3× | 0.5× | 0.25× | 6× |
 | Sensitivity vs Normal | baseline (-18 dB reliable) | ~3 dB better than Fast | ~6 dB worse (measured: reliable to -11 dB in 2500 Hz; 11/12 at -12/-13 dB, 4/12 at -14 dB; never a wrong payload) | ~3 dB better (measured: reliable to -21 dB; 19/24 at -22, 3/12 at -23, 0/24 at -24; never a wrong payload) | ~5-6 dB better (measured: reliable to -23 dB; 23/24 at -24, 8/12 at -25, 4/24 at -26, 0/24 at -28; never a wrong payload) | ~9 dB worse (measured: reliable to -9 dB; 15/24 at -10, 2/24 at -11, 0/24 at -12; never a wrong payload) |
 
+### 4.1 Variants: Spread (Q) and Burst (I)
+
+Two more protocols reuse the same frame, LDPC code and Costas pattern but change
+how the signal is spread, in the spirit of two WSJT-X scatter modes. They are
+not steps on the speed scale. Both stations must still pick the same one.
+
+| | Spread (Q) | Burst (I) |
+|---|---|---|
+| `id` | `gfsk8-spread` | `gfsk8-burst` |
+| Idea | Q65-style: wide tones, energy of several fine bins added per tone | ISCAT-style: the frame sent several times in one slot, copies combined |
+| Baud / tone spacing | 6.25 baud / 18.75 Hz (`binsPerTone` 3) | 25 baud / 25 Hz (`repeats` 4) |
+| Frame on air | 12.64 s | 4 x 3.16 s = 12.64 s |
+| Slot / clock allowance | 15 s / ±2 s | 15 s / ±2 s (16.64 s window, like Normal) |
+| Occupied bandwidth | 150 Hz | 200 Hz |
+| Bands | low 1/3, others full | low 1/3, others full |
+| Measured (48 kHz, unknown timing, never a wrong payload) | reliable to -16 dB in 2500 Hz (4/8 at -18), 2 dB short of Normal; synthetic ±6 Hz Doppler wobble at 0.7 Hz: Normal 0/8 even at -8 dB, Spread 8/8 to -16 dB; ±12 Hz: both fail | reliable to -16 dB (1/8 at -18); one copy alone (Fast) stops at -12 dB; one copy wiped: 8/8 at -14 dB |
+| Decode cost per window (Node) | ~0.5 s (Normal ~0.23 s) | ~0.8 s |
+
+Spread: `toneSpacingHz = binsPerTone x baud`; the demodulator measures
+`binsPerTone` fine bins (`baud` apart, centred on the tone) and sums their
+energy into the tone, so a tone that wanders about ±one bin (±9 Hz here) is
+still collected. The receive filter is widened to pass the whole channel and the
+frequency search grid is `binsPerTone` times coarser. SNR is referenced to the
+tone's real noise bandwidth (`baud x binsPerTone`).
+
+Burst: the transmitted symbol sequence is `repeats` copies of the 79-symbol
+frame back to back (one continuous phase, ramps only at the ends). The receiver
+scores the Costas sync of all copies jointly, reads each copy's tone energies and
+decodes the sum (`FrameCodec.decodeCombined`); if that fails and the sync looks
+real (score >= 0.27) it tries every smaller subset of copies, largest first, so a
+copy lost to a fade or a burst costs its share. `DecodedFrame.copies` says how many
+were used, and `snrDb` is per copy. In a steady channel it is a little worse than
+Normal; the point is diversity against fading and dropouts. Not yet tried over
+the air; the Spread wobble test is synthetic, real rooms were not measured.
+
 `payloadBits` (77), `toneCount` (8), `symbolCount` (79) and the Costas pattern
-are identical across all six; only the baud rate (and therefore slot length,
+are identical across all eight; only the baud rate (and therefore slot length,
 clock allowance and channel width) changes. `deepExtraSec(spec)` =
 `max(0, min(3, slotSec/2 − 0.25 − maxTimeOffsetSec))` — the search of one slot
 must never reach into the next one's.

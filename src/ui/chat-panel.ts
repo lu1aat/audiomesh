@@ -27,7 +27,7 @@ import { SpriteEditor } from './sprite-editor';
 import { DEFAULT_PIXEL_PX, drawSprite, type HoleStyle } from './sprite-view';
 import type { FrameCodec, Protocol } from '../protocol/protocol';
 import { distinctFrames } from '../protocol/multi-decode';
-import { CHAT_KEY, DEBUG_KEY, STATIONS_KEY, DeferredSaver, loadJson, removeKey, saveJson } from '../storage/store';
+import { CHAT_KEY, DEBUG_KEY, STATIONS_KEY, UNREAD_KEY, DeferredSaver, loadJson, removeKey, saveJson } from '../storage/store';
 import { nextSlotStartMs } from '../protocol/slot-clock';
 import { frameDurationSec } from '../protocol/spec';
 
@@ -283,6 +283,48 @@ export class ChatPanel {
   private readonly stationsSaver = new DeferredSaver(() => saveJson(STATIONS_KEY, [...this.known].map(([id, name]) => (this.icons.has(id) ? [id, name, this.icons.get(id)] : [id, name]))));
   /** Called when a complete message from another station arrives. */
   onIncoming: (() => void) | null = null;
+
+  /** Unread messages per conversation ('public' or the station id as text). Saved with the chat (`audiochat:unread`). */
+  private unread = new Map<string, number>();
+  private readonly unreadSaver = new DeferredSaver(() => saveJson(UNREAD_KEY, Object.fromEntries(this.unread)));
+  /** True while the Messages screen is showing: set by main.ts. A message is read when its conversation is open there and the page is visible. */
+  isChatVisible: () => boolean = () => false;
+  /** The unread counts changed: redraw the list. */
+  onUnreadChange: (() => void) | null = null;
+
+  /** Unread messages in the conversation with a station (BROADCAST = Public). */
+  unreadCount(id: number): number {
+    return this.unread.get(id === BROADCAST ? 'public' : String(id)) ?? 0;
+  }
+
+  totalUnread(): number {
+    let n = 0;
+    for (const v of this.unread.values()) n += v;
+    return n;
+  }
+
+  private threadKey(id: number): string {
+    return id === BROADCAST ? 'public' : String(id);
+  }
+
+  private changeUnread(): void {
+    this.unreadSaver.touch();
+    this.onUnreadChange?.();
+  }
+
+  /** A message arrived for this conversation: unread unless it is open and on screen. */
+  private noteIncoming(thread: number): void {
+    if (this.isChatVisible() && !document.hidden && this.currentRecipient === thread) return;
+    const key = this.threadKey(thread);
+    this.unread.set(key, (this.unread.get(key) ?? 0) + 1);
+    this.changeUnread();
+  }
+
+  /** The open conversation is on screen now (screen shown, page visible, thread opened): clear its count. */
+  markRead(): void {
+    if (!this.isChatVisible() || document.hidden) return;
+    if (this.unread.delete(this.threadKey(this.currentRecipient))) this.changeUnread();
+  }
   /** Called when one of our directed messages turns delivered. */
   onDelivered: (() => void) | null = null;
   /** Set to raise system notifications for messages and announcements while the page is in the background. */
@@ -308,6 +350,12 @@ export class ChatPanel {
     this.input.maxLength = MAX_TEXT_CHARS;
     this.restoreStations();
     this.fillRecipients();
+    this.setupThreadMenu();
+    const savedUnread = loadJson(UNREAD_KEY);
+    if (savedUnread && typeof savedUnread === 'object') {
+      for (const [k, v] of Object.entries(savedUnread)) if (typeof v === 'number' && v > 0) this.unread.set(k, Math.floor(v));
+    }
+    if (this.threadMore) this.threadMore.hidden = this.currentRecipient === BROADCAST;
     for (const entry of parseLog(loadJson(CHAT_KEY))) {
       // Notices belong to the session that raised them (older builds saved them): never restored.
       if (entry.kind === 'notice') continue;
@@ -356,6 +404,100 @@ export class ChatPanel {
     this.list.replaceChildren();
     this.chatSaver.cancel();
     removeKey(CHAT_KEY);
+    this.unread.clear();
+    this.unreadSaver.cancel();
+    removeKey(UNREAD_KEY);
+    this.onUnreadChange?.();
+  }
+
+  /** Stations removed from the Messages list, with when: they come back only when heard after that. */
+  private readonly removedAtMs = new Map<number, number>();
+
+  /** When a station was removed from the list (null if it was not, or it was heard again since: `heardMs` is its last frame). */
+  removedContactAt(id: number, heardMs: number): number | null {
+    const at = this.removedAtMs.get(id);
+    if (at === undefined) return null;
+    if (this.known.has(id) || heardMs > at) { this.removedAtMs.delete(id); return null; }
+    return at;
+  }
+
+  /** Delete the chat lines of one conversation (notices about it included); the contact stays. */
+  clearConversation(id: number): void {
+    const thread = String(id);
+    this.log = this.log.filter((e) => e.station !== id);
+    for (const li of [...this.list.children] as HTMLElement[]) if (li.dataset.thread === thread) li.remove();
+    this.chatSaver.touch();
+    if (this.unread.delete(thread)) this.changeUnread();
+  }
+
+  /** Remove a contact and its whole conversation: chat lines (sent, received, notices), and the name in the station list. Link statistics and the frame log stay. */
+  removeContact(id: number): void {
+    this.clearConversation(id);
+    this.known.delete(id);
+    this.removedAtMs.set(id, Date.now());
+    this.stationsSaver.touch();
+    if (this.currentRecipient === id) this.selectRecipient(BROADCAST);
+    else this.fillRecipients();
+    this.onThreadChange?.();
+  }
+
+  /** The "…" menu in the conversation header: options about the open contact (hidden for Public). */
+  private setupThreadMenu(): void {
+    const head = document.querySelector<HTMLElement>('.chat-head');
+    if (!head) return;
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'thread-more';
+    more.textContent = '…';
+    more.title = 'Options for this contact';
+    more.setAttribute('aria-haspopup', 'true');
+    more.setAttribute('aria-expanded', 'false');
+    const menu = document.createElement('div');
+    menu.className = 'thread-menu';
+    menu.hidden = true;
+    head.append(more, menu);
+    this.threadMore = more;
+    this.threadMenu = menu;
+    const close = (): void => { menu.hidden = true; more.setAttribute('aria-expanded', 'false'); };
+    more.addEventListener('click', () => {
+      if (!menu.hidden) { close(); return; }
+      this.fillThreadMenu(close);
+      menu.hidden = false;
+      more.setAttribute('aria-expanded', 'true');
+    });
+    document.addEventListener('click', (e) => { if (!head.contains(e.target as Node)) close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  }
+
+  private threadMore: HTMLButtonElement | null = null;
+  private threadMenu: HTMLElement | null = null;
+
+  private fillThreadMenu(close: () => void): void {
+    const menu = this.threadMenu;
+    const id = this.currentRecipient;
+    if (!menu || id === BROADCAST) return;
+    const name = this.label(id);
+    const item = (text: string, onClick: () => void, cls?: string): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      if (cls) b.className = cls;
+      b.addEventListener('click', () => { close(); onClick(); });
+      return b;
+    };
+    const head = document.createElement('div');
+    head.className = 'menu-head';
+    head.textContent = `${name} · station #${id}`;
+    menu.replaceChildren(
+      head,
+      item('Copy station id', () => { void navigator.clipboard?.writeText(String(id)).catch(() => {}); }),
+      item('Clear messages (keep contact)', () => {
+        if (confirm(`Delete all messages with ${name}? The contact stays.`)) this.clearConversation(id);
+      }),
+      item('Remove contact and messages', () => {
+        if (confirm(`Remove ${name} and all its messages?\nIt comes back as a new contact when heard again.`)) this.removeContact(id);
+      }, 'menu-danger'),
+    );
   }
 
   /** Forget the log of sent and received frames. */
@@ -371,12 +513,14 @@ export class ChatPanel {
   }
 
   /** The newest message with each station (received, or sent to it directly), for the contact list. */
-  lastMessages(): Map<number, { text: string; atMs: number; mine: boolean }> {
-    const out = new Map<number, { text: string; atMs: number; mine: boolean }>();
+  lastMessages(): Map<number, { text: string; atMs: number; mine: boolean; receivedAtMs: number }> {
+    const out = new Map<number, { text: string; atMs: number; mine: boolean; receivedAtMs: number }>();
     for (const e of this.log) {
       if (e.kind === 'notice' || e.station === undefined || threadOf(e) === 'public') continue;
       const prev = out.get(e.station);
-      if (!prev || e.atMs >= prev.atMs) out.set(e.station, { text: e.text, atMs: e.atMs, mine: e.kind === 'out' });
+      const receivedAtMs = Math.max(prev?.receivedAtMs ?? 0, e.kind === 'in' ? e.atMs : 0);
+      if (!prev || e.atMs >= prev.atMs) out.set(e.station, { text: e.text, atMs: e.atMs, mine: e.kind === 'out', receivedAtMs });
+      else prev.receivedAtMs = receivedAtMs;
     }
     return out;
   }
@@ -400,6 +544,11 @@ export class ChatPanel {
 
   /** Open the conversation with one station (or BROADCAST = Public): show only its lines, point the composer at it, focus the message box. */
   selectRecipient(id: number): void {
+    if (id !== BROADCAST && !this.known.has(id)) {
+      // Heard (a beacon, an ack) but never named: still a station we can write to.
+      this.known.set(id, '');
+      this.stationsSaver.touch();
+    }
     if (![...this.dstSelect.options].some((o) => o.value === String(id))) this.fillRecipients();
     this.dstSelect.value = String(id);
     this.applyThread();
@@ -418,6 +567,9 @@ export class ChatPanel {
     }
     const title = document.getElementById('thread-title');
     if (title) title.textContent = id === BROADCAST ? 'Public' : this.label(id);
+    if (this.threadMore) this.threadMore.hidden = id === BROADCAST;
+    if (this.threadMenu) this.threadMenu.hidden = true;
+    this.markRead();
     this.list.scrollTop = this.list.scrollHeight;
   }
 
@@ -940,6 +1092,7 @@ export class ChatPanel {
       this.showSprite(m, true);
       return;
     }
+    this.noteIncoming(m.dst === BROADCAST ? BROADCAST : m.src);
     this.onIncoming?.();
     this.notifier?.notify(
       this.label(m.src) + (m.dst === BROADCAST ? '' : ' (to you)'),
@@ -1001,6 +1154,7 @@ export class ChatPanel {
       const entry: LogEntry = { kind: 'in', atMs: at, who: this.label(m.src), station: m.src, ...fields };
       shown = { entry, parts: this.add(entry)! };
       this.spriteBubbles.set(m.uid, shown);
+      this.noteIncoming(m.dst === BROADCAST ? BROADCAST : m.src);
       this.onIncoming?.();
     } else {
       Object.assign(shown.entry, fields);
@@ -1245,6 +1399,8 @@ export class ChatPanel {
       if (entry.statusText) state.title = entry.statusText;
       foot.append(state);
     }
+    const ackAction = this.ackButton(entry);
+    if (ackAction) foot.append(ackAction);
     foot.append(time, toggle);
     item.append(textEl, foot, info);
     this.appendItem(item, forceScroll && kind === 'out');

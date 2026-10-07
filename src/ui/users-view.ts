@@ -62,6 +62,10 @@ export class UsersView {
     const self = this.getSelf();
     const ids = new Set<number>([...heard.keys(), ...this.chat.knownStations.keys()]);
     ids.delete(self.id);
+    for (const id of [...ids]) {
+      const h = heard.get(id);
+      if (this.chat.removedContactAt(id, h ? h.lastSlot * this.slotSec * 1000 : 0) !== null) ids.delete(id);
+    }
 
     // Heard lately first (newest on top), then those only known from earlier visits, by name.
     const nameOf = (id: number): string => this.chat.knownStations.get(id) ?? '';
@@ -73,12 +77,13 @@ export class UsersView {
     });
 
     const last = this.chat.lastMessages();
-    // Newest activity first, like a chat app: the later of "heard" and "last message".
-    const activityMs = (id: number): number => {
+    // Like a chat app: stations with a message received from them first (newest message on top),
+    // then the rest by the last time we heard them. Our own messages do not move a row.
+    const heardMs = (id: number): number => {
       const h = heard.get(id);
-      return Math.max(last.get(id)?.atMs ?? 0, h ? nowMs - h.ageSec * 1000 : 0);
+      return h ? nowMs - h.ageSec * 1000 : 0;
     };
-    sorted.sort((x, y) => activityMs(y) - activityMs(x) || x - y);
+    sorted.sort((x, y) => (last.get(y)?.receivedAtMs ?? 0) - (last.get(x)?.receivedAtMs ?? 0) || heardMs(y) - heardMs(x) || x - y);
 
     const list = el('ul', 'contact-list');
     list.append(this.publicRow());
@@ -87,6 +92,16 @@ export class UsersView {
     if (sorted.length === 0) {
       this.root.append(el('p', 'hint', 'Nobody else yet. Stations appear here when we hear a frame from them or they announce a name.'));
     }
+  }
+
+  /** The green circle with the number of unread messages, or nothing. */
+  private unreadBadge(id: number): Node {
+    const n = this.chat.unreadCount(id);
+    if (n === 0) return document.createDocumentFragment();
+    const b = el('span', 'contact-unread', n > 99 ? '99+' : String(n));
+    b.title = `${n} unread message${n === 1 ? '' : 's'}`;
+    b.setAttribute('aria-label', b.title);
+    return b;
   }
 
   /** The top row: messages addressed to nobody. */
@@ -103,7 +118,7 @@ export class UsersView {
     const preview = last ? `${last.mine ? 'You: ' : last.who ? `${last.who}: ` : ''}${last.text}` : 'Messages addressed to nobody';
     body.append(el('span', 'contact-top', 'Public'), el('span', 'contact-preview', preview));
     body.firstElementChild!.classList.add('contact-name');
-    btn.append(avatar, body);
+    btn.append(avatar, body, this.unreadBadge(BROADCAST));
     btn.title = 'Public: messages addressed to nobody, everyone can read them';
     li.append(btn);
     return li;
@@ -150,6 +165,7 @@ export class UsersView {
     btn.append(avatar, el('span', 'contact-body'));
     const body = btn.lastElementChild as HTMLElement;
     body.append(top, el('span', 'contact-preview', preview));
+    if (!isSelf) btn.append(this.unreadBadge(id));
     btn.title = isSelf ? 'This station' : `Message ${nickname || `#${id}`}${info?.best ? ` · send on ch ${info.best.channel}` : ''}`;
     li.append(btn);
     return li;

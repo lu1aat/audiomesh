@@ -46,7 +46,7 @@ function timingLevel(deltaSec: number, reachSec: number): SignalLevel {
 /** Graph stations and links not heard for over ten minutes stay, faded. */
 const STALE_OPACITY = 0.4;
 /** Other stations' cells are this see-through, so their age colour sits a little darker on the map. */
-const NODE_FILL_OPACITY = 0.7;
+const NODE_FILL_OPACITY = 0.85;
 /** One cycle of the arrows' drifting dashes; matches `.graph-flow` in styles.css. */
 const FLOW_PERIOD_MS = 1600;
 /** Graph units the honeycomb background runs past the map's square on every side. */
@@ -168,7 +168,7 @@ export class LinkView {
   /** Sections collapsed by the user (by `section()`'s key); not persisted, but survives the periodic
    * re-render. Everything but Stations starts collapsed: Map, Channels and Stations are the screen's
    * main panels, the rest is detail the user opens when they want it. */
-  private readonly collapsed = new Set<string>(['history', 'signal-matrix', 'frames']);
+  private readonly collapsed = new Set<string>(['stats', 'frames']);
   /** Signal history chart range, in minutes; one of HISTORY_RANGES. */
   private historyRange = HISTORY_RANGES[0]!.min;
 
@@ -241,9 +241,8 @@ export class LinkView {
     this.animateGraph();
     this.swapSections([
       this.stationsSection(model),
-      this.historySection(model, nowMs),
+      this.statsSection(model, nowMs),
       ...this.syncBlock(),
-      this.signalSection(model),
     ]);
     this.frameTable.scrollTop = scrollTop;
   }
@@ -938,15 +937,21 @@ export class LinkView {
 
   // --- signal by channel -----------------------------------------------------
 
+  /** Stats: the signal history chart and the signal-by-channel table in one collapsible section. */
+  private statsSection(model: LinkModel, nowMs: number): HTMLElement {
+    const { root: s, body } = this.section('stats', 'Stats');
+    this.fillHistory(body, model, nowMs);
+    this.fillSignal(body, model);
+    return s;
+  }
+
   /** One table, one column per channel: the worst case over all stations (what channel choice
    * goes by, top three numbered), then what each station reports hearing from us, then what we hear from each. */
-  private signalSection(model: LinkModel): HTMLElement {
+  private fillSignal(body: HTMLElement, model: LinkModel): void {
     const n = model.stations.length;
-    const { root: s, body } = this.section(
-      'signal-matrix',
-      'Signal by channel',
-      `SNR in dB (2500 Hz bandwidth); · means no data. "For everyone" is the weakest report from the ${n} station${n === 1 ? '' : 's'} heard, and its three best channels are numbered. A bordered cell is the channel we send on to that station.`,
-    );
+    body.append(el('h4', 'history-sub', 'Signal by channel'));
+    body.append(el('p', 'hint',
+      `SNR in dB (2500 Hz bandwidth); · means no data. "For everyone" is the weakest report from the ${n} station${n === 1 ? '' : 's'} heard, and its three best channels are numbered. A bordered cell is the channel we send on to that station.`));
     const table = el('table', 'signal-matrix');
     const head = el('tr');
     head.append(el('th', 'sm-corner', 'Channel'));
@@ -1001,7 +1006,6 @@ export class LinkView {
     const wrap = el('div', 'table-scroll');
     wrap.append(table);
     body.append(wrap);
-    return s;
   }
 
   /** A dB value coloured by the shared green / yellow / red signal levels. */
@@ -1033,16 +1037,15 @@ export class LinkView {
     return wrap;
   }
 
-  private historySection(model: LinkModel, nowMs: number): HTMLElement {
+  private fillHistory(body: HTMLElement, model: LinkModel, nowMs: number): void {
     const rangeMin = this.historyRange;
     const rangeLabel = HISTORY_RANGES.find((r) => r.min === rangeMin)?.label ?? `${rangeMin} min`;
-    const { root: s, body } = this.section('history', 'Signal history');
     const head = el('div', 'section-head');
-    head.append(el('div'), this.historyRangeSwitch());
-    body.insertBefore(head, body.firstChild);
+    head.append(el('h4', 'history-sub', 'Signal history'), this.historyRangeSwitch());
+    body.append(head);
     if (model.samples.length === 0) {
       body.append(el('p', 'hint', `No frames decoded in the last ${rangeLabel}.`));
-      return s;
+      return;
     }
     const W = 900, H = 200, L = 32, R = 70, T = 8, B = 20;
     const t1 = nowMs, t0 = nowMs - rangeMin * 60 * 1000;
@@ -1153,7 +1156,6 @@ export class LinkView {
     chart.append(overlay);
     wrap.append(chart, tip);
     body.append(legend, wrap);
-    return s;
   }
 
   // --- frames -----------------------------------------------------------------

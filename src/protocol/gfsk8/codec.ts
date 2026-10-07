@@ -16,7 +16,7 @@
 import type { FrameCodec } from '../protocol';
 import { CRC_BITS, crc14 } from './crc14';
 import { LDPC_K, LDPC_N, LdpcDecoder, ldpcEncode } from './ldpc';
-import type { ProtocolSpec } from '../spec';
+import { repeatCount, type ProtocolSpec } from '../spec';
 
 /** Information bits per frame before the CRC. 91 - 14. */
 export const PAYLOAD_BITS = LDPC_K - CRC_BITS;
@@ -40,6 +40,7 @@ export class Gfsk8Codec implements FrameCodec {
   private readonly llr = new Float32Array(LDPC_N);
   private readonly energySum: Float32Array;
   private readonly logPower: Float32Array;
+  private readonly symbolLogPower = new Float32Array(8);
 
   constructor(private readonly spec: ProtocolSpec) {
     if (spec.toneCount !== 8) throw new RangeError('Gfsk8Codec is an 8-tone codec');
@@ -58,7 +59,7 @@ export class Gfsk8Codec implements FrameCodec {
     this.energySum = new Float32Array(spec.symbolCount * spec.toneCount);
   }
 
-  /** payload: 77 bits, one per byte. Returns 79 tone indices. */
+  /** payload: 77 bits, one per byte. Returns 79 tone indices, repeated `repeats` times for a repeating protocol. */
   encode(payload: Uint8Array): Uint8Array {
     if (payload.length !== PAYLOAD_BITS) throw new RangeError(`payload must be ${PAYLOAD_BITS} bits`);
     for (const b of payload) if (b > 1) throw new RangeError('payload bits must be 0 or 1');
@@ -75,7 +76,11 @@ export class Gfsk8Codec implements FrameCodec {
       const bits = (this.codeword[b]! << 2) | (this.codeword[b + 1]! << 1) | this.codeword[b + 2]!;
       symbols[this.dataPositions[d]!] = GRAY_TO_TONE[bits]!;
     }
-    return symbols;
+    const repeats = repeatCount(this.spec);
+    if (repeats === 1) return symbols;
+    const all = new Uint8Array(repeats * symbols.length);
+    for (let k = 0; k < repeats; k++) all.set(symbols, k * symbols.length);
+    return all;
   }
 
   /**
@@ -122,7 +127,7 @@ export class Gfsk8Codec implements FrameCodec {
 
     // For each of a symbol's 3 bits: the strongest tone that would carry a 1 there,
     // minus the strongest that would carry a 0.
-    const s = new Float32Array(8);
+    const s = this.symbolLogPower;
     for (let d = 0; d < this.dataPositions.length; d++) {
       const row = this.dataPositions[d]! * tones;
       for (let bits = 0; bits < 8; bits++) s[bits] = logPower[row + GRAY_TO_TONE[bits]!]!;

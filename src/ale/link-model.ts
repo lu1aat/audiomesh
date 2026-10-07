@@ -40,9 +40,10 @@ export function signalLevel(snrDb: number): SignalLevel {
 export const AGE_STEP_SEC = 10;
 const AGE_STOPS: readonly (readonly [number, number, number, number])[] = [
   [AGE_STEP_SEC, 74, 222, 128], // --good
-  [120, 240, 160, 70], // orange
-  [300, 240, 119, 107], // --bad
-  [RECENT_SEC, 110, 116, 128], // grey
+  [50, 163, 230, 53], // lime
+  [120, 251, 191, 36], // amber
+  [300, 251, 113, 133], // rose
+  [RECENT_SEC, 100, 116, 139], // slate
 ];
 
 /** Fill for a station heard `ageSec` ago, and whether dark text reads better on it than light.
