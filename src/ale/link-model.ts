@@ -34,33 +34,22 @@ export function signalLevel(snrDb: number): SignalLevel {
   return snrDb >= GOOD_DB ? 'good' : snrDb >= FAIR_DB ? 'fair' : 'weak';
 }
 
-/** Map colour by time since a station was last heard: green for the first 10 s, then through
- * orange and red to grey at RECENT_SEC, when the map fades the station. [ageSec, r, g, b].
- * The age is taken in AGE_STEP_SEC steps, so the colour visibly drops a notch every 10 s. */
+/** Map colour by time since a station was last heard, in bands like the Network nav dot: green up to
+ * 3 min, bright yellow up to 5, red up to 6, grey after. The age is taken in AGE_STEP_SEC steps. */
 export const AGE_STEP_SEC = 10;
-const AGE_STOPS: readonly (readonly [number, number, number, number])[] = [
-  [AGE_STEP_SEC, 74, 222, 128], // --good
-  [50, 163, 230, 53], // lime
-  [120, 251, 191, 36], // amber
-  [300, 251, 113, 133], // rose
-  [RECENT_SEC, 100, 116, 139], // slate
+const AGE_BANDS: readonly (readonly [number, number, number, number])[] = [
+  [180, 74, 222, 128], // green (--good)
+  [300, 250, 224, 20], // bright yellow
+  [360, 239, 68, 68], // red
 ];
+const AGE_GREY: readonly number[] = [100, 116, 139];
 
 /** Fill for a station heard `ageSec` ago, and whether dark text reads better on it than light.
  * `opacity` < 1: the fill is drawn that see-through over a dark background (text choice allows for it). */
 export function ageColor(rawAgeSec: number, opacity = 1): { fill: string; darkText: boolean } {
   const ageSec = Number.isFinite(rawAgeSec) ? Math.floor(rawAgeSec / AGE_STEP_SEC) * AGE_STEP_SEC : rawAgeSec;
-  let c: readonly number[] = AGE_STOPS[AGE_STOPS.length - 1]!.slice(1);
-  if (ageSec <= AGE_STOPS[0]![0]) c = AGE_STOPS[0]!.slice(1);
-  else {
-    for (let i = 1; i < AGE_STOPS.length; i++) {
-      const a = AGE_STOPS[i - 1]!, b = AGE_STOPS[i]!;
-      if (ageSec > b[0]) continue;
-      const k = (ageSec - a[0]) / (b[0] - a[0]);
-      c = [1, 2, 3].map((j) => Math.round(a[j]! + k * (b[j]! - a[j]!)));
-      break;
-    }
-  }
+  const band = AGE_BANDS.find((b) => ageSec <= b[0]);
+  const c: readonly number[] = band ? band.slice(1) : AGE_GREY;
   const DARK_BG_LUMA = 25;
   const luma = opacity * (0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!) + (1 - opacity) * DARK_BG_LUMA;
   return { fill: `rgb(${c.join(',')})`, darkText: luma > 130 };

@@ -455,9 +455,33 @@ el('clear-link').addEventListener('click', () =>
 );
 showStoredCounts();
 
+/** Test / Announce pressed while sending is impossible: say what to switch on, and point at the switches. */
+let txHintTimer = 0;
+function guardTx(): boolean {
+  const why = chat.txBlockedReason();
+  if (why === null) return true;
+  const hint = el('net-actions-hint');
+  hint.textContent = why;
+  hint.hidden = false;
+  el('rx-status').textContent = why;
+  const tiles = [el('audio-on'), el('allow-tx')].map((i) => i.closest('.switch-tile')!);
+  for (const t of tiles) {
+    t.classList.remove('tx-needed');
+    void (t as HTMLElement).offsetWidth;
+    t.classList.add('tx-needed');
+  }
+  window.clearTimeout(txHintTimer);
+  txHintTimer = window.setTimeout(() => {
+    hint.hidden = true;
+    for (const t of tiles) t.classList.remove('tx-needed');
+  }, 8000);
+  return false;
+}
+
 // Without a name there is nothing to announce: take the user to the field instead of failing silently.
 for (const b of document.querySelectorAll('.announce-button')) {
   b.addEventListener('click', () => {
+    if (!guardTx()) return;
     if (settings.nickname.trim() === '') el('name-banner-set').click();
     else chat.announce();
   });
@@ -585,6 +609,7 @@ autoChannel.addEventListener('change', () => {
   chat.setAutoChannel(autoChannel.checked);
 });
 el('sound-button').addEventListener('click', () => {
+  if (!guardTx()) return;
   lastSoundMs = Date.now();
   chat.sound(true);
 });

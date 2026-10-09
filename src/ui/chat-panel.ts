@@ -698,10 +698,21 @@ export class ChatPanel {
   /** Call when audio starts or stops, or a transmission ends. */
   refresh(): void {
     this.button.disabled = !this.canTransmit;
-    const sound = document.getElementById('sound-button') as HTMLButtonElement | null;
-    if (sound) sound.disabled = !this.canTransmit;
     this.button.textContent = 'Send';
-    for (const announce of document.querySelectorAll<HTMLButtonElement>('.announce-button')) announce.disabled = this.button.disabled;
+    // Test and Announce are not `disabled` (a disabled button cannot explain itself): they look off and say why when pressed.
+    const off = !this.canTransmit;
+    for (const b of document.querySelectorAll<HTMLButtonElement>('#sound-button, .announce-button')) {
+      b.classList.toggle('is-off', off);
+      b.setAttribute('aria-disabled', String(off));
+    }
+  }
+
+  /** Why nothing can be sent right now, worded for the user; null when sending is possible. */
+  txBlockedReason(): string | null {
+    if (!this.engine.running) return 'Turn Audio on and Allow transmit in Network options first.';
+    if (!this.engine.transmitAllowed) return 'Transmit is off: turn on Allow transmit in Network options.';
+    if (!this.canTransmit) return 'Select a channel or turn on Auto channel in Network options.';
+    return null;
   }
 
   /** Ask for a hello with our nickname to go out in the next free slot. */

@@ -124,20 +124,23 @@ describe('link graph', () => {
 });
 
 describe('ageColor', () => {
-  it('is green for the first 10 s, then passes lime, amber and rose to slate at 10 minutes', () => {
+  it('is green to 3 min, bright yellow to 5, red to 6, then grey', () => {
     expect(ageColor(0).fill).toBe('rgb(74,222,128)');
-    expect(ageColor(9).fill).toBe('rgb(74,222,128)');
-    expect(ageColor(120).fill).toBe('rgb(251,191,36)');
-    expect(ageColor(300).fill).toBe('rgb(251,113,133)');
-    expect(ageColor(600).fill).toBe('rgb(100,116,139)');
+    expect(ageColor(180).fill).toBe('rgb(74,222,128)');
+    expect(ageColor(190).fill).toBe('rgb(250,224,20)');
+    expect(ageColor(300).fill).toBe('rgb(250,224,20)');
+    expect(ageColor(310).fill).toBe('rgb(239,68,68)');
+    expect(ageColor(360).fill).toBe('rgb(239,68,68)');
+    expect(ageColor(370).fill).toBe('rgb(100,116,139)');
     expect(ageColor(Infinity).fill).toBe('rgb(100,116,139)');
     expect(ageColor(0).darkText).toBe(true);
     expect(ageColor(Infinity).darkText).toBe(false);
   });
 
-  it('drops a notch every 10 s and holds the colour in between', () => {
-    expect(ageColor(10).fill).not.toBe(ageColor(20).fill);
-    expect(ageColor(20).fill).toBe(ageColor(29.9).fill);
-    expect(ageColor(30).fill).not.toBe(ageColor(29.9).fill);
+  it('takes the age in 10 s steps', () => {
+    expect(ageColor(195).fill).toBe(ageColor(190).fill);
+    expect(ageColor(179).fill).toBe('rgb(74,222,128)');
+    expect(ageColor(181).fill).toBe('rgb(74,222,128)');
+    expect(ageColor(190).fill).not.toBe(ageColor(180).fill);
   });
 });

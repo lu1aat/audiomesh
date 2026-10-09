@@ -70,7 +70,7 @@
             <input id="msg-input" type="text" maxlength="142" placeholder="message, up to 142 characters" autocomplete="off" spellcheck="false" />
             <button id="send-button" class="primary" disabled>Send at next slot</button>
             <button id="sprite-button" type="button" title="Draw a small picture (a sprite) and send it in a few frames"><span aria-hidden="true">▦</span> Sprite</button>
-            <button id="announce-chat" type="button" class="announce-button" title="Tell other stations your name" disabled><span aria-hidden="true">👋</span> Announce</button>
+            <button id="announce-chat" type="button" class="announce-button" title="Tell other stations your name"><span aria-hidden="true">👋</span> Announce</button>
           </div>
           <dialog id="sprite-dialog" class="sprite-dialog" aria-labelledby="sprite-title">
             <div class="sprite-head">
@@ -137,13 +137,19 @@
                 <span class="activity-age"></span>
               </div>
             </div>
+            <div class="activity-actions" role="group" aria-labelledby="net-actions-title">
+              <div id="net-actions-title" class="activity-actions-title">Network actions</div>
+              <div class="activity-actions-buttons">
+                <button id="sound-button" type="button" class="btn-action btn-highlight" title="Test the link now: send one short beacon on the next channel of the rotation, so other stations can report how well they hear it">Test</button>
+                <button id="announce-button" type="button" class="btn-action announce-button" title="Tell other stations your name"><span aria-hidden="true">👋</span> Announce</button>
+              </div>
+              <div id="net-actions-hint" class="net-actions-hint" role="status" hidden></div>
+            </div>
           </div>
           <div id="net-options" class="net-options">
             <button type="button" id="net-options-toggle" class="block-toggle" aria-expanded="true" aria-controls="net-options-body">
               <span class="channel-block-title" id="options-title">Network options</span>
             </button>
-            <button id="sound-button" type="button" class="btn-action btn-highlight" title="Test the link now: send one short beacon on the next channel of the rotation, so other stations can report how well they hear it" disabled>Test</button>
-            <button id="announce-button" type="button" class="btn-action announce-button" title="Tell other stations your name" disabled><span aria-hidden="true">👋</span> Announce</button>
             <div id="net-options-body" class="net-options-body">
             <div class="switch-grid">
               <label class="switch-tile" title="Audio on: listen to the microphone and allow sending. Off: the station is silent and deaf.">
