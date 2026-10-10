@@ -4,13 +4,14 @@ import { autoBeaconDue } from './ale/tx-policy';
 import { AudioEngine } from './audio/engine';
 import { DEFAULT_BAND, bandsFor, listChannels, referenceTonesHz, type Band } from './band/band-plan';
 import { DEFAULT_PROTOCOL_ID, getProtocol, isProtocolId, listProtocols } from './protocol/registry';
+import type { Protocol } from './protocol/protocol';
 import { bandwidthHz, deepExtraSec, frameDurationSec } from './protocol/spec';
 import { DEFAULT_THEME_ID, THEMES, themeById } from './render/waterfall-themes';
 import { DEFAULT_CEIL_DB, DEFAULT_FLOOR_DB, MIN_LEVEL_SPAN_DB, SpectrumDisplay } from './render/spectrum-display';
 import { LqaTable } from './ale/lqa';
 import { formatAge, type RepeaterInfo } from './ale/link-model';
 import { ChatSession } from './chat/session';
-import { randomStationId } from './chat/frames';
+import { FIRST_CHARS, MAX_FRAMES, MAX_TEXT_CHARS, randomStationId } from './chat/frames';
 import { StatsClient } from './stats/stats-client';
 import { statsRecord } from './stats/stats-record';
 import { StatsView } from './stats/stats-view';
@@ -59,6 +60,8 @@ interface Settings {
   /** Share frame metadata with the public MQTT broker (Settings > Network stats). Off by default. */
   publishStats: boolean;
   protocol: string;
+  /** Protocol ids offered by the Protocol selector (Settings > Protocol and modes); the one in use is always offered. */
+  enabledModes: string[];
   /** Repeat every frame heard from others (Network screen). */
   repeater: boolean;
   /** Search a few seconds beyond the usual timing window (Network screen). */
@@ -106,6 +109,7 @@ const DEFAULT_SETTINGS: Settings = {
   notifications: false,
   publishStats: false,
   protocol: DEFAULT_PROTOCOL_ID,
+  enabledModes: ['gfsk8-turbo', 'gfsk8-fast', 'gfsk8-normal', 'gfsk8-long'],
   repeater: false,
   deepDecode: false,
   networkCapture: false,
@@ -661,7 +665,7 @@ disclosure('map-block-toggle', 'map-block-body', settings.mapOpen, (open) => {
   saveSettings(settings);
 });
 disclosure('capture-block-toggle', 'capture-block-body', false, () => {});
-for (const name of ['notify', 'stats', 'listen', 'announce', 'capture', 'screen', 'waterfall', 'sprites', 'stored', 'tone']) {
+for (const name of ['notify', 'stats', 'modes', 'listen', 'announce', 'capture', 'screen', 'waterfall', 'sprites', 'stored', 'tone']) {
   disclosure(`set-${name}-toggle`, `set-${name}-body`, true, () => {});
 }
 // Capture is for debugging decodes: never stored, off at every start (see CaptureView).
@@ -713,13 +717,84 @@ applyLevels(settings.floorDb, settings.ceilDb);
 
 /** Protocol choice. Both stations must use the same one; it applies after a reload, which rebuilds the audio path. */
 const protocolSelect = el<HTMLSelectElement>('protocol-select');
-for (const p of listProtocols()) {
-  const o = document.createElement('option');
-  o.value = p.spec.id;
-  o.textContent = `${p.spec.label} · ${p.spec.name} · ${p.spec.slotSec} s slots`;
-  protocolSelect.append(o);
+if (!Array.isArray(settings.enabledModes)) settings.enabledModes = [...DEFAULT_SETTINGS.enabledModes];
+settings.enabledModes = settings.enabledModes.filter((id) => typeof id === 'string' && isProtocolId(id));
+const protocolText = (p: Protocol): string => `${p.spec.label} · ${p.spec.name} · ${p.spec.slotSec} s slots`;
+/** The selector offers the modes switched on in Settings, plus the one in use. */
+function fillProtocolSelect(): void {
+  protocolSelect.replaceChildren();
+  for (const p of listProtocols()) {
+    if (p.spec.id !== protocol.spec.id && !settings.enabledModes.includes(p.spec.id)) continue;
+    const o = document.createElement('option');
+    o.value = p.spec.id;
+    o.textContent = protocolText(p);
+    protocolSelect.append(o);
+  }
+  protocolSelect.value = protocol.spec.id;
 }
-protocolSelect.value = protocol.spec.id;
+/** "15 s", "1 min 20 s", "4 min". */
+function duration(sec: number): string {
+  const s = Math.round(sec * 10) / 10;
+  if (s < 60) return `${s} s`;
+  const rest = Math.round(s % 60);
+  return `${Math.floor(s / 60)} min${rest ? ` ${rest} s` : ''}`;
+}
+/**
+ * Speed of one mode in plain numbers: baud, time on air per packet (one frame), and how long a
+ * message takes at one frame per slot (a short one fits in one frame; the longest needs MAX_FRAMES).
+ */
+function modeDetails(p: Protocol): string[] {
+  const { spec } = p;
+  return [
+    `${spec.baud} baud · packet ${duration(frameDurationSec(spec))} on air${(spec.repeats ?? 1) > 1 ? ` (${spec.repeats} copies)` : ''}, ${duration(spec.slotSec)} slots`,
+    `message: ${FIRST_CHARS} chars ${duration(spec.slotSec)}, ${MAX_TEXT_CHARS} chars ${duration(MAX_FRAMES * spec.slotSec)}`,
+  ];
+}
+/** Settings > Protocol and modes: one switch per protocol. The one in use cannot be switched off. */
+const modeList = el('mode-list');
+for (const p of listProtocols()) {
+  const inUse = p.spec.id === protocol.spec.id;
+  const tile = document.createElement('label');
+  tile.className = 'switch-tile';
+  tile.title = inUse ? `${protocolText(p)} · in use now: pick another protocol on the Network screen to switch it off` : protocolText(p);
+  const name = document.createElement('span');
+  name.className = 'switch-label';
+  const title = document.createElement('span');
+  title.className = 'mode-name';
+  title.textContent = p.spec.label;
+  name.append(title);
+  for (const line of modeDetails(p)) {
+    const detail = document.createElement('span');
+    detail.className = 'mode-detail';
+    detail.textContent = line;
+    name.append(detail);
+  }
+  const sw = document.createElement('span');
+  sw.className = 'switch';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.checked = inUse || settings.enabledModes.includes(p.spec.id);
+  box.disabled = inUse;
+  box.title = tile.title;
+  const track = document.createElement('span');
+  track.className = 'switch-track';
+  const thumb = document.createElement('span');
+  thumb.className = 'switch-thumb';
+  track.append(thumb);
+  sw.append(box, track);
+  const state = document.createElement('span');
+  state.className = 'switch-state';
+  state.setAttribute('aria-hidden', 'true');
+  tile.append(name, sw, state);
+  box.addEventListener('change', () => {
+    const others = settings.enabledModes.filter((id) => id !== p.spec.id);
+    settings.enabledModes = box.checked ? [...others, p.spec.id] : others;
+    saveSettings(settings);
+    fillProtocolSelect();
+  });
+  modeList.append(tile);
+}
+fillProtocolSelect();
 protocolSelect.addEventListener('change', () => {
   settings.protocol = protocolSelect.value;
   saveSettings(settings);
@@ -955,6 +1030,8 @@ function selectBand(next: Band): void {
   display.setViewRange(Math.max(0, band.lowHz - margin), band.highHz + margin);
   display.setPlan(channels, bandwidthHz(protocol.spec), referenceTonesHz(band));
   settings.band = band.name;
+  // Shown on the Network options header, also while it is collapsed.
+  el('net-options-summary').textContent = `${band.name} · ${protocol.spec.label}`;
   const current = channels.find((c) => c.number === settings.channel && !blockedNow.has(c.number));
   selectChannel(current ? current.number : null);
   applyBlocked();
@@ -1260,6 +1337,12 @@ resetButton.addEventListener('click', () => {
     [bandSelect, d.band],
     [protocolSelect, d.protocol],
   ];
+  // The default protocol may have been switched off in Settings: offer it again so it can be selected.
+  if (protocolSelect.value !== d.protocol && !settings.enabledModes.includes(d.protocol)) {
+    settings.enabledModes = [...settings.enabledModes, d.protocol];
+    saveSettings(settings);
+    fillProtocolSelect();
+  }
   for (const [box, on] of boxes) {
     if (box.checked === on) continue;
     box.checked = on;

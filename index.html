@@ -149,6 +149,7 @@
           <div id="net-options" class="net-options">
             <button type="button" id="net-options-toggle" class="block-toggle" aria-expanded="true" aria-controls="net-options-body">
               <span class="channel-block-title" id="options-title">Network options</span>
+              <span id="net-options-summary" class="net-options-summary" title="Band and protocol in use"></span>
             </button>
             <div id="net-options-body" class="net-options-body">
             <div class="switch-grid">
@@ -723,6 +724,18 @@
                     </label>
                   </div>
                   <p class="hint">Off by default. When on, this station connects to a public MQTT broker (broker.emqx.io) and publishes one small record per frame it sends or hears: its station id and name, band and mode, channel, signal, frame type and who it was from and to. A new <b>Stats</b> screen shows what all the stations that do this have heard. Never audio, never message text or pictures. This is the only connection to another server besides the clock check.</p>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
+                  <button type="button" id="set-modes-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-modes-body">
+                    <span class="channel-block-title">Protocol and modes</span>
+                  </button>
+                </div>
+                <div id="set-modes-body" class="channel-block-body">
+                  <div id="mode-list" class="switch-grid"></div>
+                  <p class="hint">The modes switched on here are the ones the Protocol selector on the Network screen offers. A packet is one frame on the air; a message goes out one packet per slot, 7 characters in the first and 9 in each further one, so its time grows with its length (directed messages also wait for the ack). The mode in use stays on. Both stations must use the same mode.</p>
                 </div>
               </div>
 

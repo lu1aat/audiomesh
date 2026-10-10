@@ -137,6 +137,11 @@ audio <-> Modulator/Demodulator <-> FrameCodec <-> chat frames <-> ChatSession <
   Burst with one copy wiped 8/8 at -14 dB. Decode cost per window in Node: Spread ~0.5 s, Burst ~0.8 s (Normal ~0.23 s), so
   ten channels of Burst take most of a slot. `tests/gfsk8-variants.test.ts`. Not yet tried over the air; the wobble channel
   is a simulation. Shown in the Help mode table below Deep; the Protocol selector lists them after Deep.
+- **Settings > Protocol and modes** (`set-modes`, `#mode-list`, built in `main.ts`): one switch per protocol, setting
+  `enabledModes` (protocol ids; default Turbo, Fast, Normal, Long). The Network screen's Protocol selector
+  (`fillProtocolSelect`) offers only those, plus the one in use, whose switch is locked on. "Reset to defaults" switches
+  the default protocol back on if needed. The Network options header shows `band · mode` (`net-options-summary`,
+  set in `selectBand`), also while collapsed.
 - `src/protocol/gfsk8/` is the first protocol. The spec and **modulator** are real
   (Gaussian 8-FSK, BT 2.0, continuous phase, rendered on the fly per block so the
   worklet never stalls; `tests/gfsk8-modulator.test.ts` decodes the tones back out at

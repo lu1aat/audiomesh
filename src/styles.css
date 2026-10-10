@@ -336,6 +336,7 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .net-options { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; border: 1px solid var(--border); background: var(--panel); margin-bottom: 16px; }
 .net-options > .block-toggle { flex: 1 1 auto; min-width: 140px; padding: 8px 12px; margin: 0; background: var(--panel-alt); text-align: left; }
 .net-options-body { flex-basis: 100%; padding: 12px 16px 14px; }
+.net-options-summary { margin-left: auto; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .net-options-body[hidden] { display: none; }
 /* A real action, styled apart from the switches below: click it, something happens once. */
 .btn-action { display: flex; align-items: center; gap: 0.4em; flex: none; margin: 6px 12px; background: var(--panel-alt); color: var(--text); border: 1px solid var(--border-strong); border-radius: 0; padding: 6px 14px; font: inherit; font-size: 0.85rem; cursor: pointer; }
@@ -364,6 +365,9 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .field-tile { display: flex; flex-direction: column; gap: 4px; }
 .field-tile select { width: 100%; }
 .switch-label { font-size: 0.85rem; flex: 1 1 auto; min-width: 0; }
+#mode-list { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.mode-name { display: block; }
+.mode-detail { display: block; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); }
 /* An actual track + thumb, so on/off is a physical-looking toggle, not a colour flip
    easy to mistake for hover or for one of the plain action buttons nearby. */
 .switch { position: relative; display: inline-flex; width: 40px; height: 22px; flex: none; }
