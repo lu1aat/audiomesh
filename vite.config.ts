@@ -47,8 +47,8 @@ function cspMeta(): Plugin {
 }
 
 // Offline: after the build, put the list of every emitted file (and the public ones) into
-// dist/sw.js, and a version taken from it (file names carry content hashes, so any change
-// gives a new version and the old cache is dropped on activate).
+// dist/sw.js, and a version hashed from their names and contents (the pages and public files
+// keep their names when they change), so any change gives a new worker and a new cache.
 function precache(): Plugin {
   let outDir = 'dist';
   return {
@@ -63,7 +63,9 @@ function precache(): Plugin {
           e.isDirectory() ? list(`${dir}/${e.name}`, `${prefix}${e.name}/`) : [`${prefix}${e.name}`],
         );
       const files = list('.').filter((f) => f !== 'sw.js').sort();
-      const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 12);
+      const hash = createHash('sha256');
+      for (const f of files) hash.update(`${f}\n`).update(readFileSync(`${outDir}/${f}`));
+      const version = hash.digest('hex').slice(0, 12);
       const path = `${outDir}/sw.js`;
       const src = readFileSync(path, 'utf8');
       if (!src.includes('const PRECACHE = [];')) throw new Error('sw.js: PRECACHE placeholder not found');

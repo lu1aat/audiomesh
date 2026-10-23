@@ -183,7 +183,7 @@ echo "Ctrl-C to stop."
 echo
 
 # Rebuild on change. PHP reads dist/ per request, so nothing restarts; reload the
-# page (the service worker may need a second reload to pick up the new build).
+# page (the service worker fetches pages network-first, so one reload is enough).
 # emptyOutDir off so dist/ is never half-empty while a request arrives.
 WATCH_PID=
 if [ "$WATCH" -eq 1 ]; then

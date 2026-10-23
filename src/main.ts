@@ -559,6 +559,9 @@ decodeOwn.addEventListener('change', () => {
 
 const notifier = new Notifier();
 void notifier.init();
+// Installed as an app: ask the browser not to evict the offline copy, or the chat, stations and
+// link stats in localStorage, under storage pressure. Chrome grants it without a prompt.
+if (matchMedia('(display-mode: standalone)').matches) void navigator.storage?.persist?.();
 chat.notifier = notifier;
 // Also notify while the page is visible but another screen (Network, Users, Settings) is showing, like the unread dot.
 notifier.attentive = () => !document.hidden && document.hasFocus() && !el('screen-chat').hidden;

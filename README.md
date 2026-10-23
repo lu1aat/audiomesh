@@ -41,6 +41,8 @@ optional same-origin clock check and, only if you turn on "Publish Network Stats
   hear each other.
 - **Network view**: station map, signal by channel, waterfall, frame log and clock
   sync tools (slots are UTC-aligned, so clocks must agree within about ±2 s).
+- **Works offline**: after the first visit the app opens with no connection, and
+  it can be installed as an app (Install, or Add to Home screen).
 
 The full over-the-air specification (modulation, FEC, band plan, timing, frame
 formats, repeater and channel selection) is in

@@ -41,6 +41,8 @@ audio, texto de mensajes ni imágenes).
 - **Vista de red**: mapa de estaciones, señal por canal, cascada (waterfall),
   registro de tramas y herramientas de sincronización de reloj (las ranuras están
   alineadas a UTC, así que los relojes tienen que coincidir en unos ±2 s).
+- **Funciona sin conexión**: después de la primera visita la app abre sin
+  internet, y se puede instalar como app (Instalar, o Agregar a la pantalla de inicio).
 
 La especificación completa del protocolo por aire (modulación, FEC, plan de bandas,
 temporización, formato de tramas, repetidor y elección de canal) está en
