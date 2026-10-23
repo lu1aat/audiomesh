@@ -3,7 +3,8 @@
 *[Leer en español](./README.es.md)*
 
 **[▶ Open the live app](https://lu1aat.github.io/audiomesh/)** — runs in
-your browser, nothing to install.
+your browser, nothing to install. **[How it works](https://lu1aat.github.io/audiomesh/how-it-works.html)**:
+eleven short chapters with live demos.
 
 A small acoustic network that runs entirely in the browser, using the speaker and
 microphone as the radio. Stations exchange messages, announcements, link
@@ -43,6 +44,10 @@ optional same-origin clock check and, only if you turn on "Publish Network Stats
   sync tools (slots are UTC-aligned, so clocks must agree within about ±2 s).
 - **Works offline**: after the first visit the app opens with no connection, and
   it can be installed as an app (Install, or Add to Home screen).
+- **English and Spanish**: the app follows the browser's language; switch it in
+  Settings > Language or with the 🌐 button in the sidebar. How it works has one page per
+  language ([English](https://lu1aat.github.io/audiomesh/how-it-works.html),
+  [español](https://lu1aat.github.io/audiomesh/como-funciona.html)).
 
 The full over-the-air specification (modulation, FEC, band plan, timing, frame
 formats, repeater and channel selection) is in

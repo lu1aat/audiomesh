@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="i18n-pending">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -38,6 +38,7 @@
         <div class="sidebar-tools">
           <button id="rotate-button" type="button" class="sidebar-tool" aria-pressed="false" title="Turn the screen upside down, so the phone's speaker and microphone (at its bottom edge) point at the other stations"><span aria-hidden="true">⟳</span><span class="tool-label">Rotate 180°</span></button>
           <button id="fullscreen-button" type="button" class="sidebar-tool" aria-pressed="false" title="Full screen" hidden><span aria-hidden="true">⛶</span><span class="tool-label">Full screen</span></button>
+          <button id="lang-button" type="button" class="sidebar-tool lang-tool" translate="no"><span aria-hidden="true">🌐</span><span class="tool-label"></span></button>
         </div>
         <div class="sidebar-nav">
           <button class="nav-item" data-screen="chat" title="Messages"><span class="nav-label">Messages</span><span class="nav-short" aria-hidden="true">💬</span><span class="dot" data-dot="chat"></span></button>
@@ -304,7 +305,7 @@
 
         <section id="screen-stats" class="screen screen-stats" hidden>
           <h2>Network stats</h2>
-          <p class="hint">Stations that turned on <b>Publish Network Stats</b> in Settings share what they hear and send. Only frame metadata is shared (station ids, names, channel, signal, frame type); never audio, message text or pictures.</p>
+          <p data-i18n class="hint">Stations that turned on <b>Publish Network Stats</b> in Settings share what they hear and send. Only frame metadata is shared (station ids, names, channel, signal, frame type); never audio, message text or pictures.</p>
           <p class="stats-status-line"><span id="stats-status" data-state="grey">Off</span></p>
           <p id="stats-hint" class="hint"></p>
           <div id="stats-map" class="stats-map"></div>
@@ -344,8 +345,8 @@
                   <span class="hp-letter" aria-hidden="true">A</span>
                   <div class="hp-step-text">
                     <h4>Switch on</h4>
-                    <p>In the sidebar, press <b>Audio</b>, then <b>TX</b>. Allow the microphone when the browser asks. Both lamps light up: you are listening, and you may send.</p>
-                    <p>A yellow bar asks for a name? Press <b>Set your name</b> and type up to 8 letters, so other stations see a name instead of a number.</p>
+                    <p data-i18n>In the sidebar, press <b>Audio</b>, then <b>TX</b>. Allow the microphone when the browser asks. Both lamps light up: you are listening, and you may send.</p>
+                    <p data-i18n>A yellow bar asks for a name? Press <b>Set your name</b> and type up to 8 letters, so other stations see a name instead of a number.</p>
                     <p class="hint">Put the devices a few metres apart, volume about half, nothing loud nearby.</p>
                   </div>
                   <figure class="hp-shot">
@@ -374,8 +375,8 @@
                   <span class="hp-letter" aria-hidden="true">B</span>
                   <div class="hp-step-text">
                     <h4>Press Test, with another station</h4>
-                    <p>Ask someone nearby to do step A on their device too. Then, on <b>Network</b>, both press <b>Test</b>. Each device sends a short beep-like signal and the other answers it. After a minute or two you appear in each other's list.</p>
-                    <p class="hint">No other station at hand? Skip to C. A message to <b>Public</b> goes out anyway; nobody confirms it.</p>
+                    <p data-i18n>Ask someone nearby to do step A on their device too. Then, on <b>Network</b>, both press <b>Test</b>. Each device sends a short beep-like signal and the other answers it. After a minute or two you appear in each other's list.</p>
+                    <p data-i18n class="hint">No other station at hand? Skip to C. A message to <b>Public</b> goes out anyway; nobody confirms it.</p>
                   </div>
                   <figure class="hp-shot">
                     <div class="hp-screen" aria-hidden="true" inert>
@@ -408,8 +409,8 @@
                   <span class="hp-letter" aria-hidden="true">C</span>
                   <div class="hp-step-text">
                     <h4>Write and send</h4>
-                    <p>Open <b>Messages</b>. Tap a station in the list (or <b>Public</b> to speak to everyone), type, and press <b>Send at next slot</b>.</p>
-                    <p>The message leaves at the next 15-second slot. A short one (up to 7 characters) takes one slot, a full 142 characters about 4 minutes. A <b>✓✓ delivered</b> under your message means the other station got all of it.</p>
+                    <p data-i18n>Open <b>Messages</b>. Tap a station in the list (or <b>Public</b> to speak to everyone), type, and press <b>Send at next slot</b>.</p>
+                    <p data-i18n>The message leaves at the next 15-second slot. A short one (up to 7 characters) takes one slot, a full 142 characters about 4 minutes. A <b>✓✓ delivered</b> under your message means the other station got all of it.</p>
                   </div>
                   <figure class="hp-shot">
                     <div class="hp-screen" aria-hidden="true" inert>
@@ -449,7 +450,7 @@
               </figure>
               <p>Every frame is 79 tones long. 21 of them are a fixed pattern that lets the receiver find the frame even when it is quieter than the noise. The rest carry the text plus enough spare information to rebuild it when about a third of the tones are drowned out. When the receiver cannot be sure, it shows nothing rather than the wrong text.</p>
               <p class="hp-more"><a href="./how-it-works.html#tones" target="_blank" rel="noopener">Hear a frame and see the tones it is made of ↗</a></p>
-              <p>Everything is cut into <b>slots</b> that start at the same moment on every station (the time of day, to the second). In each slot a station sends one <b>frame</b>, a small chunk of the message. That is why the clocks matter, and why a long message takes a while.</p>
+              <p data-i18n>Everything is cut into <b>slots</b> that start at the same moment on every station (the time of day, to the second). In each slot a station sends one <b>frame</b>, a small chunk of the message. That is why the clocks matter, and why a long message takes a while.</p>
               <figure class="hp-diagram">
                 <svg viewBox="0 0 680 190" role="img" aria-labelledby="hp-d2-t hp-d2-d">
                   <title id="hp-d2-t">A 3-frame message and its confirmation</title>
@@ -474,29 +475,29 @@
 
             <section class="hp-section" id="help-modes">
               <h3>Choose a mode</h3>
-              <p>The default is <b>Normal</b>. Slower modes reach further and work in more noise. Faster modes send more, but need a good signal and clocks that agree closely. <b>Both stations must use the same mode</b>, or they cannot hear each other at all. Change it on <b>Network</b> in <i>Network options</i>; the page reloads.</p>
+              <p data-i18n>The default is <b>Normal</b>. Slower modes reach further and work in more noise. Faster modes send more, but need a good signal and clocks that agree closely. <b>Both stations must use the same mode</b>, or they cannot hear each other at all. Change it on <b>Network</b> in <i>Network options</i>; the page reloads.</p>
               <div class="table-wrap">
                 <table class="help-table hp-modes">
                   <thead><tr><th>Mode</th><th>Slot</th><th>142 chars</th><th>Down to</th><th>Best for</th></tr></thead>
                   <tbody>
                     <tr><td><b>Turbo</b> <span class="mode-letter">(T)</span></td><td>2.5 s</td><td>40 s</td><td><span class="hp-bar" style="--v:39%"></span>-9 dB</td><td>Fastest; a testing tool for devices very close</td></tr>
-                    <tr class="help-pick"><td><b>Fast</b> <span class="mode-letter">(C)</span></td><td>5 s</td><td>1 min 20 s</td><td><span class="hp-bar" style="--v:48%"></span>-11 dB</td><td><b>Devices nearby</b> (same room): recommended</td></tr>
+                    <tr class="help-pick"><td><b>Fast</b> <span class="mode-letter">(C)</span></td><td>5 s</td><td>1 min 20 s</td><td><span class="hp-bar" style="--v:48%"></span>-11 dB</td><td data-i18n><b>Devices nearby</b> (same room): recommended</td></tr>
                     <tr><td><b>Medium</b> <span class="mode-letter">(B)</span></td><td>10 s</td><td>2 min 40 s</td><td><span class="hp-bar" style="--v:61%"></span>-14 dB</td><td>Faster, medium distance</td></tr>
-                    <tr class="help-pick"><td><b>Normal</b> <span class="mode-letter">(A)</span></td><td>15 s</td><td>4 min</td><td><span class="hp-bar" style="--v:78%"></span>-18 dB</td><td><b>The default</b>. General use</td></tr>
+                    <tr class="help-pick"><td><b>Normal</b> <span class="mode-letter">(A)</span></td><td>15 s</td><td>4 min</td><td><span class="hp-bar" style="--v:78%"></span>-18 dB</td><td data-i18n><b>The default</b>. General use</td></tr>
                     <tr><td><b>Long</b> <span class="mode-letter">(L)</span></td><td>30 s</td><td>8 min</td><td><span class="hp-bar" style="--v:91%"></span>-21 dB</td><td>Long range</td></tr>
-                    <tr><td><b>Deep</b> <span class="mode-letter">(D)</span></td><td>60 s</td><td>16 min</td><td><span class="hp-bar" style="--v:100%"></span>-23 dB</td><td><b>Longest range</b>, weakest signals</td></tr>
+                    <tr><td><b>Deep</b> <span class="mode-letter">(D)</span></td><td>60 s</td><td>16 min</td><td><span class="hp-bar" style="--v:100%"></span>-23 dB</td><td data-i18n><b>Longest range</b>, weakest signals</td></tr>
                     <tr><td><b>Spread</b> <span class="mode-letter">(Q)</span></td><td>15 s</td><td>4 min</td><td><span class="hp-bar" style="--v:70%"></span>-16 dB</td><td>Like Normal, but for a moving speaker or microphone, people walking about, a shaky signal; uses 3 times the width</td></tr>
                     <tr><td><b>Burst</b> <span class="mode-letter">(I)</span></td><td>15 s</td><td>4 min</td><td><span class="hp-bar" style="--v:70%"></span>-16 dB</td><td>Like Normal, but the message is sent four times in a row, so a fade or a noise burst costs little; slower to decode, so listen on fewer channels</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p class="hint"><i>142 chars</i> is the time for one full message (16 frames, one per slot). <i>Down to</i> is the weakest signal that still decodes reliably, in dB in a 2500 Hz noise bandwidth: the longer the bar, the further it reaches. Unsure? <b>Fast</b> in the same room, <b>Normal</b> for anything farther. <b>Spread</b> and <b>Burst</b> are variants for difficult rooms, not steps on the speed scale.</p>
+              <p data-i18n class="hint"><i>142 chars</i> is the time for one full message (16 frames, one per slot). <i>Down to</i> is the weakest signal that still decodes reliably, in dB in a 2500 Hz noise bandwidth: the longer the bar, the further it reaches. Unsure? <b>Fast</b> in the same room, <b>Normal</b> for anything farther. <b>Spread</b> and <b>Burst</b> are variants for difficult rooms, not steps on the speed scale.</p>
               <p class="hp-more"><a href="./how-it-works.html#lab" target="_blank" rel="noopener">Try any mode against noise in the decode lab ↗</a></p>
             </section>
 
             <section class="hp-section" id="help-bands">
               <h3>Choose a band</h3>
-              <p>The band is the range of pitches the signal uses. The default is <b>ultrasonic</b>: inaudible, and the most channels. Both stations need the same band too.</p>
+              <p data-i18n>The band is the range of pitches the signal uses. The default is <b>ultrasonic</b>: inaudible, and the most channels. Both stations need the same band too.</p>
               <figure class="hp-diagram">
                 <svg viewBox="0 0 680 170" role="img" aria-labelledby="hp-d3-t hp-d3-d">
                   <title id="hp-d3-t">The three bands and their channels</title>
@@ -514,20 +515,20 @@
                 <figcaption>Not to scale. The highlighted band is the default.</figcaption>
               </figure>
               <ul class="hp-list-plain">
-                <li><b>Ultrasonic</b> (17.5 to 21 kHz): silent to most people. Needs a 48 kHz sound card and a speaker and microphone that reach that high.</li>
-                <li><b>Audible</b>: works on any hardware, but you will hear it.</li>
-                <li><b>Low</b> (100 to 300 Hz): a narrow band for special cases.</li>
+                <li data-i18n><b>Ultrasonic</b> (17.5 to 21 kHz): silent to most people. Needs a 48 kHz sound card and a speaker and microphone that reach that high.</li>
+                <li data-i18n><b>Audible</b>: works on any hardware, but you will hear it.</li>
+                <li data-i18n><b>Low</b> (100 to 300 Hz): a narrow band for special cases.</li>
               </ul>
               <p class="hp-more"><a href="./how-it-works.html#air" target="_blank" rel="noopener">See each band's channels in every mode, and what your sound card can carry ↗</a></p>
             </section>
 
             <section class="hp-section" id="help-talk">
               <h3>Talk to other stations</h3>
-              <p>Stations appear when you hear their <b>Test</b> or <b>Announce</b>. The app also sends one every few minutes by itself, so a station you have not met yet turns up on its own.</p>
+              <p data-i18n>Stations appear when you hear their <b>Test</b> or <b>Announce</b>. The app also sends one every few minutes by itself, so a station you have not met yet turns up on its own.</p>
               <div class="hp-two">
                 <div>
                   <h4>To everyone</h4>
-                  <p>Pick <b>Public</b>. Everyone close enough hears it. It is not confirmed: you will not know who got it.</p>
+                  <p data-i18n>Pick <b>Public</b>. Everyone close enough hears it. It is not confirmed: you will not know who got it.</p>
                 </div>
                 <div>
                   <h4>To one station</h4>
@@ -549,7 +550,7 @@
               </figure>
 
               <h4>Draw a picture</h4>
-              <p>In a conversation, press <b>Sprite</b>. Paint a small picture (up to 16 by 16 squares, a few colours) or pick one from the gallery, and send it. It appears on the other device while it arrives: coarse first, sharper with every frame.</p>
+              <p data-i18n>In a conversation, press <b>Sprite</b>. Paint a small picture (up to 16 by 16 squares, a few colours) or pick one from the gallery, and send it. It appears on the other device while it arrives: coarse first, sharper with every frame.</p>
               <figure class="hp-diagram hp-sprites">
                 <svg viewBox="0 0 520 150" role="img" aria-labelledby="hp-d6-t hp-d6-d">
                   <title id="hp-d6-t">A picture filling in as frames arrive</title>
@@ -564,9 +565,9 @@
 
               <h4>What each screen shows</h4>
               <ul class="hp-list-plain">
-                <li><b>Messages</b>: the list of stations on the left (<i>Public</i> on top), the open conversation, Send, Announce and the sprite editor.</li>
-                <li><b>Network</b>: the map of stations (a stronger link is a shorter line), channels and waterfall, the station list with signal and time since last heard, signal per channel, clocks, and every frame sent or received.</li>
-                <li><b>Settings</b>: your name and icon, notifications, sprite display and stored data.</li>
+                <li data-i18n><b>Messages</b>: the list of stations on the left (<i>Public</i> on top), the open conversation, Send, Announce and the sprite editor.</li>
+                <li data-i18n><b>Network</b>: the map of stations (a stronger link is a shorter line), channels and waterfall, the station list with signal and time since last heard, signal per channel, clocks, and every frame sent or received.</li>
+                <li data-i18n><b>Settings</b>: your name and icon, notifications, sprite display and stored data.</li>
               </ul>
               <div class="hp-legend" aria-label="Colours show how long ago a station was heard">
                 <span><i class="dot dot-green"></i> heard in the last 3 minutes</span>
@@ -578,7 +579,7 @@
 
             <section class="hp-section" id="help-options">
               <h3>Network options</h3>
-              <p>These sit on <b>Network</b>, under <i>Network options</i>. The defaults suit most people. The tiles below show each option as it comes out of the box.</p>
+              <p data-i18n>These sit on <b>Network</b>, under <i>Network options</i>. The defaults suit most people. The tiles below show each option as it comes out of the box.</p>
               <dl class="hp-opts">
                 <div class="hp-opt">
                   <dt aria-hidden="true" inert><span class="switch-tile"><span class="switch-label">Audio</span><span class="switch"><input type="checkbox" tabindex="-1" /><span class="switch-track"><span class="switch-thumb"></span></span></span><span class="switch-state"></span></span></dt>
@@ -605,7 +606,7 @@
                   <dd>Searches further in time, for a station whose clock is wrong: 3 seconds more each side on top of the usual 2 in Normal (less in Fast and Turbo, whose slots are short). Costs about a third more processing.</dd>
                 </div>
               </dl>
-              <p><b>Test</b> sends one beacon that every station hearing it answers, so you see who hears you and how well. <b>Announce</b> sends your name and icon. <b>Reset to defaults</b> (press twice) puts these options back; Audio, your name and timing stay.</p>
+              <p data-i18n><b>Test</b> sends one beacon that every station hearing it answers, so you see who hears you and how well. <b>Announce</b> sends your name and icon. <b>Reset to defaults</b> (press twice) puts these options back; Audio, your name and timing stay.</p>
               <p class="hp-more"><a href="./how-it-works.html#channels" target="_blank" rel="noopener">How Auto channel picks a channel from the other stations' reports ↗</a></p>
               <h4>Reach farther with a repeater</h4>
               <figure class="hp-diagram">
@@ -648,11 +649,11 @@
                 <figcaption>When the frame starts too late or too early, part of it falls outside the window.</figcaption>
               </figure>
               <p class="hp-more"><a href="./how-it-works.html#slots" target="_blank" rel="noopener">Move a clock and watch the frame fall out of the window, with today's slots live ↗</a></p>
-              <p>Open <b>Network</b>, then the <b>Sync</b> section. Its dot says how things stand: green is fine, yellow means an offset is applied, red means your clock is off against the server.</p>
+              <p data-i18n>Open <b>Network</b>, then the <b>Sync</b> section. Its dot says how things stand: green is fine, yellow means an offset is applied, red means your clock is off against the server.</p>
               <ul class="hp-list-plain">
-                <li><b>Check against server</b>, then <b>Use server time</b>, aligns you with the clock of the server this page came from. The page checks by itself at startup and every 10 minutes, and shows a warning bar when the difference is large.</li>
-                <li><b>Sync to this station</b>, on a station row, copies the timing of a station you do hear.</li>
-                <li>A <b>manual offset</b> in seconds, and <b>Back to UTC</b> to undo any of these.</li>
+                <li data-i18n><b>Check against server</b>, then <b>Use server time</b>, aligns you with the clock of the server this page came from. The page checks by itself at startup and every 10 minutes, and shows a warning bar when the difference is large.</li>
+                <li data-i18n><b>Sync to this station</b>, on a station row, copies the timing of a station you do hear.</li>
+                <li data-i18n>A <b>manual offset</b> in seconds, and <b>Back to UTC</b> to undo any of these.</li>
                 <li>The hints in the section say whether your clock or theirs seems to be off.</li>
               </ul>
             </section>
@@ -661,11 +662,11 @@
               <h3>When something goes wrong</h3>
               <details class="hp-fix" open>
                 <summary>Nobody appears</summary>
-                <p>Check that both stations use the <b>same band and the same mode</b>, that Audio is on, and that one of you is sending (press Test). Get closer and turn the volume up.</p>
+                <p data-i18n>Check that both stations use the <b>same band and the same mode</b>, that Audio is on, and that one of you is sending (press Test). Get closer and turn the volume up.</p>
               </details>
               <details class="hp-fix">
                 <summary>Frames are heard but do not decode, or arrive at the wrong time</summary>
-                <p>The clocks are out of sync. Use the <b>Sync</b> section on <b>Network</b> (see <i>Clocks and timing</i> above): check against the server, or sync to a station you do hear.</p>
+                <p data-i18n>The clocks are out of sync. Use the <b>Sync</b> section on <b>Network</b> (see <i>Clocks and timing</i> above): check against the server, or sync to a station you do hear.</p>
               </details>
               <details class="hp-fix">
                 <summary>The signal is there but nothing decodes</summary>
@@ -673,7 +674,7 @@
               </details>
               <details class="hp-fix">
                 <summary>On a phone</summary>
-                <p>Phone clocks drift, so sync them. The browser stops audio when the screen turns off or the tab is in the background: keep the page open and the screen on. A Bluetooth headset can force a low sample rate and make the ultrasonic band unavailable; use the phone's own speaker and microphone. The microphone needs the page to be on https (or localhost). If the speaker and microphone sit at the bottom edge, use <b>Rotate 180°</b> in the sidebar to point them at the other station.</p>
+                <p data-i18n>Phone clocks drift, so sync them. The browser stops audio when the screen turns off or the tab is in the background: keep the page open and the screen on. A Bluetooth headset can force a low sample rate and make the ultrasonic band unavailable; use the phone's own speaker and microphone. The microphone needs the page to be on https (or localhost). If the speaker and microphone sit at the bottom edge, use <b>Rotate 180°</b> in the sidebar to point them at the other station.</p>
               </details>
               <p class="hp-more"><a href="./how-it-works.html#lab" target="_blank" rel="noopener">See how weak a signal, and how wrong a clock, the receiver still copes with ↗</a></p>
             </section>
@@ -711,6 +712,23 @@
             <div class="settings-col">
               <div class="channel-block">
                 <div class="channel-block-head">
+                  <button type="button" id="set-lang-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-lang-body">
+                    <span class="channel-block-title">Language</span>
+                  </button>
+                </div>
+                <div id="set-lang-body" class="channel-block-body">
+                  <div class="field-grid">
+                    <label class="field-tile">
+                      <span class="switch-label">Language of the app</span>
+                      <select id="lang-select" translate="no"></select>
+                    </label>
+                  </div>
+                  <p class="hint">The page reloads in the language you pick: turn Audio on again afterwards. How it works opens in the same language.</p>
+                </div>
+              </div>
+
+              <div class="channel-block">
+                <div class="channel-block-head">
                   <button type="button" id="set-notify-toggle" class="block-toggle" aria-expanded="true" aria-controls="set-notify-body">
                     <span class="channel-block-title">Notifications</span>
                   </button>
@@ -743,7 +761,7 @@
                       <span class="switch-state" aria-hidden="true"></span>
                     </label>
                   </div>
-                  <p class="hint">Off by default. When on, this station connects to a public MQTT broker (broker.emqx.io) and publishes one small record per frame it sends or hears: its station id and name, band and mode, channel, signal, frame type and who it was from and to. A new <b>Stats</b> screen shows what all the stations that do this have heard. Never audio, never message text or pictures. This is the only connection to another server besides the clock check.</p>
+                  <p data-i18n class="hint">Off by default. When on, this station connects to a public MQTT broker (broker.emqx.io) and publishes one small record per frame it sends or hears: its station id and name, band and mode, channel, signal, frame type and who it was from and to. A new <b>Stats</b> screen shows what all the stations that do this have heard. Never audio, never message text or pictures. This is the only connection to another server besides the clock check.</p>
                 </div>
               </div>
 

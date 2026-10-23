@@ -20,6 +20,7 @@ import {
 } from '../chat/sprite';
 import { SPRITE_GALLERY, parseRows, toRows } from '../chat/sprite-gallery';
 import { drawSprite, formatDuration, maxSideFor } from './sprite-view';
+import { dec, t, tn } from '../i18n/i18n';
 
 export interface SpriteEditorOptions {
   /** Seconds per slot: one frame goes out per slot. */
@@ -65,9 +66,7 @@ export class SpriteEditor {
   constructor(private readonly opts: SpriteEditorOptions) {
     this.sizeSelect.replaceChildren(...Array.from({ length: 16 }, (_, i) => new Option(`${i + 1}×${i + 1}`, String(i + 1))));
     this.sizeSelect.value = String(this.side);
-    this.coloursSelect.replaceChildren(
-      new Option('2 colours', '1'), new Option('4 colours', '2'), new Option('8 colours', '3'), new Option('16 colours', '4'),
-    );
+    this.coloursSelect.replaceChildren(...[1, 2, 3, 4].map((bpp) => new Option(t('{n} colours', { n: 1 << bpp }), String(bpp))));
     this.coloursSelect.value = String(this.bpp);
     this.buildSwatches();
     this.sizeSelect.addEventListener('change', () => this.resize(Number(this.sizeSelect.value)));
@@ -128,7 +127,7 @@ export class SpriteEditor {
       const b = el('button');
       b.type = 'button';
       b.style.background = hex;
-      b.title = `colour ${i.toString(16)}`;
+      b.title = t('colour {c}', { c: i.toString(16) });
       b.dataset.c = String(i);
       b.addEventListener('click', () => { this.colour = i; this.markSwatch(); });
       return b;
@@ -169,7 +168,7 @@ export class SpriteEditor {
     const shown = spriteColours(viewOf(sent), 'checker');
     const box = byId('sprite-previews');
     box.replaceChildren();
-    for (const [label, size] of [['as sent', Math.max(4, Math.floor(160 / n))], ['1×', 1], ['2×', 2]] as const) {
+    for (const [label, size] of [[t('as sent'), Math.max(4, Math.floor(160 / n))], ['1×', 1], ['2×', 2]] as const) {
       const c = el('canvas', 'sprite-canvas');
       drawSprite(c, n, size, shown, false);
       const cap = el('figure');
@@ -179,16 +178,17 @@ export class SpriteEditor {
     const frames = spriteFrameCount(n, this.bpp);
     const fits = frames <= MAX_SPRITE_FRAMES;
     this.stats.replaceChildren();
-    const big = el('span', fits ? (frames <= 2 ? 'f1' : frames <= 4 ? 'f2' : 'f3') : 'f4', `${frames} frame${frames === 1 ? '' : 's'}`);
-    this.stats.append(big, ` · ${formatDuration(frames * this.opts.slotSec)} on air (one frame per ${this.opts.slotSec} s slot)`);
+    const big = el('span', fits ? (frames <= 2 ? 'f1' : frames <= 4 ? 'f2' : 'f3') : 'f4', tn(frames, '{n} frame', '{n} frames'));
+    this.stats.append(big, ` · ${t('{time} on air (one frame per {slot} s slot)', { time: formatDuration(frames * this.opts.slotSec), slot: dec(String(this.opts.slotSec)) })}`);
     if (!fits) {
-      this.stats.append(el('div', 'sprite-over', `Over ${MAX_SPRITE_FRAMES} frames: it cannot be sent. At ${1 << this.bpp} colours the largest is ${maxSideFor(this.bpp)}×${maxSideFor(this.bpp)}; or use fewer colours.`));
+      const side = maxSideFor(this.bpp);
+      this.stats.append(el('div', 'sprite-over', t('Over {max} frames: it cannot be sent. At {colours} colours the largest is {side}×{side}; or use fewer colours.', { max: MAX_SPRITE_FRAMES, colours: 1 << this.bpp, side })));
     }
     if (document.activeElement !== this.text) this.text.value = toRows(this.pixels, n).join('\n');
     const rcpt = this.opts.recipient();
-    this.to.textContent = `To: ${rcpt.label}`;
+    this.to.textContent = t('To: {name}', { name: rcpt.label });
     this.sendButton.disabled = !fits || !rcpt.canSend;
-    this.sendButton.title = !rcpt.canSend ? 'Turn audio on and allow transmit first' : '';
+    this.sendButton.title = !rcpt.canSend ? t('Turn audio on and allow transmit first') : '';
     this.refreshGallery();
   }
 
@@ -202,7 +202,7 @@ export class SpriteEditor {
       for (const s of group.sprites) {
         const card = el('button', 'sprite-card');
         card.type = 'button';
-        card.title = `Load ${s.name} into the editor`;
+        card.title = t('Load {name} into the editor', { name: s.name });
         card.dataset.name = s.name;
         card.append(el('canvas', 'sprite-canvas'), el('span', 'sprite-card-name', s.name), el('span', 'sprite-card-info'));
         card.addEventListener('click', () => this.load(parseRows(s.rows, group.side), group.side, this.bpp));
@@ -224,7 +224,7 @@ export class SpriteEditor {
         const sprite = quantize(parseRows(group.sprites[i]!.rows, side), side, this.bpp);
         drawSprite(card.querySelector('canvas')!, side, px, spriteColours(viewOf(sprite), 'checker'), false);
         const info = card.querySelector('.sprite-card-info')!;
-        info.textContent = frames > MAX_SPRITE_FRAMES ? `${frames} frames: too big` : `${frames} frame${frames === 1 ? '' : 's'}`;
+        info.textContent = frames > MAX_SPRITE_FRAMES ? t('{n} frames: too big', { n: frames }) : tn(frames, '{n} frame', '{n} frames');
         info.classList.toggle('sprite-over', frames > MAX_SPRITE_FRAMES);
       });
     }

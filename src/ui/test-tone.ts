@@ -6,6 +6,7 @@
 
 import { bandForChannel, type Channel } from '../band/band-plan';
 import type { AudioEngine } from '../audio/engine';
+import { bandLabel, t } from '../i18n/i18n';
 
 /** Slider position (1..50) to linear gain (0.01..0.5). Kept well under full scale. */
 const levelToGain = (position: number): number => position / 100;
@@ -57,12 +58,12 @@ export class TestToneControl {
       list.push(ch);
       byBand.set(band.name, list);
     }
-    const options: [string, string][] = [['channel', 'Selected channel']];
+    const options: [string, string][] = [['channel', t('Selected channel')]];
     for (const [bandName, chans] of byBand) {
       const mid = chans[Math.floor((chans.length - 1) / 2)];
-      options.push([String(mid.number), `${bandName} band, channel ${mid.number} (${Math.round(mid.centerHz)} Hz)`]);
+      options.push([String(mid.number), t('{band} band, channel {ch} ({hz} Hz)', { band: bandLabel(bandName), ch: mid.number, hz: Math.round(mid.centerHz) })]);
     }
-    options.push(['custom', 'Custom…']);
+    options.push(['custom', t('Custom…')]);
     this.source.replaceChildren(
       ...options.map(([value, label]) => {
         const o = document.createElement('option');
@@ -85,8 +86,8 @@ export class TestToneControl {
   refresh(): void {
     const playing = this.engine.toneFreqHz;
     this.button.disabled = !this.engine.running || !this.engine.transmitAllowed;
-    this.button.textContent = playing !== null ? 'Stop tone' : 'Play tone';
-    this.state.textContent = playing !== null ? `${Math.round(playing)} Hz` : 'off';
+    this.button.textContent = playing !== null ? t('Stop tone') : t('Play tone');
+    this.state.textContent = playing !== null ? `${Math.round(playing)} Hz` : t('off');
     this.state.className = playing !== null ? 'chip chip-ok' : 'chip';
   }
 

@@ -4,6 +4,7 @@
  */
 
 import type { LqaRow, LqaTable, Sample } from './lqa';
+import { t } from '../i18n/i18n';
 
 export type StationStatus = 'active' | 'recent' | 'quiet';
 
@@ -57,10 +58,10 @@ export function ageColor(rawAgeSec: number, opacity = 1): { fill: string; darkTe
 
 /** "just now", "45 s ago", "7 min ago", "3 h ago". */
 export function formatAge(ageSec: number): string {
-  if (ageSec < 10) return 'just now';
-  if (ageSec < 90) return `${Math.round(ageSec)} s ago`;
-  if (ageSec < 5400) return `${Math.round(ageSec / 60)} min ago`;
-  return `${Math.round(ageSec / 3600)} h ago`;
+  if (ageSec < 10) return t('just now');
+  if (ageSec < 90) return t('{n} s ago', { n: Math.round(ageSec) });
+  if (ageSec < 5400) return t('{n} min ago', { n: Math.round(ageSec / 60) });
+  return t('{n} h ago', { n: Math.round(ageSec / 3600) });
 }
 
 export interface StationInfo {

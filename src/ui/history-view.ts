@@ -8,6 +8,7 @@
 import type { FrameLog } from '../chat/frame-log';
 import { buildSequence, type Actor, type SeqEvent, type SeqLine } from '../chat/sequence';
 import { drawSprite } from './sprite-view';
+import { t } from '../i18n/i18n';
 
 const SVG = 'http://www.w3.org/2000/svg';
 /** Narrowest a station's column gets before the diagram scrolls sideways. */
@@ -56,7 +57,7 @@ export class HistoryView {
     /** The station's colour (the same one its line has in the signal history). */
     private readonly colorOf: (id: number) => string,
   ) {
-    this.root.append(this.scroll, el('p', 'hint seq-legend', 'audiomesh is the shared air. Teal: announcements and beacons. White: messages and sprites. Green: acks. Dashed: where a frame goes on to, or whom a beacon reports. Newest at the bottom.'));
+    this.root.append(this.scroll, el('p', 'hint seq-legend', t('audiomesh is the shared air. Teal: announcements and beacons. White: messages and sprites. Green: acks. Dashed: where a frame goes on to, or whom a beacon reports. Newest at the bottom.')));
     this.refresh();
   }
 
@@ -86,7 +87,7 @@ export class HistoryView {
     const top = this.scroll.scrollTop;
 
     if (items.length === 0) {
-      this.scroll.replaceChildren(el('p', 'hint', 'No frames yet. Every frame sent or heard shows up here as it happens.'));
+      this.scroll.replaceChildren(el('p', 'hint', t('No frames yet. Every frame sent or heard shows up here as it happens.')));
       return;
     }
 
@@ -108,12 +109,12 @@ export class HistoryView {
       if (a === 'public') {
         const h = hex('var(--accent)');
         headHex.set(a, h);
-        box.append(h, el('span', 'seq-actor-name', 'audiomesh'), el('span', 'seq-actor-id', 'public'));
+        box.append(h, el('span', 'seq-actor-name', 'audiomesh'), el('span', 'seq-actor-id', t('public')));
       } else {
         const name = this.label(a);
         const numbered = `#${String(a).padStart(3, '0')}`;
         const nicked = name !== `#${a}`;
-        const sub = `${nicked ? numbered : ''}${a === me ? `${nicked ? ' · ' : ''}me` : ''}`;
+        const sub = `${nicked ? numbered : ''}${a === me ? `${nicked ? ' · ' : ''}${t('me')}` : ''}`;
         const h = hex(this.actorColor(a));
         headHex.set(a, h);
         box.append(h, el('span', 'seq-actor-name', nicked ? name : numbered), el('span', 'seq-actor-id', sub));

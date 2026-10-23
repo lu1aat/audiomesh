@@ -9,6 +9,7 @@
  */
 
 import type { StationDelay } from './frame-log';
+import { num, t } from '../i18n/i18n';
 
 /** Offsets smaller than this are latency and noise, not a wrong clock. */
 export const CLOCK_OFF_SEC = 0.5;
@@ -55,8 +56,8 @@ const REAL_SYNC = 0.3;
 /** How far back undecoded signals count. */
 const UNDECODED_WINDOW_SLOTS = 12;
 
-const secText = (v: number): string => `${Math.abs(v).toFixed(1)} s`;
-const lateEarly = (d: number): string => (d > 0 ? 'late' : 'early');
+const secText = (v: number): string => `${num(Math.abs(v), 1)} s`;
+const signedSec = (v: number, digits: number): string => `${v >= 0 ? '+' : '−'}${num(Math.abs(v), digits)} s`;
 const median = (xs: readonly number[]): number => {
   const s = [...xs].sort((a, b) => a - b);
   const m = s.length >> 1;
@@ -69,9 +70,11 @@ export function clockHints(input: ClockInput): ClockHint[] {
   const s = input.server;
   if (s && input.nowMs - s.atMs < SERVER_FRESH_MS && Math.abs(s.offsetMs) >= CLOCK_OFF_SEC * 1000 && Math.abs(s.offsetMs - input.offsetMs) >= 100) {
     const off = s.offsetMs / 1000;
+    const vars = { s: secText(off), pm: Math.round(s.uncertaintyMs) };
     hints.push({
-      text: `The server says this device's clock is ${secText(off)} ${off > 0 ? 'ahead' : 'behind'} (±${Math.round(s.uncertaintyMs)} ms). Best: set this device's date and time automatically. Or move the slot timing to match the server.`,
-      action: { label: 'Use server time', offsetMs: Math.round(s.offsetMs) },
+      text: (off > 0 ? t("The server says this device's clock is {s} ahead (±{pm} ms).", vars) : t("The server says this device's clock is {s} behind (±{pm} ms).", vars)) + ' ' +
+        t("Best: set this device's date and time automatically. Or move the slot timing to match the server."),
+      action: { label: t('Use server time'), offsetMs: Math.round(s.offsetMs) },
     });
   }
   const timed = [...input.delays]
@@ -82,39 +85,51 @@ export function clockHints(input: ClockInput): ClockHint[] {
     const mid = median(timed.map((t) => t.d));
     const agree = timed.every((t) => Math.abs(t.d - mid) < CLOCK_OFF_SEC);
     if (agree && Math.abs(mid) >= CLOCK_OFF_SEC) {
+      const vars = { n: timed.length, s: secText(mid) };
       hints.push({
-        text: `All ${timed.length} stations heard are ${secText(mid)} ${lateEarly(mid)} against this device's clock, so this clock is probably ${secText(mid)} ${mid > 0 ? 'ahead' : 'behind'}. Best: set this device's date and time automatically. Or move the slot timing to match them.`,
-        action: { label: `Sync to them (${mid >= 0 ? '+' : '−'}${Math.abs(mid).toFixed(2)} s)`, offsetMs: Math.round(mid * 1000) },
+        text: (mid > 0 ? t("All {n} stations heard are {s} late against this device's clock, so this clock is probably {s} ahead.", vars)
+          : t("All {n} stations heard are {s} early against this device's clock, so this clock is probably {s} behind.", vars)) + ' ' +
+          t("Best: set this device's date and time automatically. Or move the slot timing to match them."),
+        action: { label: t('Sync to them ({s})', { s: signedSec(mid, 2) }), offsetMs: Math.round(mid * 1000) },
       });
     } else {
-      for (const t of timed) {
-        const others = timed.filter((o) => o.id !== t.id);
+      for (const st of timed) {
+        const others = timed.filter((o) => o.id !== st.id);
         const othersOnTime = others.every((o) => Math.abs(o.d) < CLOCK_OFF_SEC);
-        if (Math.abs(t.d) >= CLOCK_OFF_SEC && othersOnTime) {
+        if (Math.abs(st.d) >= CLOCK_OFF_SEC && othersOnTime) {
+          const vars = { name: input.name(st.id), s: secText(st.d) };
           hints.push({
-            text: `${input.name(t.id)} is ${secText(t.d)} ${lateEarly(t.d)} while the other stations are on time: its clock is probably ${secText(t.d)} ${t.d > 0 ? 'behind' : 'ahead'}. Fix the date and time on that device (set it automatically), or press "Sync to this station" there for this one.`,
+            text: (st.d > 0 ? t('{name} is {s} late while the other stations are on time: its clock is probably {s} behind.', vars)
+              : t('{name} is {s} early while the other stations are on time: its clock is probably {s} ahead.', vars)) + ' ' +
+              t('Fix the date and time on that device (set it automatically), or press "Sync to this station" there for this one.'),
           });
         }
       }
     }
   } else if (timed.length === 1) {
-    const t = timed[0]!;
-    if (Math.abs(t.d) >= CLOCK_OFF_SEC) {
+    const st = timed[0]!;
+    if (Math.abs(st.d) >= CLOCK_OFF_SEC) {
+      const vars = { name: input.name(st.id), s: secText(st.d) };
       hints.push({
-        text: `${input.name(t.id)} is ${secText(t.d)} ${lateEarly(t.d)} against this device's clock: one of the two clocks is off by about ${secText(t.d)}. With only two stations there is no telling which; the one whose clock is wrong should set it automatically. Or sync to it.`,
-        action: { label: `Sync to ${input.name(t.id)}`, offsetMs: Math.round(t.d * 1000) },
+        text: (st.d > 0 ? t("{name} is {s} late against this device's clock: one of the two clocks is off by about {s}.", vars)
+          : t("{name} is {s} early against this device's clock: one of the two clocks is off by about {s}.", vars)) + ' ' +
+          t('With only two stations there is no telling which; the one whose clock is wrong should set it automatically. Or sync to it.'),
+        action: { label: t('Sync to {name}', vars), offsetMs: Math.round(st.d * 1000) },
       });
     }
   }
 
   // Close to the edge of what we search: the next small drift loses frames.
   const reach = input.maxTimeOffsetSec + (input.deepOn ? input.deepExtraSec : 0);
-  for (const t of timed) {
-    const onGrid = t.d - offsetSec;
+  for (const st of timed) {
+    const onGrid = st.d - offsetSec;
     if (Math.abs(onGrid) > 0.7 * reach) {
+      const vars = { name: input.name(st.id), s: secText(onGrid), reach: num(reach, 1) };
       hints.push({
-        text: `${input.name(t.id)}'s frames start ${secText(onGrid)} ${lateEarly(onGrid)} on our slot grid, near the ±${reach.toFixed(1)} s the receiver searches: frames will be lost.${input.deepOn || input.deepExtraSec === 0 ? '' : ' Turn on Deep decode, or sync.'}`,
-        action: { label: `Sync to ${input.name(t.id)}`, offsetMs: Math.round(t.d * 1000) },
+        text: (onGrid > 0 ? t("{name}'s frames start {s} late on our slot grid, near the ±{reach} s the receiver searches: frames will be lost.", vars)
+          : t("{name}'s frames start {s} early on our slot grid, near the ±{reach} s the receiver searches: frames will be lost.", vars)) +
+          (input.deepOn || input.deepExtraSec === 0 ? '' : ' ' + t('Turn on Deep decode, or sync.')),
+        action: { label: t('Sync to {name}', vars), offsetMs: Math.round(st.d * 1000) },
       });
     }
   }
@@ -125,14 +140,20 @@ export function clockHints(input: ClockInput): ClockHint[] {
   if (edge.length >= 2) {
     const dt = median(edge.map((u) => u.dtSec));
     if (!input.deepOn && input.deepExtraSec > 0) {
+      const vars = { n: edge.length, s: secText(dt), reach: num(reach, 1) };
       hints.push({
-        text: `In ${edge.length} recent slots a signal was seen but not decoded, ${secText(dt)} ${lateEarly(dt)} at the edge of the ±${reach.toFixed(1)} s timing window: a station's clock is probably off by more than that. Turn on Deep decode to hear it and measure its offset.`,
+        text: (dt > 0 ? t("In {n} recent slots a signal was seen but not decoded, {s} late at the edge of the ±{reach} s timing window: a station's clock is probably off by more than that.", vars)
+          : t("In {n} recent slots a signal was seen but not decoded, {s} early at the edge of the ±{reach} s timing window: a station's clock is probably off by more than that.", vars)) + ' ' +
+          t('Turn on Deep decode to hear it and measure its offset.'),
       });
     } else {
       const guess = offsetSec + dt + Math.sign(dt) * 1;
+      const vars = { n: edge.length, s: secText(dt), reach: num(reach, 1), guess: signedSec(guess, 1) };
       hints.push({
-        text: `In ${edge.length} recent slots a signal was seen but not decoded at the edge of the ±${reach.toFixed(1)} s timing window (${secText(dt)} ${lateEarly(dt)}). Its clock may be off by even more: try a manual offset of about ${guess >= 0 ? '+' : '−'}${Math.abs(guess).toFixed(1)} s, or fix that device's clock.`,
-        action: { label: `Try ${guess >= 0 ? '+' : '−'}${Math.abs(guess).toFixed(1)} s`, offsetMs: Math.round(guess * 1000) },
+        text: (dt > 0 ? t('In {n} recent slots a signal was seen but not decoded at the edge of the ±{reach} s timing window ({s} late).', vars)
+          : t('In {n} recent slots a signal was seen but not decoded at the edge of the ±{reach} s timing window ({s} early).', vars)) + ' ' +
+          t("Its clock may be off by even more: try a manual offset of about {guess}, or fix that device's clock.", vars),
+        action: { label: t('Try {guess}', vars), offsetMs: Math.round(guess * 1000) },
       });
     }
   }

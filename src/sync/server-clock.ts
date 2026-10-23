@@ -13,6 +13,8 @@
  * round trip.
  */
 
+import { t } from '../i18n/i18n';
+
 export interface DateSample {
   /** Local wall clock (Date.now()) when the request left and when the reply came. */
   readonly sendMs: number;
@@ -123,7 +125,7 @@ export class ServerClock {
         const sendMs = this.now();
         const { serverMs } = await this.fetchDate();
         const recvMs = this.now();
-        if (serverMs === null) throw new Error('the server sent no Date header');
+        if (serverMs === null) throw new Error(t('the server sent no Date header'));
         samples.push({ sendMs, recvMs, serverMs });
         rtt = samples.reduce((a, s) => a + (s.recvMs - s.sendMs), 0) / samples.length;
       };
@@ -139,7 +141,7 @@ export class ServerClock {
         await probe();
       }
       const result = estimateOffset(samples);
-      if (!result) throw new Error('the server replies do not agree (its clock jumped?)');
+      if (!result) throw new Error(t('the server replies do not agree (its clock jumped?)'));
       this.history.push(result);
       if (this.history.length > 30) this.history.shift();
       return result;

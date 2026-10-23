@@ -74,6 +74,9 @@ select, input[type="text"] {
   border: 1px solid var(--line); border-radius: 0; padding: 6px 8px; min-width: 0;
 }
 .mode-pick select { max-width: 62vw; text-transform: none; letter-spacing: 0; }
+/* The same page in the other language (how-it-works.html <-> como-funciona.html), named in that language. */
+.lang-pick { font: 500 0.75rem var(--f-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); text-decoration: none; border: 1px solid var(--line); padding: 5px 8px; }
+.lang-pick:hover { color: var(--text); border-color: var(--accent-hi); }
 input[type="range"] { accent-color: var(--accent); width: 100%; }
 input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; }
 

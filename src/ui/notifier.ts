@@ -5,6 +5,8 @@
  * only allows notifications for a page added to the home screen (iOS 16.4+).
  */
 
+import { t } from '../i18n/i18n';
+
 export type NotifyState = 'unsupported' | 'denied' | 'default' | 'granted';
 
 export class Notifier {
@@ -55,13 +57,13 @@ export class Notifier {
 
   /** Send one now, ignoring the attention check. Resolves with a one-line result for the UI. */
   async test(): Promise<string> {
-    if (this.state === 'unsupported') return 'This browser has no Notification API.';
-    if (!(await this.enable())) return `Permission is ${this.state}: allow notifications for this site in the browser settings.`;
+    if (this.state === 'unsupported') return t('This browser has no Notification API.');
+    if (!(await this.enable())) return t('Permission is {state}: allow notifications for this site in the browser settings.', { state: this.state });
     try {
-      const how = await this.show('audiomesh', 'Test notification', 'test');
-      return `Sent (${how}). If nothing appeared, check the operating system's notification settings and do-not-disturb.`;
+      const how = await this.show('audiomesh', t('Test notification'), 'test');
+      return t("Sent ({how}). If nothing appeared, check the operating system's notification settings and do-not-disturb.", { how });
     } catch (e) {
-      return `Failed: ${e instanceof Error ? e.message : String(e)}`;
+      return t('Failed: {why}', { why: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -72,7 +74,7 @@ export class Notifier {
     if (this.registration) {
       try {
         await (await navigator.serviceWorker.ready).showNotification(title, options);
-        return 'service worker';
+        return t('service worker');
       } catch (e) {
         swError = e;
       }
@@ -83,7 +85,7 @@ export class Notifier {
         window.focus();
         n.close();
       };
-      return 'page';
+      return t('page');
     } catch (e) {
       throw swError ?? e;
     }

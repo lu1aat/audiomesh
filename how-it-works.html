@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-lang-fixed>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -9,12 +9,28 @@
       content="How audiomesh works, step by step, with demos that run its own modulator, decoder and network code."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href="https://lu1aat.github.io/audiomesh/how-it-works.html" />
+    <link rel="alternate" hreflang="en" href="https://lu1aat.github.io/audiomesh/how-it-works.html" />
+    <link rel="alternate" hreflang="es" href="https://lu1aat.github.io/audiomesh/como-funciona.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="audiomesh" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="es_LA" />
+    <meta property="og:url" content="https://lu1aat.github.io/audiomesh/how-it-works.html" />
+    <meta property="og:title" content="A network made of sound · audiomesh" />
+    <meta property="og:description" content="Text between browsers through a speaker and a microphone: no Wi-Fi, no server, no cable. Eleven short chapters with live demos that run audiomesh's own modulator and decoder." />
+    <meta property="og:image" content="https://lu1aat.github.io/audiomesh/og/how-it-works.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="audiomesh: a network made of sound. One frame drawn as a waterfall: three sync staircases between rows of data tones." />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
 <header class="bar">
   <a class="brand" href="#top"><svg id="logo" viewBox="0 0 34 31" aria-hidden="true"></svg>audiomesh</a>
   <span class="bar-sub">How it works</span>
   <label class="mode-pick">Mode <select id="mode" aria-label="Mode used by every demo on this page"></select></label>
+  <a class="lang-pick" id="lang-switch" href="./como-funciona.html" hreflang="es" lang="es" title="Leer esta página en español">Español</a>
 </header>
 
 <main class="page" id="top">
@@ -79,7 +95,7 @@
   <section class="ch wide" id="bits">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 02</span><h2>Text becomes bits</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Every frame carries exactly 77 bits. To fit more text in them, audiomesh uses a 6-bit alphabet of 64 symbols: capital letters, digits and punctuation. Lower case arrives as upper case and anything else as a question mark, the same trade FT8 and JS8 make.</p>
+      <p>Every frame carries exactly 77 bits. To fit more text in them, audiomesh uses a 6-bit alphabet of 64 symbols: capital letters, digits and punctuation. Lower case arrives as upper case, accented letters without their accents (É as E, Ñ as N) and anything else as a question mark, the same trade FT8 and JS8 make.</p>
       <p>The first frame of a message says who sent it, who it is for and which message it belongs to, which leaves room for 7 characters. Each following frame carries 9 more. A message can use up to 16 frames, which makes 142 characters.</p>
     </div>
     <div class="demo">
@@ -343,7 +359,7 @@
   <section class="closing wide">
     <h2>Try it with two devices</h2>
     <p>Open the app on two phones or laptops in the same room. Pick the same mode and band on both, turn on Audio and Allow transmit, and send a message. Check that both clocks are right first.</p>
-    <a class="cta" href="./">Open audiomesh</a>
+    <a class="cta" href="./?lang=en">Open audiomesh</a>
     <p class="fineprint">audiomesh runs entirely in the browser: no backend, and no audio ever leaves the device. It borrows from FT8 and JS8 but does not talk to them. The full over-the-air specification is <code>network-protocol.md</code> in the repository.</p>
   </section>
 </main>

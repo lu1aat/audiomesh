@@ -1,13 +1,15 @@
 /** Pure rules behind where and when automatic transmissions go; kept out of the UI so tests can reach them. */
 
+import { t } from '../i18n/i18n';
+
 /**
  * Why every frame (sounds included) must go on the selected channel, or null when it need not.
  * Needs a selected channel and either Auto channel off or Auto beacon off.
  */
 export function pinnedReason(selected: boolean, autoChannel: boolean, autoSound: boolean): string | null {
   if (!selected) return null;
-  if (!autoChannel) return 'selected channel, auto channel off';
-  if (!autoSound) return 'selected channel, auto beacon off';
+  if (!autoChannel) return t('selected channel, auto channel off');
+  if (!autoSound) return t('selected channel, auto beacon off');
   return null;
 }
 

@@ -26,6 +26,7 @@ import type { ApHint } from '../protocol/protocol';
 import { nextSlotStartMs, slotStartMs } from '../protocol/slot-clock';
 import { deepExtraSec, frameDurationSec, windowDurationSec, windowLeadSec, type ProtocolSpec } from '../protocol/spec';
 import { TxSchedule } from './tx-schedule';
+import { t } from '../i18n/i18n';
 
 /** 8192 points is ~5.9 Hz per bin at 48 kHz: fine enough to resolve 50 Hz channels. */
 const FFT_SIZE = 8192;
@@ -143,7 +144,7 @@ export class AudioEngine {
       // navigator.mediaDevices altogether, so the failure would otherwise be a
       // baffling "cannot read properties of undefined".
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('microphone access needs a secure context: open the page via https:// or http://localhost');
+        throw new Error(t('microphone access needs a secure context: open the page via https:// or http://localhost'));
       }
       // Chrome's echo cancellation, noise suppression and AGC are built for speech
       // and all three mangle steady FSK tones: the symptom is a signal that fades

@@ -7,6 +7,7 @@
 import { decodeRecord, DEFAULT_FILTER, matchFrame, type FrameFilter, type FrameLog, type FrameRecord } from '../chat/frame-log';
 import type { FrameType } from '../chat/describe';
 import { exportFileName, framesToCsv, framesToText } from '../chat/frame-export';
+import { num, t, tn } from '../i18n/i18n';
 
 /** More rows than this make the page slow to redraw; the filters narrow what is left. */
 const MAX_SHOWN = 300;
@@ -30,7 +31,7 @@ function since(ms: number): string {
   if (h < 48) return `${h} h ${pad2(m % 60)} min`;
   return `${Math.floor(h / 24)} d`;
 }
-const signed = (v: number, digits = 0): string => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(digits)}`;
+const signed = (v: number, digits = 0): string => `${v >= 0 ? '+' : '−'}${num(Math.abs(v), digits)}`;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -47,10 +48,10 @@ export class FrameTable {
   private sortDown = true;
   private readonly summary = el('p', 'hint');
   private readonly scroll = el('div', 'table-scroll frame-scroll');
-  private readonly removeSelected = el('button', undefined, 'Remove selected');
-  private readonly removeShown = el('button', undefined, 'Remove all shown');
-  private readonly exportAll = el('button', undefined, 'Export all');
-  private readonly copySelected = el('button', undefined, 'Copy selected');
+  private readonly removeSelected = el('button', undefined, t('Remove selected'));
+  private readonly removeShown = el('button', undefined, t('Remove all shown'));
+  private readonly exportAll = el('button', undefined, t('Export all'));
+  private readonly copySelected = el('button', undefined, t('Copy selected'));
   private copiedTimer: ReturnType<typeof setTimeout> | undefined;
   private shown: FrameRecord[] = [];
 
@@ -90,57 +91,57 @@ export class FrameTable {
     };
     const dir = el('select');
     dir.id = 'frame-filter-dir';
-    for (const [v, t] of [['all', 'All'], ['rx', 'Received'], ['tx', 'Sent']] as const) dir.append(new Option(t, v));
+    for (const [v, label] of [['all', t('All')], ['rx', t('Received')], ['tx', t('Sent')]] as const) dir.append(new Option(label, v));
     dir.addEventListener('change', () => this.setFilter({ dir: dir.value as FrameFilter['dir'] }));
-    field('Direction', dir);
+    field(t('Direction'), dir);
 
     const type = el('select');
     type.id = 'frame-filter-type';
-    for (const t of TYPES) type.append(new Option(t === 'all' ? 'All' : t, t));
+    for (const k of TYPES) type.append(new Option(k === 'all' ? t('All') : k, k));
     type.addEventListener('change', () => this.setFilter({ type: type.value as FrameFilter['type'] }));
-    field('Type', type);
+    field(t('Type'), type);
 
     const station = el('input');
     station.id = 'frame-filter-station';
     station.type = 'search';
-    station.placeholder = 'id or name (from or to)';
+    station.placeholder = t('id or name (from or to)');
     station.addEventListener('input', () => this.setFilter({ station: station.value }));
-    field('Station', station);
+    field(t('Station'), station);
 
     const channel = el('input');
     channel.id = 'frame-filter-channel';
     channel.type = 'number';
     channel.min = '1';
-    channel.placeholder = 'any';
+    channel.placeholder = t('any');
     channel.addEventListener('input', () => this.setFilter({ channel: channel.value }));
-    field('Channel', channel);
+    field(t('Channel'), channel);
 
     const snr = el('input');
     snr.id = 'frame-filter-snr';
     snr.type = 'number';
     snr.step = '1';
-    snr.placeholder = 'any';
+    snr.placeholder = t('any');
     snr.addEventListener('input', () => this.setFilter({ minSnrDb: snr.value === '' || Number.isNaN(Number(snr.value)) ? null : Number(snr.value) }));
-    field('Min SNR (dB)', snr);
+    field(t('Min SNR (dB)'), snr);
 
     const text = el('input');
     text.id = 'frame-filter-text';
     text.type = 'search';
-    text.placeholder = 'in decoded text or hex';
+    text.placeholder = t('in decoded text or hex');
     text.addEventListener('input', () => this.setFilter({ text: text.value }));
-    field('Text', text);
+    field(t('Text'), text);
 
     const self = el('input');
     self.id = 'frame-filter-self';
     self.type = 'checkbox';
     self.checked = DEFAULT_FILTER.hideSelf;
     self.addEventListener('change', () => this.setFilter({ hideSelf: self.checked }));
-    const selfLabel = el('label', 'frame-check', 'Hide self decodes');
-    selfLabel.title = 'Received frames sent by this station: our own transmissions heard back through the speaker';
+    const selfLabel = el('label', 'frame-check', t('Hide self decodes'));
+    selfLabel.title = t('Received frames sent by this station: our own transmissions heard back through the speaker');
     selfLabel.prepend(self);
     bar.append(selfLabel);
 
-    const reset = el('button', undefined, 'Reset filters');
+    const reset = el('button', undefined, t('Reset filters'));
     reset.type = 'button';
     reset.addEventListener('click', () => {
       dir.value = 'all';
@@ -165,15 +166,15 @@ export class FrameTable {
     this.removeShown.addEventListener('click', () => {
       const ids = new Set(this.matching().map((r) => r.id));
       if (ids.size === 0) return;
-      if (!confirm(`Remove ${ids.size} frame${ids.size === 1 ? '' : 's'} matching the filters?`)) return;
+      if (!confirm(tn(ids.size, 'Remove {n} frame matching the filters?', 'Remove {n} frames matching the filters?'))) return;
       this.log.remove(ids);
       this.refresh();
     });
     this.exportAll.type = 'button';
-    this.exportAll.title = 'Download every frame of the log (filters are ignored) as a CSV file: times in UTC and local, full raw hex, decoded text';
+    this.exportAll.title = t('Download every frame of the log (filters are ignored) as a CSV file: times in UTC and local, full raw hex, decoded text');
     this.exportAll.addEventListener('click', () => this.download());
     this.copySelected.type = 'button';
-    this.copySelected.title = 'Copy the selected frames to the clipboard as tab-separated text with the full raw hex, oldest first';
+    this.copySelected.title = t('Copy the selected frames to the clipboard as tab-separated text with the full raw hex, oldest first');
     this.copySelected.addEventListener('click', () => void this.copy());
     bar.append(this.removeSelected, this.removeShown, this.copySelected, this.exportAll, this.summary);
     return bar;
@@ -211,9 +212,9 @@ export class FrameTable {
       try { ok = document.execCommand('copy'); } catch { ok = false; }
       area.remove();
     }
-    this.copySelected.textContent = ok ? `Copied ${chosen.length}` : 'Copy failed';
+    this.copySelected.textContent = ok ? t('Copied {n}', { n: chosen.length }) : t('Copy failed');
     clearTimeout(this.copiedTimer);
-    this.copiedTimer = setTimeout(() => { this.copySelected.textContent = 'Copy selected'; }, 2000);
+    this.copiedTimer = setTimeout(() => { this.copySelected.textContent = t('Copy selected'); }, 2000);
   }
 
   private matching(): FrameRecord[] {
@@ -238,21 +239,21 @@ export class FrameTable {
     this.shown = this.sorted(all).slice(0, MAX_SHOWN);
     const total = this.log.count;
     this.summary.textContent =
-      `${all.length} of ${total} frame${total === 1 ? '' : 's'} match` +
-      (all.length > MAX_SHOWN ? ` (first ${MAX_SHOWN} shown)` : '') +
-      ` · ${this.selected.size} selected`;
+      tn(total, '{shown} of {n} frame match', '{shown} of {n} frames match', { shown: all.length }) +
+      (all.length > MAX_SHOWN ? t(' (first {n} shown)', { n: MAX_SHOWN }) : '') +
+      ' · ' + t('{n} selected', { n: this.selected.size });
     this.removeSelected.disabled = this.selected.size === 0;
     this.copySelected.disabled = this.selected.size === 0;
     this.exportAll.disabled = total === 0;
     this.removeShown.disabled = all.length === 0;
-    this.removeShown.textContent = all.length === total ? 'Remove all' : 'Remove all shown';
+    this.removeShown.textContent = all.length === total ? t('Remove all') : t('Remove all shown');
 
     const table = el('table', 'link-table frame-grid');
     const head = el('tr');
     const all_ = el('input');
     all_.id = 'frame-select-all';
     all_.type = 'checkbox';
-    all_.title = 'Select every row shown';
+    all_.title = t('Select every row shown');
     all_.checked = this.shown.length > 0 && this.shown.every((r) => this.selected.has(r.id));
     all_.addEventListener('change', () => {
       for (const r of this.shown) all_.checked ? this.selected.add(r.id) : this.selected.delete(r.id);
@@ -262,7 +263,7 @@ export class FrameTable {
     th0.append(all_);
     head.append(th0);
     const cols: [string, SortKey | null][] = [
-      ['Time', 'time'], ['Since', 'time'], ['', null], ['Ch', 'channel'], ['From', null], ['To', null], ['Type', null], ['Msg', null], ['dt UTC (s)', null], ['SNR (dB)', 'snr'], ['Raw (hex)', null], ['Decoded', null],
+      [t('Time'), 'time'], [t('Since'), 'time'], ['', null], [t('Ch'), 'channel'], [t('From'), null], [t('To'), null], [t('Type'), null], [t('Msg'), null], [t('dt UTC (s)'), null], [t('SNR (dB)'), 'snr'], [t('Raw (hex)'), null], [t('Decoded|column'), null],
     ];
     for (const [text, k] of cols) {
       const th = el('th', undefined, text + (k && this.sortKey === k ? (this.sortDown ? ' ▼' : ' ▲') : ''));
@@ -286,7 +287,7 @@ export class FrameTable {
     for (const r of this.shown) body.append(this.row(r));
     table.append(body);
     this.scroll.replaceChildren(table);
-    if (this.shown.length === 0) this.scroll.append(el('p', 'hint', total === 0 ? 'No frames yet.' : 'No frame matches the filters.'));
+    if (this.shown.length === 0) this.scroll.append(el('p', 'hint', total === 0 ? t('No frames yet.') : t('No frame matches the filters.')));
   }
 
   private row(r: FrameRecord): HTMLElement {
@@ -295,7 +296,7 @@ export class FrameTable {
     const box = el('input');
     box.id = `frame-select-${r.id}`;
     box.type = 'checkbox';
-    box.title = 'Select this frame';
+    box.title = t('Select this frame');
     box.checked = this.selected.has(r.id);
     box.addEventListener('change', () => {
       if (box.checked) this.selected.add(r.id);
@@ -304,7 +305,7 @@ export class FrameTable {
     });
     const c0 = el('td');
     c0.append(box);
-    const to = d.dst === undefined ? '' : d.dst === 0 ? 'everyone' : this.label(d.dst);
+    const to = d.dst === undefined ? '' : d.dst === 0 ? t('everyone') : this.label(d.dst);
     tr.append(
       c0,
       el('td', undefined, stamp(r.atMs)),

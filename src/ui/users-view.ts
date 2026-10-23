@@ -10,6 +10,7 @@ import { buildLinkModel, formatAge, type RepeaterInfo, type StationInfo, type St
 import type { LqaTable } from '../ale/lqa';
 import { BROADCAST } from '../chat/frames';
 import type { ChatPanel } from './chat-panel';
+import { t, tn } from '../i18n/i18n';
 
 const db = (v: number): string => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(0)} dB`;
 
@@ -90,7 +91,7 @@ export class UsersView {
     for (const id of sorted) list.append(this.row(id, nameOf(id), heard.get(id), last.get(id), false, nowMs));
     this.root.replaceChildren(list);
     if (sorted.length === 0) {
-      this.root.append(el('p', 'hint', 'Nobody else yet. Stations appear here when we hear a frame from them or they announce a name.'));
+      this.root.append(el('p', 'hint', t('Nobody else yet. Stations appear here when we hear a frame from them or they announce a name.')));
     }
   }
 
@@ -99,7 +100,7 @@ export class UsersView {
     const n = this.chat.unreadCount(id);
     if (n === 0) return document.createDocumentFragment();
     const b = el('span', 'contact-unread', n > 99 ? '99+' : String(n));
-    b.title = `${n} unread message${n === 1 ? '' : 's'}`;
+    b.title = tn(n, '{n} unread message', '{n} unread messages');
     b.setAttribute('aria-label', b.title);
     return b;
   }
@@ -115,11 +116,11 @@ export class UsersView {
     const avatar = el('span', 'contact-avatar', '🌐');
     avatar.setAttribute('aria-hidden', 'true');
     const body = el('span', 'contact-body');
-    const preview = last ? `${last.mine ? 'You: ' : last.who ? `${last.who}: ` : ''}${last.text}` : 'Messages addressed to nobody';
-    body.append(el('span', 'contact-top', 'Public'), el('span', 'contact-preview', preview));
+    const preview = last ? `${last.mine ? t('You: ') : last.who ? `${last.who}: ` : ''}${last.text}` : t('Messages addressed to nobody');
+    body.append(el('span', 'contact-top', t('Public')), el('span', 'contact-preview', preview));
     body.firstElementChild!.classList.add('contact-name');
     btn.append(avatar, body, this.unreadBadge(BROADCAST));
-    btn.title = 'Public: messages addressed to nobody, everyone can read them';
+    btn.title = t('Public: messages addressed to nobody, everyone can read them');
     li.append(btn);
     return li;
   }
@@ -144,7 +145,7 @@ export class UsersView {
     avatar.setAttribute('aria-hidden', 'true');
     if (!isSelf) avatar.append(el('span', `contact-presence presence-${status}`));
 
-    const name = `${nickname || 'No name'}${isSelf ? ' (you)' : ''}`;
+    const name = `${nickname || t('No name')}${isSelf ? t(' (you)') : ''}`;
     const top = el('span', 'contact-top');
     const when = last?.atMs ?? (info ? nowMs - info.ageSec * 1000 : 0);
     // Slot resolution: the table only knows in which slot a station was last heard.
@@ -154,19 +155,19 @@ export class UsersView {
       since.dataset.heardMs = String(heardMs);
       since.textContent = elapsed((nowMs - heardMs) / 1000);
     } else since.textContent = isSelf ? '' : '–';
-    since.title = 'Time since this station was last heard';
+    since.title = t('Time since this station was last heard');
     top.append(el('span', 'contact-name', name), el('span', 'contact-time', isSelf || !when ? '' : clockShort(when, nowMs)), since);
 
     let preview: string;
-    if (isSelf) preview = `Station #${id}`;
-    else if (last) preview = `${last.mine ? 'You: ' : ''}${last.text}`;
-    else if (info) preview = `#${id} · heard ${formatAge(info.ageSec)}${info.lastSnrDb !== undefined ? ` · ${db(info.lastSnrDb)} on ch ${info.lastChannel}` : ''}`;
-    else preview = `#${id} · not heard lately`;
+    if (isSelf) preview = t('Station #{id}', { id });
+    else if (last) preview = `${last.mine ? t('You: ') : ''}${last.text}`;
+    else if (info) preview = `#${id} · ${t('heard {age}', { age: formatAge(info.ageSec) })}${info.lastSnrDb !== undefined ? ` · ${t('{db} on ch {ch}', { db: db(info.lastSnrDb), ch: info.lastChannel ?? '?' })}` : ''}`;
+    else preview = `#${id} · ${t('not heard lately')}`;
     btn.append(avatar, el('span', 'contact-body'));
     const body = btn.lastElementChild as HTMLElement;
     body.append(top, el('span', 'contact-preview', preview));
     if (!isSelf) btn.append(this.unreadBadge(id));
-    btn.title = isSelf ? 'This station' : `Message ${nickname || `#${id}`}${info?.best ? ` · send on ch ${info.best.channel}` : ''}`;
+    btn.title = isSelf ? t('This station') : t('Message {name}', { name: nickname || `#${id}` }) + (info?.best ? ` · ${t('send on ch {ch}', { ch: info.best.channel })}` : '');
     li.append(btn);
     return li;
   }

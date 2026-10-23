@@ -1,9 +1,12 @@
 // Decode worker for the How it works page: builds a receive window (real modulator + white noise) and runs the
 // real audiomesh demodulator on it, off the page's thread.
-import {
-  GFSK8_DEEP, GFSK8_FAST, GFSK8_LONG, GFSK8_MEDIUM, GFSK8_NORMAL, GFSK8_TURBO, Gfsk8Codec, Gfsk8Demodulator,
-  decodeFrame, encodeFrame, synthesizeFrame, windowDurationSec, windowLeadSec, type ProtocolSpec,
-} from './am';
+// Straight from the modules, not through am.ts: that one also brings the chat layer and its texts, which a worker never shows.
+import { GFSK8_DEEP, GFSK8_FAST, GFSK8_LONG, GFSK8_MEDIUM, GFSK8_NORMAL, GFSK8_TURBO } from '../protocol/gfsk8/spec';
+import { Gfsk8Codec } from '../protocol/gfsk8/codec';
+import { Gfsk8Demodulator } from '../protocol/gfsk8/demodulator';
+import { synthesizeFrame } from '../protocol/gfsk8/modulator';
+import { windowDurationSec, windowLeadSec, type ProtocolSpec } from '../protocol/spec';
+import { decodeFrame, encodeFrame } from '../chat/frames';
 
 const SPECS: Record<string, ProtocolSpec> = Object.fromEntries(
   [GFSK8_TURBO, GFSK8_FAST, GFSK8_MEDIUM, GFSK8_NORMAL, GFSK8_LONG, GFSK8_DEEP].map((s) => [s.id, s]),

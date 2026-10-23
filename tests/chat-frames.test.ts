@@ -16,7 +16,11 @@ describe('6-bit charset', () => {
   });
 
   it('folds case, flattens whitespace and replaces what it cannot carry', () => {
-    expect(normalizeText('Hello,\n\tworld! café')).toBe('HELLO, WORLD! CAF?');
+    expect(normalizeText('Hello,\n\tworld! café € ß')).toBe('HELLO, WORLD! CAFE ? ?');
+  });
+
+  it('drops accents and reads the Spanish opening marks as the closing ones, one character for one', () => {
+    expect(normalizeText('¿Cómo estás? ¡Mañana!')).toBe('?COMO ESTAS? !MANANA!');
   });
 });
 

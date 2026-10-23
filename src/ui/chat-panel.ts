@@ -30,6 +30,7 @@ import { distinctFrames } from '../protocol/multi-decode';
 import { CHAT_KEY, DEBUG_KEY, STATIONS_KEY, UNREAD_KEY, DeferredSaver, loadJson, removeKey, saveJson } from '../storage/store';
 import { nextSlotStartMs } from '../protocol/slot-clock';
 import { frameDurationSec } from '../protocol/spec';
+import { allLangs, num, t, tn } from '../i18n/i18n';
 
 const MAX_ROWS = 500;
 
@@ -57,7 +58,7 @@ interface LogEntry {
   who?: string | null;
   /** The other station of a directed or received message: who a click on the bubble replies to. */
   station?: number;
-  /** Details shown under ⓘ, one [label, value] line per item. */
+  /** Details shown under ⓘ, one [label, value] line per item. The label is the English key (INFO_LABEL shows it translated); the value is worded in the language of the moment. */
   info?: [string, string][];
   /** A received directed message: what "Resend ACK" needs. */
   ack?: { src: number; msgId: number; frames: number };
@@ -74,7 +75,7 @@ interface LogEntry {
 /** Which conversation a chat line belongs to: 'public' (addressed to nobody) or the other station's id. Notices belong to none. */
 function threadOf(e: LogEntry): string | null {
   if (e.kind === 'notice') return null;
-  if (e.info?.some(([k, v]) => k === 'To' && v === 'everyone')) return 'public';
+  if (e.info?.some(([k, v]) => k === 'To' && allLangs('everyone').includes(v))) return 'public';
   if (e.station === undefined) return 'public';
   return String(e.station);
 }
@@ -117,9 +118,9 @@ function parseLog(raw: unknown): LogEntry[] {
       const inFlight = typeof e.stateClass === 'string' && INFLIGHT.test(e.stateClass);
       // The session that was sending it is gone with the page, so it will never finish.
       entry.stateClass = inFlight ? 'bubble-state state-failed' : typeof e.stateClass === 'string' ? e.stateClass : '';
-      entry.stateText = inFlight ? '✗ interrupted' : typeof e.stateText === 'string' ? e.stateText : '';
-      entry.statusText = inFlight ? 'the page was closed or reloaded before this was confirmed.' : entry.statusText ?? (typeof e.statusText === 'string' ? e.statusText : '');
-      if (inFlight && entry.info) entry.info = entry.info.map(([k, v]): [string, string] => [k, k === 'Status' ? '✗ interrupted by a reload' : v]);
+      entry.stateText = inFlight ? t('✗ interrupted') : typeof e.stateText === 'string' ? e.stateText : '';
+      entry.statusText = inFlight ? t('the page was closed or reloaded before this was confirmed.') : entry.statusText ?? (typeof e.statusText === 'string' ? e.statusText : '');
+      if (inFlight && entry.info) entry.info = entry.info.map(([k, v]): [string, string] => [k, k === 'Status' ? t('✗ interrupted by a reload') : v]);
     }
     out.push(entry);
   }
@@ -173,18 +174,24 @@ const TX_LEAD_MS = 300;
 const clock = (ms: number): string => new Date(ms).toLocaleTimeString([], { hour12: false });
 const clockShort = (ms: number): string =>
   new Date(ms).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' });
-const signed = (v: number, digits: number): string => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(digits)}`;
+const signed = (v: number, digits: number): string => `${v >= 0 ? '+' : '−'}${num(Math.abs(v), digits)}`;
+
+/** The ⓘ labels, kept in English in the stored lines (code looks for 'To', 'Status', 'ACK'), shown in the page's language. */
+const INFO_LABEL: Readonly<Record<string, string>> = {
+  From: t('From'), To: t('To'), Path: t('Path'), ACK: t('ACK'), Signal: t('Signal'), Channel: t('Channel'), Frames: t('Frames'),
+  Sprite: t('Sprite'), Status: t('Status'), Retry: t('Retry'), Level: t('Level'),
+};
 
 /** A frame kind in words. */
 function kindText(f: ChatFrame): string {
   switch (f.kind) {
-    case 'first': return 'message (first frame)';
-    case 'next': return `message frame ${f.seq + 1}`;
-    case 'spriteHead': return 'sprite (first frame)';
-    case 'spriteBody': return `sprite frame ${f.seq + 1}`;
-    case 'ack': return 'ack';
-    case 'hello': return `announcement "${f.name}"`;
-    case 'sound': return 'network probe';
+    case 'first': return t('message (first frame)');
+    case 'next': return t('message frame {n}', { n: f.seq + 1 });
+    case 'spriteHead': return t('sprite (first frame)');
+    case 'spriteBody': return t('sprite frame {n}', { n: f.seq + 1 });
+    case 'ack': return t('ack');
+    case 'hello': return t('announcement "{name}"', { name: f.name });
+    case 'sound': return t('network probe');
   }
 }
 
@@ -197,7 +204,7 @@ function fillInfo(box: HTMLElement, entry: LogEntry, action?: HTMLElement): void
       row.className = 'bubble-row';
       const key = document.createElement('span');
       key.className = 'bubble-key';
-      key.textContent = k;
+      key.textContent = INFO_LABEL[k] ?? k;
       const val = document.createElement('span');
       val.textContent = v;
       if (k === 'Status' && entry.statusText) val.title = entry.statusText;
@@ -371,8 +378,8 @@ export class ChatPanel {
       if (icon !== undefined) this.icons.set(id, icon);
       this.stationsSaver.touch();
       this.fillRecipients();
-      this.addNotice(`${this.label(id)} announced itself`);
-      this.notifier?.notify('Station announced', `${this.label(id)} announced itself`, `hello-${id}`);
+      this.addNotice(t('{name} announced itself', { name: this.label(id) }));
+      this.notifier?.notify(t('Station announced'), t('{name} announced itself', { name: this.label(id) }), `hello-${id}`);
     };
     this.editor = new SpriteEditor({
       slotSec: protocol.spec.slotSec,
@@ -387,7 +394,7 @@ export class ChatPanel {
       if (e.key === 'Enter' && !this.button.disabled) this.onSendClicked();
     });
     engine.onFrameDone = () => {
-      if (this.currentTx) this.lastAction = { atMs: Date.now(), text: `sent ${this.currentTx.what} on ch ${this.currentTx.channel}`, icon: this.currentTx.icon, dir: 'tx' };
+      if (this.currentTx) this.lastAction = { atMs: Date.now(), text: t('sent {what} on ch {ch}', { what: this.currentTx.what, ch: this.currentTx.channel }), icon: this.currentTx.icon, dir: 'tx' };
       this.currentTx = null;
       this.refresh();
       this.pump();
@@ -450,7 +457,7 @@ export class ChatPanel {
     more.type = 'button';
     more.className = 'thread-more';
     more.textContent = '…';
-    more.title = 'Options for this contact';
+    more.title = t('Options for this contact');
     more.setAttribute('aria-haspopup', 'true');
     more.setAttribute('aria-expanded', 'false');
     const menu = document.createElement('div');
@@ -488,15 +495,15 @@ export class ChatPanel {
     };
     const head = document.createElement('div');
     head.className = 'menu-head';
-    head.textContent = `${name} · station #${id}`;
+    head.textContent = t('{name} · station #{id}', { name, id });
     menu.replaceChildren(
       head,
-      item('Copy station id', () => { void navigator.clipboard?.writeText(String(id)).catch(() => {}); }),
-      item('Clear messages (keep contact)', () => {
-        if (confirm(`Delete all messages with ${name}? The contact stays.`)) this.clearConversation(id);
+      item(t('Copy station id'), () => { void navigator.clipboard?.writeText(String(id)).catch(() => {}); }),
+      item(t('Clear messages (keep contact)'), () => {
+        if (confirm(t('Delete all messages with {name}? The contact stays.', { name }))) this.clearConversation(id);
       }),
-      item('Remove contact and messages', () => {
-        if (confirm(`Remove ${name} and all its messages?\nIt comes back as a new contact when heard again.`)) this.removeContact(id);
+      item(t('Remove contact and messages'), () => {
+        if (confirm(t('Remove {name} and all its messages?\nIt comes back as a new contact when heard again.', { name }))) this.removeContact(id);
       }, 'menu-danger'),
     );
   }
@@ -567,7 +574,7 @@ export class ChatPanel {
       (li as HTMLElement).hidden = t !== undefined && t !== want;
     }
     const title = document.getElementById('thread-title');
-    if (title) title.textContent = id === BROADCAST ? 'Public' : this.label(id);
+    if (title) title.textContent = id === BROADCAST ? t('Public') : this.label(id);
     if (this.threadMore) this.threadMore.hidden = id === BROADCAST;
     if (this.threadMenu) this.threadMenu.hidden = true;
     this.markRead();
@@ -681,8 +688,8 @@ export class ChatPanel {
     if (on === this.session.isRepeater) return;
     this.session.setRepeater(on);
     this.addNotice(on
-      ? 'repeater on: frames heard from other stations are repeated; a test beacon tells them'
-      : `repeater off (${this.session.repeatedCount} frames repeated)`);
+      ? t('repeater on: frames heard from other stations are repeated; a test beacon tells them')
+      : t('repeater off ({n} frames repeated)', { n: this.session.repeatedCount }));
     this.pump();
   }
 
@@ -699,7 +706,7 @@ export class ChatPanel {
   /** Call when audio starts or stops, or a transmission ends. */
   refresh(): void {
     this.button.disabled = !this.canTransmit;
-    this.button.textContent = 'Send';
+    this.button.textContent = t('Send');
     // Test and Announce are not `disabled` (a disabled button cannot explain itself): they look off and say why when pressed.
     const off = !this.canTransmit;
     for (const b of document.querySelectorAll<HTMLButtonElement>('#sound-button, .announce-button')) {
@@ -710,20 +717,20 @@ export class ChatPanel {
 
   /** Why nothing can be sent right now, worded for the user; null when sending is possible. */
   txBlockedReason(): string | null {
-    if (!this.engine.running) return 'Turn Audio on and Allow transmit in Network options first.';
-    if (!this.engine.transmitAllowed) return 'Transmit is off: turn on Allow transmit in Network options.';
-    if (!this.canTransmit) return 'Select a channel or turn on Auto channel in Network options.';
+    if (!this.engine.running) return t('Turn Audio on and Allow transmit in Network options first.');
+    if (!this.engine.transmitAllowed) return t('Transmit is off: turn on Allow transmit in Network options.');
+    if (!this.canTransmit) return t('Select a channel or turn on Auto channel in Network options.');
     return null;
   }
 
   /** Ask for a hello with our nickname to go out in the next free slot. */
   announce(automatic = false): void {
     if (!this.session.hasNickname) {
-      this.status.textContent = 'Set a name in Settings before announcing.';
+      this.status.textContent = t('Set a name in Settings before announcing.');
       return;
     }
     this.session.announce();
-    if (!automatic) this.addNotice('you announced yourself (sent at the next slot)');
+    if (!automatic) this.addNotice(t('you announced yourself (sent at the next slot)'));
     this.pump();
   }
 
@@ -753,8 +760,8 @@ export class ChatPanel {
     this.currentTx = { what: this.describeTx(tx.payload, tx.dst), channel: channel.number, icon: this.iconOfPayload(tx.payload) };
     this.frames.add({ atMs: this.sendingAtMs, dir: 'tx', channel: channel.number, snrDb: null, hex: payloadHex(tx.payload) });
     this.status.textContent = viaOf(tx.payload)
-      ? `repeating a frame on channel ${channel.number} (${channel.why})`
-      : `sending on channel ${channel.number} (${channel.why})`;
+      ? t('repeating a frame on channel {ch} ({why})', { ch: channel.number, why: channel.why })
+      : t('sending on channel {ch} ({why})', { ch: channel.number, why: channel.why });
     this.refresh();
   }
 
@@ -779,21 +786,21 @@ export class ChatPanel {
     // An answer to a probe (dst = the prober) picks its channel like any directed frame.
     if (isSound && dst === BROADCAST && numbers.length > 0) {
       const n = soundChannel(this.session.stationId, this.soundCount++, numbers);
-      return { ...byNumber(n)!, why: 'sound rotation' };
+      return { ...byNumber(n)!, why: t('sound rotation') };
     }
     const home = this.selected ?? band[Math.floor(band.length / 2)]!;
     if (this.autoChannel && numbers.length > 0) {
       const load = this.channelLoadAt(slot);
       const busy = (n: number): string => {
         const k = load.get(n) ?? 0;
-        return k > 0 ? `, ${k} other station${k === 1 ? '' : 's'} on it lately` : '';
+        return k > 0 ? tn(k, ', {n} other station on it lately', ', {n} other stations on it lately') : '';
       };
       const to = dst === BROADCAST ? this.lqa.stations(slot) : [dst];
       // A retransmit round of a directed message: all its frames on one channel, and not the one that just got no ack.
       const key = msgId !== undefined && round !== undefined ? `${dst}:${msgId}` : null;
       const last = key ? this.retryRounds.get(key) : undefined;
       if (last && round !== undefined && round > 1 && last.round === round) {
-        return { ...byNumber(last.channel)!, why: `retry round ${round}` };
+        return { ...byNumber(last.channel)!, why: t('retry round {n}', { n: round }) };
       }
       if (key && last && round !== undefined && round > last.round) {
         const ranked = this.lqa.rankChannels([dst], numbers, slot).filter((s) => s.score >= VIABLE_DB).map((s) => s.channel);
@@ -801,20 +808,20 @@ export class ChatPanel {
         if (r !== undefined) {
           this.noteRetryChannel(key, round, r, last.used);
           this.lastChannelFor.set(dst, r);
-          return { ...byNumber(r)!, why: `retry round ${round}, not channel ${last.channel}` };
+          return { ...byNumber(r)!, why: t('retry round {n}, not channel {ch}', { n: round, ch: last.channel }) };
         }
       }
       let n = this.lqa.chooseChannel(to, numbers, slot, Math.random, { load, prefer: this.lastChannelFor.get(dst) });
       if (n !== undefined) {
         this.lastChannelFor.set(dst, n);
         if (key && round !== undefined) this.noteRetryChannel(key, round, n, last?.used ?? []);
-        return { ...byNumber(n)!, why: `best link${busy(n)}` };
+        return { ...byNumber(n)!, why: t('best link') + busy(n) };
       }
       // Nothing known about the link: everyone hears the whole band, so take the quietest channel.
       n = quietestChannel(numbers, load, home.number);
-      if (n !== home.number) return { ...byNumber(n)!, why: `no link data yet, channel ${home.number} busy` };
+      if (n !== home.number) return { ...byNumber(n)!, why: t('no link data yet, channel {ch} busy', { ch: home.number }) };
     }
-    return { ...home, why: this.selected ? 'selected channel' : 'no link data yet' };
+    return { ...home, why: this.selected ? t('selected channel') : t('no link data yet') };
   }
 
   private noteRetryChannel(key: string, round: number, channel: number, used: readonly number[]): void {
@@ -918,10 +925,10 @@ export class ChatPanel {
     const fromOthersHeard = heard.filter((h) => decodeFrame(h.frame.payload)?.src !== this.session.stationId);
     if (fromOthersHeard.length) {
       const h = fromOthersHeard[0]!;
-      const more = fromOthersHeard.length > 1 ? ` (and ${fromOthersHeard.length - 1} more)` : '';
+      const more = fromOthersHeard.length > 1 ? t(' (and {n} more)', { n: fromOthersHeard.length - 1 }) : '';
       this.lastAction = {
         atMs: Date.now(),
-        text: `received ${this.describeRx(h.frame.payload)} on ch ${this.channelNumber(h.baseFreqHz)}, ${signed(h.frame.snrDb, 0)} dB${more}`,
+        text: t('received {what} on ch {ch}, {snr} dB', { what: this.describeRx(h.frame.payload), ch: this.channelNumber(h.baseFreqHz), snr: signed(h.frame.snrDb, 0) }) + more,
         icon: this.iconOfPayload(h.frame.payload),
         dir: 'rx',
       };
@@ -931,34 +938,34 @@ export class ChatPanel {
   }
 
   private who(id: number): string {
-    return id === BROADCAST ? 'everyone' : this.label(id);
+    return id === BROADCAST ? t('everyone') : this.label(id);
   }
 
   /** A frame we send, in words: "message frame 2/3 to ANA", "network probe", ... */
   private describeTx(payload: Uint8Array, dst: number): string {
     const f = decodeFrame(payload);
-    if (!f) return 'a frame';
-    if (f.via || f.src !== this.session.stationId) return `a repeat of ${this.label(f.src)}'s ${kindText(f)}`;
+    if (!f) return t('a frame');
+    if (f.via || f.src !== this.session.stationId) return t("a repeat of {name}'s {kind}", { name: this.label(f.src), kind: kindText(f) });
     switch (f.kind) {
-      case 'first': return `message frame 1/${f.last + 1} to ${this.who(f.dst)}`;
+      case 'first': return t('message frame {n} to {who}', { n: `1/${f.last + 1}`, who: this.who(f.dst) });
       case 'next': {
         const total = this.session.outlook().sending?.total;
-        return `message frame ${f.seq + 1}${total ? `/${total}` : ''} to ${this.who(dst)}`;
+        return t('message frame {n} to {who}', { n: `${f.seq + 1}${total ? `/${total}` : ''}`, who: this.who(dst) });
       }
-      case 'spriteHead': return `sprite frame 1/${spriteFrameCount(f.side, f.bpp)} to ${this.who(f.dst)}`;
-      case 'spriteBody': return `sprite frame ${f.seq + 1}/${spriteFrameCount(f.side, f.bpp)} to ${this.who(dst)}`;
-      case 'ack': return `ack to ${this.who(f.dst)}`;
-      case 'hello': return 'announcement';
-      case 'sound': return 'network probe';
+      case 'spriteHead': return t('sprite frame {n} to {who}', { n: `1/${spriteFrameCount(f.side, f.bpp)}`, who: this.who(f.dst) });
+      case 'spriteBody': return t('sprite frame {n} to {who}', { n: `${f.seq + 1}/${spriteFrameCount(f.side, f.bpp)}`, who: this.who(dst) });
+      case 'ack': return t('ack to {who}', { who: this.who(f.dst) });
+      case 'hello': return t('announcement');
+      case 'sound': return t('network probe');
     }
   }
 
   /** A frame from another station, in words: "announcement from ANA", "network probe from #12 through a repeater". */
   private describeRx(payload: Uint8Array): string {
     const f = decodeFrame(payload);
-    if (!f) return 'a frame';
-    const to = f.kind === 'first' || f.kind === 'spriteHead' || f.kind === 'ack' ? ` to ${f.dst === this.session.stationId ? 'us' : this.who(f.dst)}` : '';
-    return `${kindText(f)} from ${this.label(f.src)}${to}${f.via ? ' through a repeater' : ''}`;
+    if (!f) return t('a frame');
+    const to = f.kind === 'first' || f.kind === 'spriteHead' || f.kind === 'ack' ? t(' to {who}', { who: f.dst === this.session.stationId ? t('us') : this.who(f.dst) }) : '';
+    return t('{kind} from {name}', { kind: kindText(f), name: this.label(f.src) }) + to + (f.via ? t(' through a repeater') : '');
   }
 
   private iconOfPayload(payload: Uint8Array): string {
@@ -972,35 +979,40 @@ export class ChatPanel {
    */
   nextAction(nowMs = Date.now()): { text: string; icon: string; state: 'off' | 'listen' | 'wait' | 'air' } {
     const as = (state: 'off' | 'listen' | 'wait' | 'air', icon: string, text: string) => ({ text, icon, state });
-    if (!this.engine.running) return as('off', '⏸️', 'audio is off');
-    if (!this.engine.transmitAllowed) return as('off', '🔇', 'listening only: transmit is off');
+    if (!this.engine.running) return as('off', '⏸️', t('audio is off'));
+    if (!this.engine.transmitAllowed) return as('off', '🔇', t('listening only: transmit is off'));
     const secs = (ms: number): number => Math.max(0, Math.ceil(ms / 1000));
     const tx = this.transmitWindow;
     if (tx && this.currentTx) {
-      const what = `${this.currentTx.what} on ch ${this.currentTx.channel}`;
-      if (nowMs < tx.startMs) return as('air', this.currentTx.icon, `waiting ${secs(tx.startMs - nowMs)} s for the slot to transmit ${what}`);
-      return as('air', this.currentTx.icon, `transmitting ${what}, ${secs(tx.endMs - nowMs)} s left`);
+      const what = t('{what} on ch {ch}', { what: this.currentTx.what, ch: this.currentTx.channel });
+      if (nowMs < tx.startMs) return as('air', this.currentTx.icon, t('waiting {s} s for the slot to transmit {what}', { s: secs(tx.startMs - nowMs), what }));
+      return as('air', this.currentTx.icon, t('transmitting {what}, {s} s left', { what, s: secs(tx.endMs - nowMs) }));
     }
-    if (!this.canTransmit) return as('off', '👂', 'listening: choose a channel (or turn on Auto channel) to transmit');
+    if (!this.canTransmit) return as('off', '👂', t('listening: choose a channel (or turn on Auto channel) to transmit'));
     const o = this.session.outlook();
     const slotMs = this.protocol.spec.slotSec * 1000;
-    const nextSlot = `next slot in ${secs(slotMs - (nowMs % slotMs))} s`;
-    if (o.ackDue) return as('wait', '✅', `sending an ack to ${this.label(o.ackDue.to)} (${nextSlot})`);
-    if (o.repeats) return as('wait', '🔁', `repeating ${o.repeats} frame${o.repeats === 1 ? '' : 's'} from others (${nextSlot})`);
+    const nextSlot = t('next slot in {s} s', { s: secs(slotMs - (nowMs % slotMs)) });
+    if (o.ackDue) return as('wait', '✅', t('sending an ack to {name} ({when})', { name: this.label(o.ackDue.to), when: nextSlot }));
+    if (o.repeats) return as('wait', '🔁', tn(o.repeats, 'repeating {n} frame from others ({when})', 'repeating {n} frames from others ({when})', { when: nextSlot }));
     // A beacon waits for a quiet slot after our last frame.
     const nowSlot = Math.floor(nowMs / slotMs);
     const beaconWait = o.beaconFromSlot !== null && o.beaconFromSlot > nowSlot + 1
-      ? `after a quiet slot, in ${secs(o.beaconFromSlot * slotMs - nowMs)} s`
+      ? t('after a quiet slot, in {s} s', { s: secs(o.beaconFromSlot * slotMs - nowMs) })
       : nextSlot;
-    if (o.hello) return as('wait', '📣', `sending an announcement (${beaconWait})`);
+    if (o.hello) return as('wait', '📣', t('sending an announcement ({when})', { when: beaconWait }));
     if (o.waitingAck) {
-      const queued = o.queued ? `; ${o.queued} more message${o.queued === 1 ? '' : 's'} queued` : '';
-      return as('wait', '⏳', `waiting for an ack from ${this.who(o.waitingAck.dst)} (up to ${secs((o.waitingAck.untilSlot + 1) * slotMs - nowMs)} s)${queued}`);
+      const queued = o.queued ? tn(o.queued, '; {n} more message queued', '; {n} more messages queued') : '';
+      return as('wait', '⏳', t('waiting for an ack from {who} (up to {s} s)', { who: this.who(o.waitingAck.dst), s: secs((o.waitingAck.untilSlot + 1) * slotMs - nowMs) }) + queued);
     }
-    if (o.sending) return as('wait', o.sending.sprite ? '🖼️' : '💬', `sending a ${o.sending.sprite ? 'sprite' : 'message'} to ${this.who(o.sending.dst)}: ${o.sending.left} of ${o.sending.total} frames to go (${nextSlot})`);
-    if (o.queued) return as('wait', '💬', `sending ${o.queued} queued message${o.queued === 1 ? '' : 's'} (${nextSlot})`);
-    if (o.sound) return as('wait', '📡', `sending a network probe (${beaconWait})`);
-    return as('listen', '👂', `listening (${nextSlot})`);
+    if (o.sending) {
+      const vars = { who: this.who(o.sending.dst), left: o.sending.left, total: o.sending.total, when: nextSlot };
+      return as('wait', o.sending.sprite ? '🖼️' : '💬', o.sending.sprite
+        ? t('sending a sprite to {who}: {left} of {total} frames to go ({when})', vars)
+        : t('sending a message to {who}: {left} of {total} frames to go ({when})', vars));
+    }
+    if (o.queued) return as('wait', '💬', tn(o.queued, 'sending {n} queued message ({when})', 'sending {n} queued messages ({when})', { when: nextSlot }));
+    if (o.sound) return as('wait', '📡', t('sending a network probe ({when})', { when: beaconWait }));
+    return as('listen', '👂', t('listening ({when})', { when: nextSlot }));
   }
 
   /** Tell the user, at most every two minutes, that the microphone signal is clipping. */
@@ -1009,7 +1021,7 @@ export class ChatPanel {
     if (now - this.lastOverloadNoticeMs < OVERLOAD_NOTICE_MS) return;
     this.lastOverloadNoticeMs = now;
     const peakDb = 20 * Math.log10(Math.max(peak, 1e-6));
-    this.addNotice(`⚠ microphone overloaded (${clipped} clipped samples, peak ${peakDb.toFixed(1)} dBFS): lower the mic input volume, move the devices apart or lower the other station's level`);
+    this.addNotice(t("⚠ microphone overloaded ({n} clipped samples, peak {peak} dBFS): lower the mic input volume, move the devices apart or lower the other station's level", { n: clipped, peak: num(peakDb, 1) }));
   }
 
   private channelNumber(baseFreqHz: number): number {
@@ -1037,7 +1049,7 @@ export class ChatPanel {
       o.textContent = label;
       this.dstSelect.append(o);
     };
-    add(BROADCAST, 'Public');
+    add(BROADCAST, t('Public'));
     for (const [id, name] of this.known) add(id, `${this.iconOf(id)} ${name || `#${id}`}`);
     this.dstSelect.value = [...this.dstSelect.options].some((o) => o.value === keep) ? keep : String(BROADCAST);
   }
@@ -1107,8 +1119,8 @@ export class ChatPanel {
     this.noteIncoming(m.dst === BROADCAST ? BROADCAST : m.src);
     this.onIncoming?.();
     this.notifier?.notify(
-      this.label(m.src) + (m.dst === BROADCAST ? '' : ' (to you)'),
-      m.text || '(blank)',
+      this.label(m.src) + (m.dst === BROADCAST ? '' : t(' (to you)')),
+      m.text || t('(blank)'),
       `msg-${m.src}`,
     );
     if (!this.known.has(m.src)) {
@@ -1121,20 +1133,25 @@ export class ChatPanel {
     this.add({
       kind: 'in',
       atMs: at,
-      text: m.text || '(blank)',
+      text: m.text || t('(blank)'),
       who: this.label(m.src),
       station: m.src,
       ...(m.dst === BROADCAST ? {} : { ack: { src: m.src, msgId: m.msgId, frames: m.frames } }),
       info: [
         ['From', this.label(m.src)],
-        ['To', m.dst === BROADCAST ? 'everyone' : 'you'],
-        ['Path', m.via ? `repeated by ${this.repeaterName(m.via)}` : 'direct'],
-        ['ACK', m.dst === BROADCAST ? 'none (broadcasts are not confirmed)' : `queued back to ${this.label(m.src)}`],
-        ['Signal', `${signed(m.snrDb, 0)} dB weakest frame${m.via ? ', the repeater\'s' : ''}`],
+        ['To', m.dst === BROADCAST ? t('everyone') : t('you')],
+        ['Path', m.via ? t('repeated by {name}', { name: this.repeaterName(m.via) }) : t('direct')],
+        ['ACK', m.dst === BROADCAST ? t('none (broadcasts are not confirmed)') : t('queued back to {name}', { name: this.label(m.src) })],
+        ['Signal', this.signalText(m.snrDb, !!m.via)],
         ['Channel', `${ch?.number ?? '?'} · ${ch?.baseHz ?? '?'} Hz`],
-        ['Frames', `${m.frames}, complete at ${clock(at)}`],
+        ['Frames', t('{n}, complete at {time}', { n: m.frames, time: clock(at) })],
       ],
     });
+  }
+
+  /** The ⓘ Signal line of a received message: its weakest frame (the repeater's signal when it came through one). */
+  private signalText(snrDb: number, repeated: boolean): string {
+    return repeated ? t("{snr} dB weakest frame, the repeater's", { snr: signed(snrDb, 0) }) : t('{snr} dB weakest frame', { snr: signed(snrDb, 0) });
   }
 
   /**
@@ -1156,7 +1173,7 @@ export class ChatPanel {
       pixels: pixelsToString(view), got: m.framesGot ?? 0, frames: m.frames, done: final,
     };
     const fields = {
-      text: `sprite ${view.side}×${view.side}`,
+      text: t('sprite {side}×{side}', { side: view.side }),
       info: this.spriteInInfo(m, at),
       sprite: line,
       ...(m.dst === this.session.stationId ? { ack: { src: m.src, msgId: m.msgId, frames: m.frames } } : {}),
@@ -1177,8 +1194,8 @@ export class ChatPanel {
     if (!final) return;
     this.spriteBubbles.delete(m.uid);
     this.notifier?.notify(
-      this.label(m.src) + (m.dst === this.session.stationId ? ' (to you)' : ''),
-      `${fields.text}${m.partial ? ` (partial, ${line.got} of ${line.frames} frames)` : ''}`,
+      this.label(m.src) + (m.dst === this.session.stationId ? t(' (to you)') : ''),
+      fields.text + (m.partial ? t(' (partial, {got} of {n} frames)', { got: line.got, n: line.frames }) : ''),
       `msg-${m.src}`,
     );
   }
@@ -1192,24 +1209,24 @@ export class ChatPanel {
     let to: string;
     let ack: string;
     if (m.dst === null) {
-      to = 'unknown (the first frame, which names it, was not heard)';
-      ack = 'none until the first frame is heard';
+      to = t('unknown (the first frame, which names it, was not heard)');
+      ack = t('none until the first frame is heard');
     } else if (m.dst === BROADCAST) {
-      to = 'everyone';
-      ack = 'none (broadcasts are not confirmed)';
+      to = t('everyone');
+      ack = t('none (broadcasts are not confirmed)');
     } else {
-      to = 'you';
-      ack = complete ? `queued back to ${this.label(m.src)}` : `sent when ${this.label(m.src)} pauses, listing what is missing`;
+      to = t('you');
+      ack = complete ? t('queued back to {name}', { name: this.label(m.src) }) : t('sent when {name} pauses, listing what is missing', { name: this.label(m.src) });
     }
     return [
       ['From', this.label(m.src)],
       ['To', to],
-      ['Path', m.via ? `repeated by ${this.repeaterName(m.via)}` : 'direct'],
+      ['Path', m.via ? t('repeated by {name}', { name: this.repeaterName(m.via) }) : t('direct')],
       ['ACK', ack],
-      ['Signal', `${signed(m.snrDb, 0)} dB weakest frame${m.via ? ', the repeater\'s' : ''}`],
+      ['Signal', this.signalText(m.snrDb, !!m.via)],
       ['Channel', `${ch?.number ?? '?'} · ${ch?.baseHz ?? '?'} Hz`],
-      ['Sprite', `${m.sprite!.side}×${m.sprite!.side}, ${1 << m.sprite!.bpp} colours`],
-      ['Frames', complete ? `${m.frames}, complete at ${clock(at)}` : `${got} of ${m.frames}, missing ${missing.join(', ')}`],
+      ['Sprite', t('{side}×{side}, {colours} colours', { side: m.sprite!.side, colours: 1 << m.sprite!.bpp })],
+      ['Frames', complete ? t('{n}, complete at {time}', { n: m.frames, time: clock(at) }) : t('{got} of {n}, missing {list}', { got, n: m.frames, list: missing.join(', ') })],
     ];
   }
 
@@ -1220,7 +1237,7 @@ export class ChatPanel {
         kind: 'out',
         atMs: Date.now(),
         text: m.text,
-        who: m.dst === BROADCAST ? null : `to ${this.label(m.dst)}`,
+        who: m.dst === BROADCAST ? null : t('to {name}', { name: this.label(m.dst) }),
         station: m.dst === BROADCAST ? undefined : m.dst,
         ...(m.content.kind === 'sprite' ? { sprite: sentSpriteLine(m.content.sprite, m.frames) } : {}),
         info: [],
@@ -1255,30 +1272,30 @@ export class ChatPanel {
   /** The ⓘ lines of a sent message, rebuilt on every state change. */
   private outInfo(m: OutMessage, status: string, levelPct: number): [string, string][] {
     const broadcast = m.dst === BROADCAST;
-    const all = `${m.frames} frame${m.frames === 1 ? '' : 's'}`;
+    const all = tn(m.frames, '{n} frame', '{n} frames');
     const max = this.session.maxRounds;
     let ack: string;
-    if (broadcast) ack = 'none (broadcasts are not confirmed)';
-    else if (m.state === 'delivered') ack = `all ${all} confirmed`;
-    else if (m.ackedFrames > 0) ack = `${m.ackedFrames} of ${all} confirmed`;
-    else if (m.state === 'queued' || m.state === 'sending') ack = 'expected after the last frame';
-    else ack = m.state === 'failed' ? 'none received' : 'waiting';
+    if (broadcast) ack = t('none (broadcasts are not confirmed)');
+    else if (m.state === 'delivered') ack = t('all {all} confirmed', { all });
+    else if (m.ackedFrames > 0) ack = t('{n} of {all} confirmed', { n: m.ackedFrames, all });
+    else if (m.state === 'queued' || m.state === 'sending') ack = t('expected after the last frame');
+    else ack = m.state === 'failed' ? t('none received') : t('waiting');
     let retry: string;
-    if (broadcast) retry = 'none (sent once)';
-    else if (m.state === 'failed') retry = `gave up after ${m.round} of ${max} rounds; tap the status to send again`;
-    else retry = m.round > 1 ? `round ${m.round} of ${max}` : `none yet (up to ${max - 1} more rounds)`;
+    if (broadcast) retry = t('none (sent once)');
+    else if (m.state === 'failed') retry = t('gave up after {n} of {max} rounds; tap the status to send again', { n: m.round, max });
+    else retry = m.round > 1 ? t('round {n} of {max}', { n: m.round, max }) : t('none yet (up to {n} more rounds)', { n: max - 1 });
     const path = m.echoedFrames > 0
-      ? `repeated by ${m.echoedBy !== null ? this.label(m.echoedBy) : 'a repeater'}, ${m.echoedFrames} of ${all} heard back`
-      : 'direct (no repeat heard)';
+      ? t('repeated by {name}, {n} of {all} heard back', { name: m.echoedBy !== null ? this.label(m.echoedBy) : t('a repeater'), n: m.echoedFrames, all })
+      : t('direct (no repeat heard)');
     const sprite = m.content.kind === 'sprite' ? m.content.sprite : null;
     return [
-      ['To', broadcast ? 'everyone' : this.label(m.dst)],
-      ...(sprite ? [['Sprite', `${sprite.side}×${sprite.side}, ${1 << sprite.bpp} colours`] as [string, string]] : []),
+      ['To', broadcast ? t('everyone') : this.label(m.dst)],
+      ...(sprite ? [['Sprite', t('{side}×{side}, {colours} colours', { side: sprite.side, colours: 1 << sprite.bpp })] as [string, string]] : []),
       ['Status', status],
       ['ACK', ack],
       ['Retry', retry],
       ['Path', path],
-      ['Frames', `${all}, ${m.framesSent} sent, one per ${this.protocol.spec.slotSec} s slot`],
+      ['Frames', t('{all}, {sent} sent, one per {slot} s slot', { all, sent: m.framesSent, slot: this.protocol.spec.slotSec })],
       ['Level', `${levelPct} %`],
     ];
   }
@@ -1290,15 +1307,17 @@ export class ChatPanel {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'bubble-action';
-    b.textContent = 'Resend ACK';
-    b.title = `Confirm all ${ack.frames} frame${ack.frames === 1 ? '' : 's'} to ${this.label(ack.src)} again, in the next free slot. Use it when the sender keeps resending.`;
+    b.textContent = t('Resend ACK');
+    b.title = tn(ack.frames, 'Confirm the {n} frame to {name} again, in the next free slot. Use it when the sender keeps resending.', 'Confirm all {n} frames to {name} again, in the next free slot. Use it when the sender keeps resending.', { name: this.label(ack.src) });
     b.addEventListener('click', () => {
       this.session.resendAck(ack.src, ack.msgId, ack.frames);
-      this.addNotice(`ACK queued for ${this.label(ack.src)}${this.canTransmit ? ' (sent at the next free slot)' : ' (waits until transmitting is possible)'}`);
+      this.addNotice(this.canTransmit
+        ? t('ACK queued for {name} (sent at the next free slot)', { name: this.label(ack.src) })
+        : t('ACK queued for {name} (waits until transmitting is possible)', { name: this.label(ack.src) }));
       this.pump();
       b.disabled = true;
-      b.textContent = 'ACK queued';
-      setTimeout(() => { b.disabled = false; b.textContent = 'Resend ACK'; }, this.protocol.spec.slotSec * 2000);
+      b.textContent = t('ACK queued');
+      setTimeout(() => { b.disabled = false; b.textContent = t('Resend ACK'); }, this.protocol.spec.slotSec * 2000);
     });
     return b;
   }
@@ -1308,7 +1327,7 @@ export class ChatPanel {
    * that station to us, up to the time the message completed, in the frame log.
    */
   private findAck(entry: LogEntry): LogEntry['ack'] {
-    if (entry.station === undefined || !entry.info?.some(([k, v]) => k === 'To' && v === 'you')) return undefined;
+    if (entry.station === undefined || !entry.info?.some(([k, v]) => k === 'To' && allLangs('you').includes(v))) return undefined;
     const untilMs = entry.atMs + this.protocol.spec.slotSec * 1000;
     const rows = this.frames.all;
     for (let i = rows.length - 1; i >= 0; i--) {
@@ -1326,32 +1345,36 @@ export class ChatPanel {
 
   /** "Station1 (#202)", or the tag when no single known repeater has it. */
   private repeaterName(via: Via): string {
-    return via.repeater !== null ? this.label(via.repeater) : `a repeater with tag ${via.tag} (not identified)`;
+    return via.repeater !== null ? this.label(via.repeater) : t('a repeater with tag {tag} (not identified)', { tag: via.tag });
   }
 
   /** Icon, short label (under the bubble) and a plain explanation (in the details). */
   private describeState(m: OutMessage): { icon: string; label: string; meaning: string } {
-    const n = `${m.ackedFrames} of ${m.frames}`;
+    const n = t('{acked} of {frames}', { acked: m.ackedFrames, frames: m.frames });
+    const slot = this.protocol.spec.slotSec;
     switch (m.state) {
       case 'queued':
-        return { icon: '⏳', label: 'waiting for a slot', meaning: 'not sent yet: it goes out at the next free 15 s slot, after any message or reply ahead of it.' };
+        return { icon: '⏳', label: t('waiting for a slot'), meaning: t('not sent yet: it goes out at the next free {slot} s slot, after any message or reply ahead of it.', { slot }) };
       case 'sending':
         return m.round > 1
-          ? { icon: '↻', label: `resending, round ${m.round}`, meaning: `the receiver did not confirm everything, so the missing frames are being sent again (round ${m.round} of the retry limit).` }
-          : { icon: '⇡', label: `sending ${Math.min(m.framesSent, m.frames)}/${m.frames}`, meaning: `${m.frames} frame${m.frames === 1 ? '' : 's'} are sent one per slot; this many have gone out.` };
+          ? { icon: '↻', label: t('resending, round {n}', { n: m.round }), meaning: t('the receiver did not confirm everything, so the missing frames are being sent again (round {n} of the retry limit).', { n: m.round }) }
+          : { icon: '⇡', label: t('sending {sent}/{n}', { sent: Math.min(m.framesSent, m.frames), n: m.frames }), meaning: tn(m.frames, '{n} frame is sent one per slot; this many have gone out.', '{n} frames are sent one per slot; this many have gone out.') };
       case 'waiting':
         return m.ackedFrames > 0
-          ? { icon: '✓', label: `${n} confirmed`, meaning: `all frames were sent; the receiver confirmed ${n} so far and the rest will be resent.` }
-          : { icon: '✓', label: 'sent, waiting for confirmation', meaning: 'all frames were sent; waiting for the receiver to confirm. This takes at least 30 s, and the frames are resent if nothing comes back.' };
+          ? { icon: '✓', label: t('{n} confirmed', { n }), meaning: t('all frames were sent; the receiver confirmed {n} so far and the rest will be resent.', { n }) }
+          : { icon: '✓', label: t('sent, waiting for confirmation'), meaning: t('all frames were sent; waiting for the receiver to confirm. This takes at least {s} s, and the frames are resent if nothing comes back.', { s: 2 * slot }) };
       case 'sent':
-        return { icon: '✓', label: 'sent', meaning: 'broadcast: all frames were sent. Nobody confirms a message to everyone, so there is no way to know who received it.' };
+        return { icon: '✓', label: t('sent'), meaning: t('broadcast: all frames were sent. Nobody confirms a message to everyone, so there is no way to know who received it.') };
       case 'delivered':
-        return { icon: '✓✓', label: 'delivered', meaning: 'the receiver confirmed every frame.' };
+        return { icon: '✓✓', label: t('delivered'), meaning: t('the receiver confirmed every frame.') };
       case 'failed':
         return {
           icon: '✗',
-          label: m.ackedFrames > 0 ? `${n} confirmed, tap to retry` : 'not delivered, tap to retry',
-          meaning: `no complete confirmation after ${m.round} rounds${m.ackedFrames > 0 ? ` (${n} frames confirmed)` : ''}. The receiver may be out of range, on another channel, or not listening. Tap the status to put its text back in the message box so you can send it again.`,
+          label: m.ackedFrames > 0 ? t('{n} confirmed, tap to retry', { n }) : t('not delivered, tap to retry'),
+          meaning: (m.ackedFrames > 0
+            ? t('no complete confirmation after {rounds} rounds ({n} frames confirmed).', { rounds: m.round, n })
+            : t('no complete confirmation after {rounds} rounds.', { rounds: m.round })) + ' ' +
+            t('The receiver may be out of range, on another channel, or not listening. Tap the status to put its text back in the message box so you can send it again.'),
         };
     }
   }
@@ -1373,7 +1396,7 @@ export class ChatPanel {
     const replyTo = entry.station;
     if (replyTo !== undefined) {
       item.classList.add('bubble-reply');
-      item.title = 'Click to reply to this station';
+      item.title = t('Click to reply to this station');
       item.addEventListener('click', (e) => {
         if ((e.target as Element).closest('button')) return;
         if (window.getSelection()?.toString()) return; // selecting text to copy, not replying
@@ -1394,7 +1417,7 @@ export class ChatPanel {
     toggle.className = 'info-toggle';
     toggle.type = 'button';
     toggle.textContent = 'ⓘ';
-    toggle.title = 'Details';
+    toggle.title = t('Details');
     toggle.setAttribute('aria-expanded', 'false');
     const info = document.createElement('div');
     info.className = 'bubble-details';
@@ -1435,7 +1458,7 @@ export class ChatPanel {
       if (!line || !view) return;
       drawSprite(canvas, view.side, this.spritePx, spriteColours(view, this.spriteHoles), true);
       note.textContent = spriteNote(entry.kind, line);
-      canvas.setAttribute('aria-label', `sprite ${line.side}×${line.side}, ${note.textContent}`);
+      canvas.setAttribute('aria-label', `${t('sprite {side}×{side}', { side: line.side })}, ${note.textContent}`);
     };
     redraw();
     if (this.spriteRedraws.size > MAX_ROWS) for (const r of this.spriteRedraws) if (!r.canvas.isConnected) this.spriteRedraws.delete(r);
@@ -1452,7 +1475,7 @@ function sentSpriteLine(sprite: Sprite, frames: number): SpriteLine {
 
 /** Under a sprite: how much of it there is. */
 function spriteNote(kind: LogEntry['kind'], line: SpriteLine): string {
-  const all = `${line.frames} frame${line.frames === 1 ? '' : 's'}`;
+  const all = tn(line.frames, '{n} frame', '{n} frames');
   if (kind === 'out' || line.got >= line.frames) return all;
-  return `${line.done ? 'partial' : 'receiving'}, ${line.got} of ${all}`;
+  return line.done ? t('partial, {got} of {all}', { got: line.got, all }) : t('receiving, {got} of {all}', { got: line.got, all });
 }

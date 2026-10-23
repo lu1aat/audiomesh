@@ -6,6 +6,7 @@
 import { signalLevel } from '../ale/link-model';
 import type { StatsClient, StatsStatus } from './stats-client';
 import type { StatsRecord } from './stats-record';
+import { bandLabel, num, t } from '../i18n/i18n';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const LEVEL_COLOR = { good: '#3fb26b', fair: '#c98500', weak: '#d9534f' } as const;
@@ -14,12 +15,12 @@ const TABLE_ROWS = 100;
 const MAP_WINDOW_MS = 10 * 60_000;
 
 const STATUS_TEXT: Record<StatsStatus, string> = {
-  off: 'Off',
-  connecting: 'Connecting to the broker…',
-  connected: 'Connected',
-  reconnecting: 'Reconnecting…',
-  offline: 'Offline',
-  error: 'Error',
+  off: t('Off'),
+  connecting: t('Connecting to the broker…'),
+  connected: t('Connected'),
+  reconnecting: t('Reconnecting…'),
+  offline: t('Offline'),
+  error: t('Error'),
 };
 const STATUS_DOT: Record<StatsStatus, string> = { off: 'grey', connecting: 'yellow', connected: 'green', reconnecting: 'yellow', offline: 'red', error: 'red' };
 
@@ -95,7 +96,7 @@ export class StatsView {
     }
     this.statusEl.textContent = `${STATUS_TEXT[c.status]}${c.error ? `: ${c.error}` : ''}`;
     this.statusEl.dataset.state = STATUS_DOT[c.status];
-    this.hintEl.textContent = c.records.length === 0 ? 'No records yet. Stations that publish their stats show up here as they hear or send frames.' : '';
+    this.hintEl.textContent = c.records.length === 0 ? t('No records yet. Stations that publish their stats show up here as they hear or send frames.') : '';
     this.renderMap(nowMs);
     this.renderTable();
   }
@@ -107,7 +108,7 @@ export class StatsView {
   private renderMap(nowMs: number): void {
     const { stations, links } = statsGraph(this.client.records, nowMs);
     const W = 360, C = W / 2, R = 120;
-    const chart = svg('svg', { viewBox: `0 0 ${W} ${W}`, class: 'stats-chart', role: 'img', 'aria-label': 'Stations and the links between them' });
+    const chart = svg('svg', { viewBox: `0 0 ${W} ${W}`, class: 'stats-chart', role: 'img', 'aria-label': t('Stations and the links between them') });
     const pos = new Map<number, { x: number; y: number }>();
     stations.forEach((id, i) => {
       const a = (2 * Math.PI * i) / Math.max(1, stations.length) - Math.PI / 2;
@@ -152,15 +153,15 @@ export class StatsView {
     this.bodyEl.replaceChildren(
       ...rows.map((r) => {
         const tr = document.createElement('tr');
-        const who = r.src === undefined ? '–' : `${this.nameOf(r.src)}${r.dst === undefined ? '' : r.dst === 0 ? ' → all' : ` → ${this.nameOf(r.dst)}`}`;
+        const who = r.src === undefined ? '–' : `${this.nameOf(r.src)}${r.dst === undefined ? '' : r.dst === 0 ? ` → ${t('all')}` : ` → ${this.nameOf(r.dst)}`}`;
         tr.append(
           cell(clock(r.at)),
           cell(this.nameOf(r.node)),
-          cell(r.dir === 'tx' ? 'sent' : 'heard'),
-          cell(`${r.band} · ${r.mode.replace('gfsk8-', '')}`),
+          cell(r.dir === 'tx' ? t('sent') : t('heard')),
+          cell(`${bandLabel(r.band)} · ${r.mode.replace('gfsk8-', '')}`),
           cell(String(r.ch)),
-          cell(r.snr === null ? '–' : `${r.snr.toFixed(1)} dB`),
-          cell(r.type + (r.via ? ' (repeated)' : '')),
+          cell(r.snr === null ? '–' : `${num(r.snr, 1)} dB`),
+          cell(r.type + (r.via ? t(' (repeated)') : '')),
           cell(who),
           cell(r.detail ?? ''),
         );

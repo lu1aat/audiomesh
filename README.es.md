@@ -3,7 +3,8 @@
 *[Read in English](./README.md)*
 
 **[▶ Abrir la app](https://lu1aat.github.io/audiomesh/)**: corre en el
-navegador, no hay que instalar nada.
+navegador, no hay que instalar nada. **[Cómo funciona](https://lu1aat.github.io/audiomesh/como-funciona.html)**:
+once capítulos cortos con demos en vivo.
 
 Una pequeña red acústica que funciona entera en el navegador y usa el parlante y el
 micrófono como radio. Las estaciones intercambian mensajes, anuncios,
@@ -18,7 +19,7 @@ tramas hasta unos −18 dB de SNR en 2500 Hz.
 Sin servidor, sin cuenta, sin subir nada. El audio se procesa en la pestaña y nunca
 sale del dispositivo; una Content Security Policy bloquea toda petición de red salvo
 una verificación opcional de hora contra el mismo origen y, solo si activás
-"Publish Network Stats" (apagado por defecto), una conexión a un broker MQTT público que
+"Publicar estadísticas de red" (apagado por defecto), una conexión a un broker MQTT público que
 comparte metadatos de las tramas (ids de estación, canal, señal, tipo de trama; nunca
 audio, texto de mensajes ni imágenes).
 
@@ -43,6 +44,10 @@ audio, texto de mensajes ni imágenes).
   alineadas a UTC, así que los relojes tienen que coincidir en unos ±2 s).
 - **Funciona sin conexión**: después de la primera visita la app abre sin
   internet, y se puede instalar como app (Instalar, o Agregar a la pantalla de inicio).
+- **En español y en inglés**: la app sigue el idioma del navegador; se cambia en
+  Ajustes › Idioma o con el botón 🌐 de la barra lateral. Cómo funciona tiene una página por
+  idioma ([español](https://lu1aat.github.io/audiomesh/como-funciona.html),
+  [English](https://lu1aat.github.io/audiomesh/how-it-works.html)).
 
 La especificación completa del protocolo por aire (modulación, FEC, plan de bandas,
 temporización, formato de tramas, repetidor y elección de canal) está en
@@ -51,9 +56,9 @@ temporización, formato de tramas, repetidor y elección de canal) está en
 ## Uso
 
 Abrí la app en dos dispositivos que se escuchen entre sí, elegí el mismo modo y la
-misma banda en ambos, activá **Audio** y **Allow transmit**, y mandá un mensaje.
-Asegurate de que los dos relojes estén en hora (la sección Sync de la pantalla
-Network ayuda).
+misma banda en ambos, activá **Audio** y **Permitir transmitir**, y mandá un mensaje.
+Asegurate de que los dos relojes estén en hora (la sección Sincronización de la pantalla
+Red ayuda). Las letras con tilde y la Ñ viajan sin la tilde (É como E, Ñ como N).
 
 El micrófono necesita un contexto seguro: `https://` o `localhost`.
 

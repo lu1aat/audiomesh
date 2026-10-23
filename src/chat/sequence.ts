@@ -8,6 +8,7 @@
 import { decodeFrame, type ChatFrame } from './frames';
 import { hexPayload, type FrameRecord } from './frame-log';
 import { SpriteAssembly, spriteColours, spriteFrameCount } from './sprite';
+import { t } from '../i18n/i18n';
 
 export type Actor = number | 'public';
 /** control = announcements and beacons, message = text and sprites, ack = acknowledgements. */
@@ -75,8 +76,8 @@ export function bubbleText(atMs: number, nowMs: number): string {
   const yesterday = new Date(nowMs);
   yesterday.setDate(now.getDate() - 1);
   const time = `${pad2(at.getHours())}:${pad2(at.getMinutes())}`;
-  if (sameDay(at, now)) return `Today ${time}`;
-  if (sameDay(at, yesterday)) return `Yesterday ${time}`;
+  if (sameDay(at, now)) return t('Today {time}', { time });
+  if (sameDay(at, yesterday)) return t('Yesterday {time}', { time });
   return `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())} ${time}`;
 }
 
@@ -108,23 +109,24 @@ function toneOf(f: ChatFrame): Tone {
 
 /** What the first line says. `dst` is 0 (everyone) or a station for the frames that name one. */
 function labelOf(f: ChatFrame, dst: number | undefined): string {
-  const to = dst === 0 ? ' → all' : '';
+  const to = dst === 0 ? ` → ${t('all')}` : '';
+  const rep = f.kind === 'hello' || f.kind === 'sound' ? (f.repeater ? ` · ${t('repeater')}` : '') : '';
   switch (f.kind) {
     case 'hello':
-      return `announce ${quoted(f.name)}${f.repeater ? ' · repeater' : ''}`;
+      return t('announce {name}', { name: quoted(f.name) }) + rep;
     case 'sound':
-      return `${f.probe ? 'probe' : 'beacon'}${f.repeater ? ' · repeater' : ''}`;
+      return (f.probe ? t('probe') : t('beacon')) + rep;
     case 'first':
       return `${quoted(f.text)} · 1/${f.last + 1}${to}`;
     case 'next':
       return `${quoted(f.text)} · ${f.seq + 1}${to}`;
     case 'spriteHead':
-      return `sprite ${f.side}×${f.side} · 1/${spriteFrameCount(f.side, f.bpp)}${to}`;
+      return `${t('sprite {side}×{side}', { side: f.side })} · 1/${spriteFrameCount(f.side, f.bpp)}${to}`;
     case 'spriteBody':
-      return `sprite · ${f.seq + 1}/${spriteFrameCount(f.side, f.bpp)}${to}`;
+      return `${t('sprite')} · ${f.seq + 1}/${spriteFrameCount(f.side, f.bpp)}${to}`;
     case 'ack': {
       const got = [...Array(16).keys()].filter((i) => f.received & (1 << i)).map((i) => i + 1);
-      return `ack ${got.join(',') || 'none'}`;
+      return `${t('ack')} ${got.join(',') || t('none')}`;
     }
   }
 }
@@ -174,7 +176,7 @@ export function buildSequence(
     if (dst !== undefined && dst !== 0 && dst !== f.src) lines.push({ from: 'public', to: dst, label: '', dashed: true });
     if (f.kind === 'sound') {
       for (const rep of f.reports) {
-        if (rep.station !== f.src) lines.push({ from: f.src, to: rep.station, label: `hears ${rep.snrDb} dB · ch ${rep.channel}`, dashed: true });
+        if (rep.station !== f.src) lines.push({ from: f.src, to: rep.station, label: t('hears {db} dB · ch {ch}', { db: rep.snrDb, ch: rep.channel }), dashed: true });
       }
     }
     events.push({ kind: 'event', id: r.id, atMs: r.atMs, dir: r.dir, tone: toneOf(f), icon: iconOf(f), ...(sprite ? { sprite } : {}), lines, repeated: !!f.via });

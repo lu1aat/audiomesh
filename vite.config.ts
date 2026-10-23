@@ -62,7 +62,8 @@ function precache(): Plugin {
         readdirSync(`${outDir}/${dir}`, { withFileTypes: true }).flatMap((e) =>
           e.isDirectory() ? list(`${dir}/${e.name}`, `${prefix}${e.name}/`) : [`${prefix}${e.name}`],
         );
-      const files = list('.').filter((f) => f !== 'sw.js').sort();
+      // og/: the link-preview pictures, fetched by the sites a page is shared on, never by the app.
+      const files = list('.').filter((f) => f !== 'sw.js' && !f.startsWith('og/')).sort();
       const hash = createHash('sha256');
       for (const f of files) hash.update(`${f}\n`).update(readFileSync(`${outDir}/${f}`));
       const version = hash.digest('hex').slice(0, 12);
@@ -82,11 +83,13 @@ export default defineConfig({
     // Worklets are loaded via `?worker&url` and must stay separate chunks.
     assetsInlineLimit: 0,
     modulePreload: { polyfill: false },
-    // Two pages: the app, and How it works (src/how-it-works/), a step-by-step tour that runs the app's own modules.
+    // The app, and How it works (src/how-it-works/), a step-by-step tour that runs the app's own modules:
+    // one static page per language (how-it-works.html, como-funciona.html), the same script.
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         howItWorks: fileURLToPath(new URL('./how-it-works.html', import.meta.url)),
+        comoFunciona: fileURLToPath(new URL('./como-funciona.html', import.meta.url)),
       },
     },
   },

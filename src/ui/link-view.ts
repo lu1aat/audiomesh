@@ -15,6 +15,7 @@ import { repeaterTag } from '../chat/frames';
 import { FrameTable } from './frame-table';
 import { HistoryView } from './history-view';
 import { hexBackground, hexGrid, layoutGraph, snapToHexGrid, type LayoutLink } from './graph-layout';
+import { num, t, tn } from '../i18n/i18n';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -23,9 +24,9 @@ const SERIES = ['#3987e5', '#d95926', '#199e70', '#c98500'];
 const SERIES_OTHER = '#8a8f98';
 
 const STATUS_TEXT: Record<StationStatus, { icon: string; label: string }> = {
-  active: { icon: '●', label: 'active' },
-  recent: { icon: '◐', label: 'recent' },
-  quiet: { icon: '○', label: 'quiet' },
+  active: { icon: '●', label: t('active') },
+  recent: { icon: '◐', label: t('recent') },
+  quiet: { icon: '○', label: t('quiet') },
 };
 
 /** Three ways to lay out the Stations list; the user's pick is remembered by the caller. */
@@ -51,14 +52,14 @@ const NODE_FILL_OPACITY = 0.85;
 const FLOW_PERIOD_MS = 1600;
 /** Graph units the honeycomb background runs past the map's square on every side. */
 const HEX_OVERFLOW = 260;
-const LEVEL_TEXT: Record<SignalLevel, string> = { good: 'strong', fair: 'fair', weak: 'weak' };
+const LEVEL_TEXT: Record<SignalLevel, string> = { good: t('strong'), fair: t('fair'), weak: t('weak') };
 /** "Reached us through a repeater" lines: level unknown, so neutral grey. */
 const RELAY_COLOR = '#8a8f98';
 
 /** How long a node glows after a frame from that station. */
 const FLASH_MS = 1600;
 /** How to read the graph: its tooltip (no visible text). */
-const GRAPH_LEGEND = 'The stronger the signal between two stations, the closer their cells; we are the blue cell at the bottom. Arrows point the way a signal reaches: green strong, yellow fair, red weak. A link heard both ways is two arrows side by side, one per direction. Grey dotted: that station reached us only through the repeater it points to. A double border marks a repeater. Faded: nothing heard for over 10 minutes. Links between other stations are what they report hearing.';
+const GRAPH_LEGEND = t('The stronger the signal between two stations, the closer their cells; we are the blue cell at the bottom. Arrows point the way a signal reaches: green strong, yellow fair, red weak. A link heard both ways is two arrows side by side, one per direction. Grey dotted: that station reached us only through the repeater it points to. A double border marks a repeater. Faded: nothing heard for over 10 minutes. Links between other stations are what they report hearing.');
 const ME_COLOR = '#3987e5';
 const FLASH_COLOR = '#e6e8eb';
 
@@ -112,7 +113,7 @@ const dateTime = (ms: number): string => {
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 };
-const signed = (v: number, digits: number): string => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(digits)}`;
+const signed = (v: number, digits: number): string => `${v >= 0 ? '+' : '−'}${num(Math.abs(v), digits)}`;
 /** Compact age for a map cell: "12s", "4m", "2h". */
 const shortAge = (sec: number): string => (sec < 60 ? `${Math.floor(sec / 10) * 10}s` : sec < 3600 ? `${Math.floor(sec / 60)}m` : `${Math.floor(sec / 3600)}h`);
 const db = (v: number | undefined): string => (v === undefined ? '–' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(0)}`);
@@ -233,7 +234,7 @@ export class LinkView {
       // The map still shows us, alone, so it is clear where others will appear.
       this.graphRoot.replaceChildren(this.graphSection(model));
       this.animateGraph();
-      this.swapSections([el('p', 'hint', 'No stations heard yet. Turn Audio on (Network options) on both devices and press "Test" on each; every test beacon and every ack teaches the table.'), ...this.syncBlock()]);
+      this.swapSections([el('p', 'hint', t('No stations heard yet. Turn Audio on (Network options) on both devices and press "Test" on each; every test beacon and every ack teaches the table.')), ...this.syncBlock()]);
       this.frameTable.scrollTop = scrollTop;
       return;
     }
@@ -267,10 +268,11 @@ export class LinkView {
     const reach = this.clock.maxTimeOffsetSec + (this.clock.deepOn() ? this.clock.deepExtraSec : 0);
     const state = document.getElementById('clock-state');
     if (state) {
+      const vars = { off: signed(off / 1000, 2), reach: num(reach, 1), limit: num(this.clock.limitMs / 1000, 1) };
       state.textContent =
-        `Slot timing: ${off === 0 ? 'UTC, by this device\'s clock' : `UTC ${signed(off / 1000, 2)} s`}. ` +
-        `The receiver finds frames up to ±${reach.toFixed(1)} s off${this.clock.deepOn() ? ' (deep decode)' : ''}; ` +
-        `the offset can be set up to ±${(this.clock.limitMs / 1000).toFixed(1)} s.` +
+        (off === 0 ? t("Slot timing: UTC, by this device's clock.", vars) : t('Slot timing: UTC {off} s.', vars)) + ' ' +
+        (this.clock.deepOn() ? t('The receiver finds frames up to ±{reach} s off (deep decode); the offset can be set up to ±{limit} s.', vars)
+          : t('The receiver finds frames up to ±{reach} s off; the offset can be set up to ±{limit} s.', vars)) +
         this.latencyText();
     }
     const manual = document.getElementById('clock-manual') as HTMLInputElement | null;
@@ -319,19 +321,20 @@ export class LinkView {
     if (use) use.disabled = !r || Math.abs(r.offsetMs - offMs) < 20;
     if (!state) return;
     if (server.busy) {
-      state.textContent = 'Checking against the server…';
+      state.textContent = t('Checking against the server…');
       return;
     }
     const parts: string[] = [];
-    if (server.error) parts.push(`Server check failed: ${server.error}.`);
+    if (server.error) parts.push(t('Server check failed: {why}.', { why: server.error }));
     if (r) {
       const ms = Math.round(r.offsetMs);
-      parts.push(
-        `This device's clock is ${Math.abs(ms)} ms ${ms > 0 ? 'ahead of' : ms < 0 ? 'behind' : 'level with'} the server's (±${Math.round(r.uncertaintyMs)} ms, ${formatAge((nowMs - r.atMs) / 1000)}, ${r.samples} requests).`,
-      );
+      const vars = { ms: Math.abs(ms), pm: Math.round(r.uncertaintyMs), age: formatAge((nowMs - r.atMs) / 1000), n: r.samples };
+      parts.push(ms > 0 ? t("This device's clock is {ms} ms ahead of the server's (±{pm} ms, {age}, {n} requests).", vars)
+        : ms < 0 ? t("This device's clock is {ms} ms behind the server's (±{pm} ms, {age}, {n} requests).", vars)
+        : t("This device's clock is level with the server's (±{pm} ms, {age}, {n} requests).", vars));
       const drift = server.driftMsPerMin;
-      if (drift !== null) parts.push(`Drift ${signed(drift, 1)} ms/min over ${server.history.length} checks.`);
-    } else if (!server.error) parts.push('Not checked yet.'); // the no-third-party explanation already lives in the button's own tooltip
+      if (drift !== null) parts.push(t('Drift {drift} ms/min over {n} checks.', { drift: signed(drift, 1), n: server.history.length }));
+    } else if (!server.error) parts.push(t('Not checked yet.')); // the no-third-party explanation already lives in the button's own tooltip
     state.textContent = parts.join(' ');
   }
 
@@ -346,7 +349,7 @@ export class LinkView {
     }
     const server = this.clock.server.latest;
     const head = el('tr');
-    for (const h of ['Station', 'Clock vs ours', ...(server ? ['vs server'] : []), 'Drift', 'Frames', 'Last']) head.append(el('th', undefined, h));
+    for (const h of [t('Station'), t('Clock vs ours'), ...(server ? [t('vs server')] : []), t('Drift'), t('Frames'), t('Last')]) head.append(el('th', undefined, h));
     const rows = clocks.map((c) => {
       const tr = el('tr');
       // Late frames = its clock behind ours.
@@ -364,7 +367,7 @@ export class LinkView {
       );
       return tr;
     });
-    const caption = el('caption', 'hint', 'Station clocks as heard over the last 30 min (+ = ahead). Includes audio latency; repeated frames are left out.');
+    const caption = el('caption', 'hint', t('Station clocks as heard over the last 30 min (+ = ahead). Includes audio latency; repeated frames are left out.'));
     const thead = el('thead'), tbody = el('tbody');
     thead.append(head);
     tbody.append(...rows);
@@ -374,15 +377,15 @@ export class LinkView {
   private latencyText(): string {
     const l = this.clock.latency();
     if (!l) return '';
-    const inText = l.inMs === null ? 'microphone unknown (this browser does not say)' : `microphone ${l.inMs.toFixed(0)} ms`;
-    return ` Receive timing is corrected for audio latency: speaker ${l.outMs.toFixed(0)} ms, ${inText}.`;
+    const inText = l.inMs === null ? t('microphone unknown (this browser does not say)') : t('microphone {ms} ms', { ms: l.inMs.toFixed(0) });
+    return ' ' + t('Receive timing is corrected for audio latency: speaker {ms} ms, {mic}.', { ms: l.outMs.toFixed(0), mic: inText });
   }
 
   /** A station's nickname or #id; our own id reads "me (#914)", so reports about us are not taken for a stranger. */
   private name(id: number): string {
     const icon = this.iconOf(id);
     const pre = icon ? `${icon} ` : '';
-    if (id === this.getMyId()) return `${pre}me (#${id})`;
+    if (id === this.getMyId()) return `${pre}${t('me (#{id})', { id })}`;
     return `${pre}${this.names.get(id) || `#${id}`}`;
   }
 
@@ -424,7 +427,7 @@ export class LinkView {
   // --- stations ---------------------------------------------------------------
 
   private stationsSection(model: LinkModel): HTMLElement {
-    const { root: s, body } = this.section('stations', 'Stations');
+    const { root: s, body } = this.section('stations', t('Stations'));
     const n = model.stations.length;
     const last = model.lastPacket;
     const head = el('div', 'section-head');
@@ -432,7 +435,7 @@ export class LinkView {
       el(
         'p',
         'link-summary',
-        `${n} station${n === 1 ? '' : 's'} heard · last packet ${last ? `${formatAge(last.ageSec)} from ${this.name(last.station)}` : '–'}`,
+        tn(n, '{n} station heard', '{n} stations heard') + ' · ' + (last ? t('last packet {age} from {name}', { age: formatAge(last.ageSec), name: this.name(last.station) }) : t('last packet –')),
       ),
       this.viewSwitch(),
     );
@@ -453,11 +456,11 @@ export class LinkView {
   private viewSwitch(): HTMLElement {
     const wrap = el('div', 'view-switch');
     wrap.setAttribute('role', 'group');
-    wrap.setAttribute('aria-label', 'Stations layout');
+    wrap.setAttribute('aria-label', t('Stations layout'));
     const options: { id: StationsView; label: string; title: string }[] = [
-      { id: 'table', label: 'Table', title: 'One row per station, attributes in columns' },
-      { id: 'cards', label: 'Cards', title: 'One detailed card per station' },
-      { id: 'grid', label: 'Grid', title: 'Compact tiles, for scanning many stations at a glance' },
+      { id: 'table', label: t('Table'), title: t('One row per station, attributes in columns') },
+      { id: 'cards', label: t('Cards'), title: t('One detailed card per station') },
+      { id: 'grid', label: t('Grid'), title: t('Compact tiles, for scanning many stations at a glance') },
     ];
     const current = this.stationsView.get();
     for (const o of options) {
@@ -483,8 +486,8 @@ export class LinkView {
   /** Notes column / line shared by the table and grid layouts: repeater relay and relayed-through info. */
   private stationNotes(st: StationInfo): string[] {
     const notes: string[] = [];
-    if (st.relayed) notes.push(`via ${st.relayed.via !== null ? this.name(st.relayed.via) : `tag ${st.relayed.tag} (unidentified)`}`);
-    if (st.framesVia) notes.push(`relays ${st.framesVia} frame${st.framesVia === 1 ? '' : 's'}`);
+    if (st.relayed) notes.push(t('via {name}', { name: st.relayed.via !== null ? this.name(st.relayed.via) : t('tag {tag} (unidentified)', { tag: st.relayed.tag }) }));
+    if (st.framesVia) notes.push(tn(st.framesVia, 'relays {n} frame', 'relays {n} frames'));
     return notes;
   }
 
@@ -493,7 +496,7 @@ export class LinkView {
     const wrap = el('div', 'table-wrap');
     const table = el('table', 'station-table');
     const head = el('tr');
-    for (const h of ['Station', 'Status', 'Last heard', 'Signal', 'Send on', 'Timing', 'Notes']) head.append(el('th', undefined, h));
+    for (const h of [t('Station'), t('Status'), t('Last heard'), t('Signal'), t('Send on'), t('Timing'), t('Notes')]) head.append(el('th', undefined, h));
     const thead = el('thead');
     thead.append(head);
     const tbody = el('tbody');
@@ -507,7 +510,7 @@ export class LinkView {
       if (nick) nameTd.append(el('span', 'st-id', `#${st.id}`));
       if (st.repeater) {
         const badge = el('span', 'st-badge', '⟲');
-        badge.title = 'Runs a repeater';
+        badge.title = t('Runs a repeater');
         nameTd.append(badge);
       }
       tr.append(nameTd);
@@ -530,14 +533,14 @@ export class LinkView {
         `num ${levelClass(st.best ? signalLevel(st.best.score) : undefined)}`,
         st.best ? `ch ${st.best.channel} · ${db(st.best.score)} dB` : '–',
       );
-      if (st.best) sendTd.title = st.best.measured ? 'reported by them' : 'estimated';
+      if (st.best) sendTd.title = st.best.measured ? t('reported by them') : t('estimated');
       tr.append(sendTd);
 
       const delay = delays.get(st.id);
       const timeTd = el('td');
       if (delay) {
         timeTd.className = `num ${levelClass(timingLevel(delay.delaySec, reach))}`;
-        timeTd.title = `median of ${delay.n} frames vs UTC slots`;
+        timeTd.title = t('median of {n} frames vs UTC slots', { n: delay.n });
         timeTd.append(document.createTextNode(`${signed(delay.delaySec, 2)} s `), this.syncButton(delay));
       } else {
         timeTd.className = 'num lvl-none';
@@ -584,13 +587,13 @@ export class LinkView {
   }
 
   /** "Sync to this station": shift our slot grid to match its median frame start. Shared by all three station layouts. */
-  private syncButton(delay: StationDelay, label = 'Sync'): HTMLButtonElement {
+  private syncButton(delay: StationDelay, label = t('Sync|button')): HTMLButtonElement {
     const ms = Math.round(delay.delaySec * 1000);
     const synced = Math.abs(this.grid.offsetMs() - ms) < 20;
-    const sync = el('button', 'station-sync', synced ? 'Synced' : label);
+    const sync = el('button', 'station-sync', synced ? t('Synced') : label);
     sync.type = 'button';
     sync.disabled = synced;
-    sync.title = `Shift our slot timing by ${signed(delay.delaySec, 2)} s so this station's frames start at the slot boundary`;
+    sync.title = t("Shift our slot timing by {s} s so this station's frames start at the slot boundary", { s: signed(delay.delaySec, 2) });
     sync.addEventListener('click', () => { this.grid.set(ms); this.render(); });
     return sync;
   }
@@ -608,8 +611,8 @@ export class LinkView {
     title.append(el('span', 'station-name', nick || `#${st.id}`));
     if (nick) title.append(el('span', 'station-id', `#${st.id}`));
     if (st.repeater) {
-      const badge = el('span', 'station-repeater', '⟲ repeater');
-      badge.title = 'This station repeats every frame it hears, so stations out of each other\'s range can reach one another';
+      const badge = el('span', 'station-repeater', `⟲ ${t('repeater')}`);
+      badge.title = t("This station repeats every frame it hears, so stations out of each other's range can reach one another");
       title.append(badge);
     }
     const state = el('div', 'station-state');
@@ -617,7 +620,7 @@ export class LinkView {
       el('span', 'station-status', `${STATUS_TEXT[st.status].icon} ${STATUS_TEXT[st.status].label}`),
       el('span', 'station-age', formatAge(st.ageSec)),
     );
-    main.append(title, state, el('div', 'station-seen', `last seen ${dateTime(st.lastSlot * this.slotSec * 1000)}`));
+    main.append(title, state, el('div', 'station-seen', t('last seen {time}', { time: dateTime(st.lastSlot * this.slotSec * 1000) })));
 
     const details = el('dl', 'station-details');
     const item = (label: string, ...value: (Node | string)[]): void => {
@@ -627,23 +630,25 @@ export class LinkView {
     };
     const level = st.level ?? 'weak';
     const signal = el('span', `station-signal level-${st.level ?? 'none'}`, st.level ? `● ${LEVEL_TEXT[level]}` : '○ –');
-    item('Signal', signal, st.lastSnrDb === undefined ? (st.direct ? '' : ' only heard through a repeater') : ` ${db(st.lastSnrDb)} dB on ch ${st.lastChannel}`);
+    item(t('Signal'), signal, st.lastSnrDb === undefined ? (st.direct ? '' : ` ${t('only heard through a repeater')}`) : ` ${t('{db} dB on ch {ch}', { db: db(st.lastSnrDb), ch: st.lastChannel ?? '?' })}`);
     if (st.relayed) {
-      const by = st.relayed.via !== null ? `repeater ${this.name(st.relayed.via)}` : `a repeater with tag ${st.relayed.tag} (not identified)`;
-      item('Through', `${by}, ${formatAge(st.relayed.ageSec)}`);
+      const by = st.relayed.via !== null ? t('repeater {name}', { name: this.name(st.relayed.via) }) : t('a repeater with tag {tag} (not identified)', { tag: st.relayed.tag });
+      item(t('Through'), `${by}, ${formatAge(st.relayed.ageSec)}`);
     }
-    item(
-      'Send on',
-      st.best ? `ch ${st.best.channel} (${db(st.best.score)} dB, ${st.best.measured ? 'reported by them' : 'estimated'})` : 'unknown yet',
-    );
-    if (delay) item('Timing', `${signed(delay.delaySec, 2)} s vs UTC slots (median of ${delay.n}) `, this.syncButton(delay, 'Sync to this station'));
-    else item('Timing', '–');
-    if (st.framesVia) item('Relayed', `${st.framesVia} frame${st.framesVia === 1 ? '' : 's'} from others reached us through it`);
+    item(t('Send on'), st.best ? this.sendOnText(st.best) : t('unknown yet'));
+    if (delay) item(t('Timing'), `${t('{s} s vs UTC slots (median of {n})', { s: signed(delay.delaySec, 2), n: delay.n })} `, this.syncButton(delay, t('Sync to this station')));
+    else item(t('Timing'), '–');
+    if (st.framesVia) item(t('Relayed'), tn(st.framesVia, '{n} frame from others reached us through it', '{n} frames from others reached us through it'));
 
     row.append(main, details);
     return row;
   }
 
+
+  /** "ch 12 (−9 dB, reported by them)". */
+  private sendOnText(best: { channel: number; score: number; measured: boolean }): string {
+    return t('ch {ch} ({db} dB, {how})', { ch: best.channel, db: db(best.score), how: best.measured ? t('reported by them') : t('estimated') });
+  }
 
   // --- graph ------------------------------------------------------------------
 
@@ -653,7 +658,7 @@ export class LinkView {
     this.graph = null;
     if (nodes.length === 0) return s;
     const W = 360, C = W / 2, NR = 30;
-    const chart = svg('svg', { viewBox: `0 0 ${W} ${W}`, class: 'graph-chart', role: 'img', 'aria-label': `Stations and the links between them: ${model.edges.length} links` });
+    const chart = svg('svg', { viewBox: `0 0 ${W} ${W}`, class: 'graph-chart', role: 'img', 'aria-label': tn(model.edges.length, 'Stations and the links between them: {n} link', 'Stations and the links between them: {n} links') });
     // The legend as a description, not a title: a title would show as a tooltip over the whole graph.
     const legend = svg('desc', {});
     legend.textContent = GRAPH_LEGEND;
@@ -758,7 +763,7 @@ export class LinkView {
       if (e.stale) flow.setAttribute('opacity', String(STALE_OPACITY));
       const hit = svg('line', { class: 'graph-hit' });
       const way = (x: GraphEdge): string =>
-        `${this.name(x.from)} → ${this.name(x.to)}: ${db(x.snrDb)} dB (${LEVEL_TEXT[x.level]})${x.stale ? ', over 10 min old' : ''}`;
+        `${this.name(x.from)} → ${this.name(x.to)}: ${db(x.snrDb)} dB (${LEVEL_TEXT[x.level]})${x.stale ? t(', over 10 min old') : ''}`;
       hoverable(hit, () => [way(e), ...(back ? [way(back)] : [])].join('\n'), () => [l]);
       lines.push({ el: l, hit, flow, from: e.from, to: e.to, side: back ? 4 : 0, gapFrom: gap, gapTo: gap });
       chart.append(l, flow, hit);
@@ -774,7 +779,7 @@ export class LinkView {
       const flow = flowLine();
       if (r.stale) flow.setAttribute('opacity', String(STALE_OPACITY));
       const hit = svg('line', { class: 'graph-hit' });
-      hoverable(hit, () => `${this.name(r.from)} reached us through repeater ${this.name(r.via)} (signal level unknown)`, () => [l]);
+      hoverable(hit, () => t('{name} reached us through repeater {via} (signal level unknown)', { name: this.name(r.from), via: this.name(r.via) }), () => [l]);
       lines.push({ el: l, hit, flow, from: r.from, to: r.via, side: 0, gapFrom: gap, gapTo: gap });
       chart.append(l, flow, hit);
     }
@@ -843,7 +848,7 @@ export class LinkView {
     this.lit.clear();
     wrap.append(chart, tip);
     s.append(wrap);
-    if (model.edges.length === 0 && model.relays.length === 0) s.append(el('p', 'hint', 'No links known yet.'));
+    if (model.edges.length === 0 && model.relays.length === 0) s.append(el('p', 'hint', t('No links known yet.')));
     return s;
   }
 
@@ -851,15 +856,15 @@ export class LinkView {
   private nodeTip(id: number, st: StationInfo | undefined, repeater: boolean, stale: boolean): string {
     const me = id === this.getMyId();
     const nick = me ? '' : this.names.get(id);
-    const lines = [me ? `This station (#${id})` : nick ? `${nick} (#${id})` : `#${id}`];
+    const lines = [me ? t('This station (#{id})', { id }) : nick ? `${nick} (#${id})` : `#${id}`];
     if (st) {
-      lines.push(`${STATUS_TEXT[st.status].label} · last heard ${formatAge(st.ageSec)}`);
-      if (st.lastSnrDb !== undefined) lines.push(`last signal ${db(st.lastSnrDb)} dB on ch ${st.lastChannel}${st.level ? ` (${LEVEL_TEXT[st.level]})` : ''}`);
-      lines.push(st.best ? `send on ch ${st.best.channel} (${db(st.best.score)} dB, ${st.best.measured ? 'reported by them' : 'estimated'})` : 'send on: unknown yet');
-      if (st.framesVia) lines.push(`${st.framesVia} frame${st.framesVia === 1 ? '' : 's'} from others reached us through it`);
-    } else if (!me) lines.push('only mentioned by other stations');
-    if (repeater) lines.push(me ? 'we run a repeater' : 'runs a repeater');
-    if (stale) lines.push('nothing heard for over 10 minutes');
+      lines.push(`${STATUS_TEXT[st.status].label} · ${t('last heard {age}', { age: formatAge(st.ageSec) })}`);
+      if (st.lastSnrDb !== undefined) lines.push(t('last signal {db} dB on ch {ch}', { db: db(st.lastSnrDb), ch: st.lastChannel ?? '?' }) + (st.level ? ` (${LEVEL_TEXT[st.level]})` : ''));
+      lines.push(st.best ? t('send on {what}', { what: this.sendOnText(st.best) }) : t('send on: unknown yet'));
+      if (st.framesVia) lines.push(tn(st.framesVia, '{n} frame from others reached us through it', '{n} frames from others reached us through it'));
+    } else if (!me) lines.push(t('only mentioned by other stations'));
+    if (repeater) lines.push(me ? t('we run a repeater') : t('runs a repeater'));
+    if (stale) lines.push(t('nothing heard for over 10 minutes'));
     return lines.join('\n');
   }
 
@@ -939,7 +944,7 @@ export class LinkView {
 
   /** Stats: the signal history chart and the signal-by-channel table in one collapsible section. */
   private statsSection(model: LinkModel, nowMs: number): HTMLElement {
-    const { root: s, body } = this.section('stats', 'Stats');
+    const { root: s, body } = this.section('stats', t('Stats'));
     this.fillHistory(body, model, nowMs);
     this.fillSignal(body, model);
     return s;
@@ -949,21 +954,22 @@ export class LinkView {
    * goes by, top three numbered), then what each station reports hearing from us, then what we hear from each. */
   private fillSignal(body: HTMLElement, model: LinkModel): void {
     const n = model.stations.length;
-    body.append(el('h4', 'history-sub', 'Signal by channel'));
+    body.append(el('h4', 'history-sub', t('Signal by channel')));
     body.append(el('p', 'hint',
-      `SNR in dB (2500 Hz bandwidth); · means no data. "For everyone" is the weakest report from the ${n} station${n === 1 ? '' : 's'} heard, and its three best channels are numbered. A bordered cell is the channel we send on to that station.`));
+      tn(n, 'SNR in dB (2500 Hz bandwidth); · means no data. "For everyone" is the weakest report from the {n} station heard, and its three best channels are numbered. A bordered cell is the channel we send on to that station.',
+        'SNR in dB (2500 Hz bandwidth); · means no data. "For everyone" is the weakest report from the {n} stations heard, and its three best channels are numbered. A bordered cell is the channel we send on to that station.')));
     const table = el('table', 'signal-matrix');
     const head = el('tr');
-    head.append(el('th', 'sm-corner', 'Channel'));
+    head.append(el('th', 'sm-corner', t('Channel')));
     for (const c of model.channels) head.append(el('th', 'sm-ch', String(c.channel)));
     table.append(el('thead'));
     table.tHead!.append(head);
 
     const summary = el('tbody', 'sm-summary');
     const all = el('tr');
-    all.append(el('th', 'sm-station', 'For everyone'));
+    all.append(el('th', 'sm-station', t('For everyone')));
     for (const c of model.channels) {
-      const td = this.signalCell(c.score, `channel ${c.channel}, weakest report: ${c.score === undefined ? 'no data' : `${db(c.score)} dB`}${c.rank ? `, rank ${c.rank}` : ''}`);
+      const td = this.signalCell(c.score, t('channel {ch}, weakest report: {v}', { ch: c.channel, v: c.score === undefined ? t('no data') : `${db(c.score)} dB` }) + (c.rank ? t(', rank {n}', { n: c.rank }) : ''));
       if (c.rank) {
         td.classList.add('sm-pick');
         td.prepend(el('span', 'sm-rank', String(c.rank)));
@@ -990,10 +996,10 @@ export class LinkView {
         for (const c of model.channels) {
           const r = model.rows.find((x) => x.station === st.id && x.channel === c.channel);
           const v = kind === 'heard' ? r?.heardDb : r?.reportedDb;
-          const td = this.signalCell(v, `${this.name(st.id)}, channel ${c.channel}: ${v === undefined ? 'no data' : `${db(v)} dB`}`);
+          const td = this.signalCell(v, t('{name}, channel {ch}: {v}', { name: this.name(st.id), ch: c.channel, v: v === undefined ? t('no data') : `${db(v)} dB` }));
           if (kind === 'reported' && st.best?.channel === c.channel) {
             td.classList.add('sm-pick');
-            td.title += ', we send to this station here';
+            td.title += t(', we send to this station here');
           }
           tr.append(td);
         }
@@ -1001,7 +1007,7 @@ export class LinkView {
       }
       return tbody;
     };
-    table.append(group('They hear us (their reports)', 'reported'), group('We hear them', 'heard'));
+    table.append(group(t('They hear us (their reports)'), 'reported'), group(t('We hear them'), 'heard'));
 
     const wrap = el('div', 'table-scroll');
     wrap.append(table);
@@ -1022,7 +1028,7 @@ export class LinkView {
   private historyRangeSwitch(): HTMLElement {
     const wrap = el('div', 'view-switch');
     wrap.setAttribute('role', 'group');
-    wrap.setAttribute('aria-label', 'Signal history range');
+    wrap.setAttribute('aria-label', t('Signal history range'));
     for (const r of HISTORY_RANGES) {
       const b = el('button', r.min === this.historyRange ? 'active' : undefined, r.label);
       b.type = 'button';
@@ -1041,10 +1047,10 @@ export class LinkView {
     const rangeMin = this.historyRange;
     const rangeLabel = HISTORY_RANGES.find((r) => r.min === rangeMin)?.label ?? `${rangeMin} min`;
     const head = el('div', 'section-head');
-    head.append(el('h4', 'history-sub', 'Signal history'), this.historyRangeSwitch());
+    head.append(el('h4', 'history-sub', t('Signal history')), this.historyRangeSwitch());
     body.append(head);
     if (model.samples.length === 0) {
-      body.append(el('p', 'hint', `No frames decoded in the last ${rangeLabel}.`));
+      body.append(el('p', 'hint', t('No frames decoded in the last {range}.', { range: rangeLabel })));
       return;
     }
     const W = 900, H = 200, L = 32, R = 70, T = 8, B = 20;
@@ -1053,28 +1059,28 @@ export class LinkView {
     const x = (ms: number): number => L + ((ms - t0) / (t1 - t0)) * (W - L - R);
     const y = (v: number): number => T + ((yMax - Math.max(yMin, Math.min(yMax, v))) / (yMax - yMin)) * (H - T - B);
 
-    const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'history-chart', role: 'img', 'aria-label': `SNR of decoded frames over the last ${rangeLabel}, one line per station; the table below has the same numbers` });
+    const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'history-chart', role: 'img', 'aria-label': t('SNR of decoded frames over the last {range}, one line per station; the table below has the same numbers', { range: rangeLabel }) });
     // Quality bands behind everything, in the same green / yellow / red as the rest of the screen.
-    for (const [hi, lo, cls, name] of [[yMax, GOOD_DB, 'good', 'good'], [GOOD_DB, FAIR_DB, 'fair', 'fair'], [FAIR_DB, yMin, 'weak', 'weak']] as const) {
+    for (const [hi, lo, cls, name] of [[yMax, GOOD_DB, 'good', t('good')], [GOOD_DB, FAIR_DB, 'fair', t('fair')], [FAIR_DB, yMin, 'weak', t('weak')]] as const) {
       chart.append(svg('rect', { x: L, y: y(hi), width: W - L - R, height: y(lo) - y(hi), class: `chart-band chart-band-${cls}` }));
-      const t = svg('text', { x: L + 6, y: y(hi) + 9, class: `chart-band-name chart-band-name-${cls}` });
-      t.textContent = name;
-      chart.append(t);
+      const label = svg('text', { x: L + 6, y: y(hi) + 9, class: `chart-band-name chart-band-name-${cls}` });
+      label.textContent = name;
+      chart.append(label);
     }
     for (const v of [-24, -18, -12, -6, 0]) {
       chart.append(svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v === GOOD_DB || v === FAIR_DB ? 'chart-threshold' : 'chart-grid' }));
-      const t = svg('text', { x: L - 6, y: y(v) + 4, class: 'chart-axis', 'text-anchor': 'end' });
-      t.textContent = `${v}`;
-      chart.append(t);
+      const tick = svg('text', { x: L - 6, y: y(v) + 4, class: 'chart-axis', 'text-anchor': 'end' });
+      tick.textContent = `${v}`;
+      chart.append(tick);
     }
     // A handful of grid lines back from now, spaced to suit the chosen range, each labelled.
     const stepMin = rangeMin <= 60 ? 10 : rangeMin <= 360 ? 60 : 120;
     for (let m = 0; m <= rangeMin; m += stepMin) {
       const ms = t1 - m * 60 * 1000;
       chart.append(svg('line', { x1: x(ms), x2: x(ms), y1: T, y2: H - B, class: 'chart-grid' }));
-      const t = svg('text', { x: x(ms), y: H - 6, class: 'chart-axis', 'text-anchor': 'middle' });
-      t.textContent = m === 0 ? 'now' : m % 60 === 0 ? `−${m / 60} h` : `−${m} min`;
-      chart.append(t);
+      const tick = svg('text', { x: x(ms), y: H - 6, class: 'chart-axis', 'text-anchor': 'middle' });
+      tick.textContent = m === 0 ? t('now') : m % 60 === 0 ? `−${m / 60} h` : `−${m} min`;
+      chart.append(tick);
     }
     const unit = svg('text', { x: 4, y: T + 4, class: 'chart-axis' });
     unit.textContent = 'dB';
@@ -1116,7 +1122,7 @@ export class LinkView {
           c.textContent = String(q.p.channel);
           chart.append(c);
         }
-        points.push({ px: q.px, py: q.py, text: `${this.name(st.id)} · ${db(q.p.snrDb)} dB · ch ${q.p.channel} · ${dateTime(q.p.slot * this.slotSec * 1000)}` });
+        points.push({ px: q.px, py: q.py, text: `${this.name(st.id)} · ${db(q.p.snrDb)} dB · ${t('ch {ch}', { ch: q.p.channel })} · ${dateTime(q.p.slot * this.slotSec * 1000)}` });
       }
       const last = xy[xy.length - 1]!;
       const label = svg('text', { x: Math.min(last.px + 8, W - R + 6), y: last.py + 4, class: 'chart-label' });
@@ -1165,8 +1171,8 @@ export class LinkView {
   /** Built once and never taken out of the page: it is what the user is often reading. */
   private framesSection(): HTMLElement {
     if (!this.framesEl) {
-      const { root: s, body } = this.section('frames', 'History', 'The latest frames as a sequence diagram, then every frame in a table. The log keeps the last 1000.');
-      body.append(el('h4', 'history-sub', 'Sequence'), this.sequence.root, el('h4', 'history-sub', 'All frames'), el('p', 'hint', 'Every frame sent or received, newest first. Filter, tick rows and remove them.'), this.frameTable.root);
+      const { root: s, body } = this.section('frames', t('History'), t('The latest frames as a sequence diagram, then every frame in a table. The log keeps the last 1000.'));
+      body.append(el('h4', 'history-sub', t('Sequence')), this.sequence.root, el('h4', 'history-sub', t('All frames')), el('p', 'hint', t('Every frame sent or received, newest first. Filter, tick rows and remove them.')), this.frameTable.root);
       this.framesEl = s;
     }
     return this.framesEl;

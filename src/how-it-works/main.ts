@@ -1,6 +1,7 @@
 // The How it works page (how-it-works.html). Every number and every decode comes from audiomesh's own modules (am.ts).
 import * as AM from './am';
 import type { OutMessage } from '../chat/session';
+import { bandLabel, dec, lang, num, storeLang, t, tn } from '../i18n/i18n';
 import DecodeWorker from './decode.worker.ts?worker';
 import './how-it-works.css';
 
@@ -15,11 +16,11 @@ const modeHooks: (() => void)[] = [];
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 const token = (name: string): string => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const minus = (x: number, d = 0): string => (x < 0 ? '−' : '') + Math.abs(x).toFixed(d);
-const signed = (x: number, d = 0): string => (x > 0 ? '+' : x < 0 ? '−' : '±') + Math.abs(x).toFixed(d);
-const secs = (s: number): string => `${+s.toFixed(2)} s`;
+const minus = (x: number, d = 0): string => (x < 0 ? '−' : '') + num(Math.abs(x), d);
+const signed = (x: number, d = 0): string => (x > 0 ? '+' : x < 0 ? '−' : '±') + num(Math.abs(x), d);
+const secs = (s: number): string => `${dec(String(+s.toFixed(2)))} s`;
 function duration(s: number): string {
-  if (s < 60) return `${+s.toFixed(1)} s`;
+  if (s < 60) return `${dec(String(+s.toFixed(1)))} s`;
   const m = Math.floor(s / 60);
   const r = Math.round(s - m * 60);
   return r ? `${m} min ${r} s` : `${m} min`;
@@ -128,7 +129,7 @@ function bindPlay(button: HTMLButtonElement, make: (rate: number) => { samples: 
       if (f < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
-    button.innerHTML = '<span aria-hidden="true">■</span> Stop';
+    button.innerHTML = `<span aria-hidden="true">■</span> ${t('Stop')}`;
     button.setAttribute('aria-pressed', 'true');
     const done = (): void => {
       cancelAnimationFrame(raf);
@@ -193,7 +194,7 @@ function drawLogo(): void {
 
 function setupMode(): void {
   const sel = $<HTMLSelectElement>('mode');
-  sel.innerHTML = MODES.map((m) => `<option value="${m.id}"${m === spec ? ' selected' : ''}>${m.label} · ${m.baud} baud · ${m.slotSec} s slots</option>`).join('');
+  sel.innerHTML = MODES.map((m) => `<option value="${m.id}"${m === spec ? ' selected' : ''}>${t('{mode} · {baud} baud · {slot} s slots', { mode: m.label, baud: dec(String(m.baud)), slot: dec(String(m.slotSec)) })}</option>`).join('');
   sel.addEventListener('change', () => setMode(sel.value));
 }
 function setMode(id: string): void {
@@ -212,10 +213,10 @@ let heroPic: Picture | null = null;
 async function hero(): Promise<void> {
   heroPic = await job('picture', { mode: spec.id, text: 'HELLO', snrDb: -4, dtSec: 0, dfHz: 0, seed: 11 });
   drawHero(-1);
-  $('hero-caption').textContent =
-    `One frame in ${spec.label} mode, heard through noise: 79 tones in ${secs(AM.frameDurationSec(spec))}, ` +
-    `drawn the way the receiver measures it (energy of each tone, every quarter of a symbol). ` +
-    `The three seven-step staircases are the sync pattern; the rest is data.`;
+  $('hero-caption').textContent = t(
+    'One frame in {mode} mode, heard through noise: 79 tones in {time}, drawn the way the receiver measures it (energy of each tone, every quarter of a symbol). The three seven-step staircases are the sync pattern; the rest is data.',
+    { mode: spec.label, time: secs(AM.frameDurationSec(spec)) },
+  );
 }
 function drawHero(playFraction: number): void {
   const pic = heroPic;
@@ -236,7 +237,7 @@ function drawHero(playFraction: number): void {
     g.fillStyle = 'rgba(9,11,11,0.72)';
     g.fillRect(x0, 0, x1 - x0, 14);
     g.fillStyle = token('--peak');
-    g.fillText('SYNC', x0 + 3, 2);
+    g.fillText(t('SYNC'), x0 + 3, 2);
   }
   if (playFraction >= 0) {
     const x = v.x(startCol + playFraction * 79 * perSym);
@@ -258,25 +259,26 @@ function bands(): void {
   const X = (hz: number): number => 20 + ((Math.log10(hz) - lo) / (hi - lo)) * (W - 40);
   let s = `<defs><linearGradient id="hear" x1="0" x2="1"><stop offset="0" stop-color="var(--hear)" stop-opacity="0.32"/><stop offset="0.82" stop-color="var(--hear)" stop-opacity="0.32"/><stop offset="1" stop-color="var(--hear)" stop-opacity="0"/></linearGradient></defs>`;
   s += `<rect x="${X(50)}" y="20" width="${X(17000) - X(50)}" height="10" fill="url(#hear)"/>`;
-  s += `<text x="${X(60)}" y="14" class="t-dim">Adult hearing, fading out above about 16 kHz</text>`;
+  s += `<text x="${X(60)}" y="14" class="t-dim">${t('Adult hearing, fading out above about 16 kHz')}</text>`;
   for (const hz of W < 600 ? [100, 1000, 10000] : [100, 300, 1000, 3000, 10000, 20000]) {
     s += `<line x1="${X(hz)}" x2="${X(hz)}" y1="36" y2="96" class="grid"/>`;
-    s += `<text x="${X(hz)}" y="112" text-anchor="middle" class="t-dim">${hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`}</text>`;
+    s += `<text x="${X(hz)}" y="112" text-anchor="middle" class="t-dim">${hz >= 1000 ? `${dec(String(hz / 1000))} kHz` : `${hz} Hz`}</text>`;
   }
   for (const b of AM.BANDS) {
     const ok = b.highHz <= usable;
     const fits = AM.effectiveChannelCount(spec, b) > 0;
     const picked = b.name === bandPicked;
-    s += `<g class="band${picked ? ' picked' : ''}${ok && fits ? '' : ' off'}" data-band="${b.name}" tabindex="0" role="button" aria-label="${b.name} band">`;
+    const name = bandLabel(b.name);
+    s += `<g class="band${picked ? ' picked' : ''}${ok && fits ? '' : ' off'}" data-band="${b.name}" tabindex="0" role="button" aria-label="${t('{band} band', { band: name })}">`;
     s += `<rect x="${X(b.lowHz)}" y="44" width="${Math.max(6, X(b.highHz) - X(b.lowHz))}" height="40"/>`;
-    const wide = X(b.highHz) - X(b.lowHz) > b.name.length * 9 + 12;
+    const wide = X(b.highHz) - X(b.lowHz) > name.length * 9 + 12;
     s += wide
-      ? `<text x="${(X(b.lowHz) + X(b.highHz)) / 2}" y="68" text-anchor="middle">${b.name}</text></g>`
-      : `<text x="${X(b.lowHz) - 6}" y="68" text-anchor="end">${b.name}</text></g>`;
+      ? `<text x="${(X(b.lowHz) + X(b.highHz)) / 2}" y="68" text-anchor="middle">${name}</text></g>`
+      : `<text x="${X(b.lowHz) - 6}" y="68" text-anchor="end">${name}</text></g>`;
   }
   if (usable < 24000) {
     s += `<line x1="${X(usable)}" x2="${X(usable)}" y1="36" y2="96" class="nyq"/>`;
-    s += `<text x="${Math.min(X(usable) + 6, W - 4)}" y="104" text-anchor="${X(usable) > W - 160 ? 'end' : 'start'}" class="t-bad">usable to ${+(usable / 1000).toFixed(2)} kHz</text>`;
+    s += `<text x="${Math.min(X(usable) + 6, W - 4)}" y="104" text-anchor="${X(usable) > W - 160 ? 'end' : 'start'}" class="t-bad">${t('usable to {khz} kHz', { khz: dec(String(+(usable / 1000).toFixed(2))) })}</text>`;
   }
   const svg = $('band-svg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -308,13 +310,18 @@ function bandZoom(usable: number): void {
   const carried = band.highHz <= usable;
   const max = band.channelCount;
   const spacing = channels.length > 1 ? AM.channelSpacingHz(spec, band) : 0;
-  let note = `<b>${band.name[0]!.toUpperCase() + band.name.slice(1)} band</b>, ${band.lowHz}–${band.highHz} Hz. `;
-  if (channels.length === 0) note += `${spec.label} is ${bw} Hz wide, wider than the whole band, so it has no channel here. `;
+  const name = bandLabel(band.name);
+  const title = t('{band} band', { band: name });
+  let note = `<b>${title[0]!.toUpperCase() + title.slice(1)}</b>, ${band.lowHz}–${band.highHz} Hz. `;
+  const hz = (x: number): string => dec(String(+x.toFixed(2)));
+  if (channels.length === 0) note += t('{mode} is {bw} Hz wide, wider than the whole band, so it has no channel here.', { mode: spec.label, bw: hz(bw) }) + ' ';
   else {
-    note += `${channels.length === max ? `All ${max}` : `${channels.length} of its ${max}`} channels fit ${spec.label}, `;
-    note += `each ${bw} Hz wide${spacing ? `, ${spacing} Hz apart` : ''}: numbers ${channels[0]!.number}–${channels[channels.length - 1]!.number}. `;
+    const vars = { n: channels.length, max, mode: spec.label, bw: hz(bw), spacing: hz(spacing), from: channels[0]!.number, to: channels[channels.length - 1]!.number };
+    note += (channels.length === max ? t('All {max} channels fit {mode}', vars) : t('{n} of its {max} channels fit {mode}', vars)) + ', ';
+    note += (spacing ? t('each {bw} Hz wide, {spacing} Hz apart', vars) : t('each {bw} Hz wide', vars)) + ': ' + t('numbers {from}–{to}.', vars) + ' ';
   }
-  note += carried ? `A ${bandRate / 1000} kHz sound card carries it.` : `<span class="bad">A ${bandRate / 1000} kHz sound card cannot carry it.</span>`;
+  const rate = dec(String(bandRate / 1000));
+  note += carried ? t('A {rate} kHz sound card carries it.', { rate }) : `<span class="bad">${t('A {rate} kHz sound card cannot carry it.', { rate })}</span>`;
   $('band-note').innerHTML = note;
 }
 function setupBands(): void {
@@ -334,16 +341,16 @@ function setupBands(): void {
 interface Field { f: string; bits: number; label: string }
 function fieldsOf(frame: { kind: 'first' | 'next'; seq?: number; last?: number; dst?: number; text: string }): Field[] {
   const out: Field[] = [
-    { f: 'kind', bits: 2, label: frame.kind === 'first' ? 'kind: first' : 'kind: next' },
-    { f: 'src', bits: 10, label: 'from #101' },
-    { f: 'msg', bits: 4, label: 'msg 5' },
+    { f: 'kind', bits: 2, label: frame.kind === 'first' ? t('kind: first') : t('kind: next') },
+    { f: 'src', bits: 10, label: t('from #{id}', { id: 101 }) },
+    { f: 'msg', bits: 4, label: t('msg {n}', { n: 5 }) },
   ];
   if (frame.kind === 'first') {
-    out.push({ f: 'seq', bits: 4, label: `last ${frame.last! + 1}` });
-    out.push({ f: 'dst', bits: 10, label: frame.dst ? `to #${frame.dst}` : 'to all' });
-  } else out.push({ f: 'seq', bits: 4, label: `frame ${frame.seq! + 1}` });
+    out.push({ f: 'seq', bits: 4, label: t('last {n}', { n: frame.last! + 1 }) });
+    out.push({ f: 'dst', bits: 10, label: frame.dst ? t('to #{id}', { id: frame.dst }) : t('to all') });
+  } else out.push({ f: 'seq', bits: 4, label: t('frame {n}', { n: frame.seq! + 1 }) });
   for (const ch of frame.text) out.push({ f: 'text', bits: 6, label: ch === ' ' ? '␣' : ch });
-  if (frame.kind === 'first') out.push({ f: 'spare', bits: 2, label: 'spare' });
+  if (frame.kind === 'first') out.push({ f: 'spare', bits: 2, label: t('spare') });
   out.push({ f: 'via', bits: 3, label: 'via' });
   return out;
 }
@@ -362,16 +369,16 @@ function bits(): void {
   $('msg-norm').textContent = text;
   const sizes = chunks.map((c, i) => (i === chunks.length - 1 ? text.length - (i === 0 ? 0 : AM.FIRST_CHARS + (i - 1) * AM.NEXT_CHARS) : c.length));
   $('msg-stats').innerHTML =
-    `${text.length} characters → <b>${chunks.length} frame${chunks.length > 1 ? 's' : ''}</b> (${sizes.join(' + ')}). ` +
-    `One frame per slot: <b>${duration(chunks.length * spec.slotSec)}</b> on air in <span data-mode-name>${spec.label}</span>` +
-    (dst ? ', plus an answer from #202.' : '.');
+    t('{chars} characters → <b>{frames}</b> ({sizes}).', { chars: text.length, frames: tn(chunks.length, '{n} frame', '{n} frames'), sizes: sizes.join(' + ') }) + ' ' +
+    t('One frame per slot: <b>{time}</b> on air in {mode}', { time: duration(chunks.length * spec.slotSec), mode: `<span data-mode-name>${spec.label}</span>` }) +
+    (dst ? t(', plus an answer from #{id}.', { id: 202 }) : '.');
   const shown = showAllFrames ? frames.length : Math.min(3, frames.length);
   let html = '';
   for (let i = 0; i < shown; i++) {
     const f = frames[i]!;
     const fields = fieldsOf(i === 0 ? { kind: 'first', last: chunks.length - 1, dst, text: chunks[i]! } : { kind: 'next', seq: i, text: chunks[i]! });
     let pos = 0;
-    html += `<div class="frame"><div class="frame-head"><span>Frame ${i + 1} of ${chunks.length}</span><span class="dim">${i === 0 ? 'first' : 'next'} · “${esc(chunks[i]!.trimEnd())}”</span></div><div class="fields">`;
+    html += `<div class="frame"><div class="frame-head"><span>${t('Frame {i} of {n}', { i: i + 1, n: chunks.length })}</span><span class="dim">${i === 0 ? t('first') : t('next')} · “${esc(chunks[i]!.trimEnd())}”</span></div><div class="fields">`;
     for (const fl of fields) {
       let b = '';
       for (let k = 0; k < fl.bits; k++) b += f[pos + k];
@@ -380,7 +387,7 @@ function bits(): void {
     }
     html += '</div></div>';
   }
-  if (frames.length > 3) html += `<button class="link" id="msg-more" type="button">${showAllFrames ? 'Show fewer frames' : `Show all ${frames.length} frames`}</button>`;
+  if (frames.length > 3) html += `<button class="link" id="msg-more" type="button">${showAllFrames ? t('Show fewer frames') : t('Show all {n} frames', { n: frames.length })}</button>`;
   $('msg-frames').innerHTML = html;
   const more = document.getElementById('msg-more');
   more?.addEventListener('click', () => { showAllFrames = !showAllFrames; bits(); });
@@ -411,7 +418,7 @@ function breakIt(): void {
   if (!grid.childElementCount) {
     let html = '';
     for (let k = 0; k < 79; k++) {
-      html += SYNC.has(k) ? `<span class="sym sync" title="sync symbol ${k}"></span>` : `<button type="button" class="sym" data-k="${k}" aria-label="data symbol ${k}"></button>`;
+      html += SYNC.has(k) ? `<span class="sym sync" title="${t('sync symbol {k}', { k })}"></span>` : `<button type="button" class="sym" data-k="${k}" aria-label="${t('data symbol {k}', { k })}"></button>`;
     }
     grid.innerHTML = html;
   }
@@ -436,11 +443,11 @@ function breakIt(): void {
   r.dataset.ok = String(right);
   const frame = out ? AM.decodeFrame(out) : null;
   r.innerHTML = right
-    ? `<b>Decoded.</b> All 83 parity checks pass and the CRC matches: “${esc(frame && frame.kind === 'first' ? frame.text.trimEnd() : '')}”.`
+    ? t('<b>Decoded.</b> All 83 parity checks pass and the CRC matches: “{text}”.', { text: esc(frame && frame.kind === 'first' ? frame.text.trimEnd() : '') })
     : out
-      ? '<b>Wrong payload.</b> This should never happen.'
-      : '<b>Refused.</b> No codeword fits what was heard, so the receiver drops the frame. It never guesses.';
-  $('fec-count').textContent = `${erased} erased · ${wrong} wrong · ${58 - damage.size} intact`;
+      ? t('<b>Wrong payload.</b> This should never happen.')
+      : t('<b>Refused.</b> No codeword fits what was heard, so the receiver drops the frame. It never guesses.');
+  $('fec-count').textContent = t('{erased} erased · {wrong} wrong · {intact} intact', { erased, wrong, intact: 58 - damage.size });
 }
 function setupFec(): void {
   const grid = $('fec-grid');
@@ -500,9 +507,10 @@ function tones(): void {
   toneSymbols = codec.encode(payload);
   drawTones();
   drawGlide();
-  $('tone-stats').innerHTML =
-    `In <span data-mode-name>${spec.label}</span>: ${spec.baud} symbols a second, tones ${spec.toneSpacingHz} Hz apart, ` +
-    `${AM.bandwidthHz(spec)} Hz wide in all, ${secs(AM.frameDurationSec(spec))} on air.`;
+  $('tone-stats').innerHTML = t('In {mode}: {baud} symbols a second, tones {spacing} Hz apart, {bw} Hz wide in all, {time} on air.', {
+    mode: `<span data-mode-name>${spec.label}</span>`, baud: dec(String(spec.baud)), spacing: dec(String(spec.toneSpacingHz)),
+    bw: dec(String(AM.bandwidthHz(spec))), time: secs(AM.frameDurationSec(spec)),
+  });
 }
 function drawTones(): void {
   const canvas = $<HTMLCanvasElement>('tone-grid');
@@ -580,9 +588,9 @@ function drawGlide(): void {
   g.stroke();
   g.fillStyle = token('--dim');
   g.font = `10px ${token('--f-data')}`;
-  g.fillText(`symbols ${first}–${first + N - 1}`, padL, h - 4);
+  g.fillText(t('symbols {from}–{to}', { from: first, to: first + N - 1 }), padL, h - 4);
   g.textAlign = 'right';
-  g.fillText('dashed: jumping · solid: the Gaussian glide audiomesh sends', w - 4, h - 4);
+  g.fillText(t('dashed: jumping · solid: the Gaussian glide audiomesh sends'), w - 4, h - 4);
   g.textAlign = 'left';
 }
 function setupTones(): void {
@@ -592,7 +600,7 @@ function setupTones(): void {
     const b = AM.GRAY_TO_TONE.indexOf(tone as 0);
     rows.push(`<tr><td class="num">${tone}</td><td class="bits">${b.toString(2).padStart(3, '0')}</td></tr>`);
   }
-  gray.innerHTML = `<thead><tr><th>Tone</th><th>Bits</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+  gray.innerHTML = `<thead><tr><th>${t('Tone')}</th><th>${t('Bits')}</th></tr></thead><tbody>${rows.join('')}</tbody>`;
   bindPlay($<HTMLButtonElement>('tone-play'), (rate) => ({ samples: AM.synthesizeFrame(toneSymbols, 1000, rate, spec), rate }), (f) => { tonePlay = f; drawTones(); });
 }
 
@@ -663,12 +671,12 @@ function drawSync(): void {
   g.strokeStyle = 'rgba(230,235,234,0.45)';
   g.strokeRect(x0, fy0, x1 - x0, fy1 - fy0);
   g.setLineDash([]);
-  $('sync-score').textContent = score.toFixed(2);
+  $('sync-score').textContent = num(score, 2);
   $('sync-score-bar').style.setProperty('--v', String(Math.min(1, score)));
-  $('sync-verdict').textContent = good ? 'Looks like a frame' : score > 0.2 ? 'Noise level' : 'Nothing here';
+  $('sync-verdict').textContent = good ? t('Looks like a frame') : score > 0.2 ? t('Noise level') : t('Nothing here');
   $('sync-verdict').dataset.good = String(good);
   const dt = (tpl.col / pic.hopsPerSymbol / spec.baud) - AM.windowLeadSec(spec);
-  $('sync-where').textContent = `start ${signed(dt, 2)} s from the slot boundary · ${signed(tpl.f * spec.toneSpacingHz, 2)} Hz`;
+  $('sync-where').textContent = t('start {dt} s from the slot boundary · {df} Hz', { dt: signed(dt, 2), df: signed(tpl.f * spec.toneSpacingHz, 2) });
   drawSyncCurve();
 }
 function drawSyncCurve(): void {
@@ -680,7 +688,7 @@ function drawSyncCurve(): void {
   g.lineWidth = 1;
   g.fillStyle = token('--dim');
   g.font = `10px ${token('--f-data')}`;
-  for (const [s, label] of [[0.23, 'noise ≈ 0.23'], [0.5, '0.5']] as const) {
+  for (const [s, label] of [[0.23, t('noise ≈ {v}', { v: num(0.23, 2) })], [0.5, num(0.5, 1)]] as const) {
     g.setLineDash(s === 0.23 ? [3, 4] : []);
     g.beginPath(); g.moveTo(0, Y(s) + 0.5); g.lineTo(w, Y(s) + 0.5); g.stroke();
     g.fillText(label, 4, Y(s) - 3);
@@ -696,7 +704,7 @@ function drawSyncCurve(): void {
     for (let c = 0; c < syncCurveLen; c++) { if (c === 0) g.moveTo(X(c), Y(syncCurve[c]!)); else g.lineTo(X(c), Y(syncCurve[c]!)); }
     g.stroke();
   } else {
-    g.fillText('Search to see the score at every start time (best pitch at each)', 4, h - 2);
+    g.fillText(t('Search to see the score at every start time (best pitch at each)'), 4, h - 2);
   }
   g.fillStyle = token('--line-strong');
   g.fillRect(X(tpl.col) - 1, 4, 2, h - 18);
@@ -781,13 +789,13 @@ function slots(): void {
   s += `<line x1="${X(lo)}" x2="${X(hi)}" y1="120" y2="120" class="axis"/>`;
   for (const b of [0, slot]) {
     s += `<line x1="${X(b)}" x2="${X(b)}" y1="8" y2="128" class="bound"/>`;
-    s += `<text x="${X(b) + 5}" y="18" class="t-dim">${b === 0 ? 'slot starts' : 'next slot'}</text>`;
+    s += `<text x="${X(b) + 5}" y="18" class="t-dim">${b === 0 ? t('slot starts') : t('next slot')}</text>`;
   }
   s += `<rect x="${X(-allow - extra)}" y="34" width="${X(frame + allow + extra) - X(-allow - extra)}" height="30" class="win${deep ? ' deep' : ''}"/>`;
   s += `<rect x="${X(-allow)}" y="34" width="${X(frame + allow) - X(-allow)}" height="30" class="win-core"/>`;
-  s += `<text x="${X(-allow - extra) + 6}" y="53" class="t-acc">we record ${secs(frame + 2 * (allow + extra))}</text>`;
+  s += `<text x="${X(-allow - extra) + 6}" y="53" class="t-acc">${t('we record {time}', { time: secs(frame + 2 * (allow + extra)) })}</text>`;
   s += `<rect x="${X(skew)}" y="76" width="${X(skew + frame) - X(skew)}" height="30" class="their ${ok ? 'ok' : 'lost'}"/>`;
-  s += `<text x="${X(skew) + 6}" y="95" class="t-ink">their frame, ${secs(frame)}</text>`;
+  s += `<text x="${X(skew) + 6}" y="95" class="t-ink">${t('their frame, {time}', { time: secs(frame) })}</text>`;
   for (const t of [-allow - extra, frame + allow + extra]) s += `<text x="${X(t)}" y="138" text-anchor="middle" class="t-dim">${signed(t, 2)} s</text>`;
   const svg = $('slot-svg');
   svg.setAttribute('viewBox', `0 0 ${W} 146`);
@@ -795,12 +803,16 @@ function slots(): void {
   $('skew-out').textContent = `${signed(skew, 2)} s`;
   const v = $('slot-verdict');
   v.dataset.good = String(ok);
+  const allowS = dec(String(allow));
   v.textContent = ok
-    ? Math.abs(skew) <= allow ? `Inside the ±${allow} s the receiver allows for: it decodes.` : `Outside ±${allow} s, but Deep decode searches ${extra} s further: it decodes.`
-    : `The frame falls off the edge of the window: nothing decodes, though the waterfall shows it.`;
+    ? Math.abs(skew) <= allow
+      ? t('Inside the ±{allow} s the receiver allows for: it decodes.', { allow: allowS })
+      : t('Outside ±{allow} s, but Deep decode searches {extra} s further: it decodes.', { allow: allowS, extra: dec(String(extra)) })
+    : t('The frame falls off the edge of the window: nothing decodes, though the waterfall shows it.');
+  const deepS = AM.deepExtraSec(spec);
   $('slot-facts').innerHTML =
-    `<span data-mode-name>${spec.label}</span>: ${slot} s slots, ${secs(frame)} frames, clock allowance ±${allow} s` +
-    `${AM.deepExtraSec(spec) ? `, Deep decode ${AM.deepExtraSec(spec)} s more each side` : ''}.`;
+    t('{mode}: {slot} s slots, {frame} frames, clock allowance ±{allow} s', { mode: `<span data-mode-name>${spec.label}</span>`, slot: dec(String(slot)), frame: secs(frame), allow: allowS }) +
+    (deepS ? t(', Deep decode {extra} s more each side', { extra: dec(String(deepS)) }) : '') + '.';
 }
 let slotW = 1000;
 function clockTick(): void {
@@ -812,7 +824,7 @@ function clockTick(): void {
   const pad = (x: number, l = 2): string => String(x).padStart(l, '0');
   $('clock-utc').textContent = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}.${Math.floor(d.getUTCMilliseconds() / 100)}`;
   $('clock-slot').textContent = n.toLocaleString('en-US').replace(/,/g, ' ');
-  $('clock-into').textContent = `${into.toFixed(1)} of ${spec.slotSec} s`;
+  $('clock-into').textContent = t('{into} of {slot} s', { into: num(into, 1), slot: dec(String(spec.slotSec)) });
   const W = slotW;
   const lo = -0.45 * spec.slotSec;
   const hi = 1.45 * spec.slotSec;
@@ -848,7 +860,7 @@ let labBusy = false;
 let labSeed = 1000;
 function labParams(): { text: string; snrDb: number; dtSec: number; dfHz: number } {
   return {
-    text: AM.normalizeText($<HTMLInputElement>('lab-text').value).slice(0, AM.FIRST_CHARS) || 'HELLO',
+    text: AM.normalizeText($<HTMLInputElement>('lab-text').value).slice(0, AM.FIRST_CHARS) || t('HELLO'),
     snrDb: Number($<HTMLInputElement>('lab-snr').value),
     dtSec: Number($<HTMLInputElement>('lab-dt').value),
     dfHz: Number($<HTMLInputElement>('lab-df').value),
@@ -860,8 +872,8 @@ function labOutputs(): void {
   $('lab-dt-out').textContent = `${signed(p.dtSec, 2)} s`;
   $('lab-df-out').textContent = `${signed(p.dfHz, 1)} Hz`;
   $('lab-snr-hint').textContent = p.snrDb <= -10
-    ? `In 2500 Hz the noise is about ${Math.round(10 ** (-p.snrDb / 10))} times stronger than the signal.`
-    : p.snrDb < 0 ? 'Noise a little stronger than the signal.' : 'Signal stronger than the noise.';
+    ? t('In 2500 Hz the noise is about {x} times stronger than the signal.', { x: Math.round(10 ** (-p.snrDb / 10)) })
+    : p.snrDb < 0 ? t('Noise a little stronger than the signal.') : t('Signal stronger than the noise.');
 }
 async function labRun(trials: number): Promise<void> {
   if (labBusy) return;
@@ -871,7 +883,7 @@ async function labRun(trials: number): Promise<void> {
   let ok = 0;
   try {
     for (let i = 0; i < trials; i++) {
-      $('lab-progress').textContent = trials > 1 ? `Trial ${i + 1} of ${trials}…` : 'Decoding…';
+      $('lab-progress').textContent = trials > 1 ? t('Trial {i} of {n}…', { i: i + 1, n: trials }) : t('Decoding…');
       const r = await job('decode', { mode: spec.id, ...p, seed: labSeed++ });
       const good = r.frames!.some((f) => f.right);
       if (r.frames!.some((f) => !f.right)) labWrong++;
@@ -883,7 +895,7 @@ async function labRun(trials: number): Promise<void> {
       if (i === 0 || i === trials - 1) { labPic = r; drawLab(); labResult(r, p); }
       drawLabChart();
     }
-    $('lab-progress').textContent = trials > 1 ? `${ok} of ${trials} decoded at ${minus(p.snrDb)} dB.` : '';
+    $('lab-progress').textContent = trials > 1 ? t('{ok} of {n} decoded at {snr} dB.', { ok, n: trials, snr: minus(p.snrDb) }) : '';
   } finally {
     labBusy = false;
     document.querySelectorAll<HTMLButtonElement>('.lab-go').forEach((b) => { b.disabled = false; });
@@ -894,17 +906,18 @@ function labResult(r: Picture, p: { snrDb: number; dtSec: number; dfHz: number }
   const el = $('lab-result');
   el.dataset.ok = String(!!f?.right);
   if (f) {
+    const sent = (v: string): string => `<span class="dim">${t('(sent {v})', { v })}</span>`;
     el.innerHTML =
-      `<div class="res-head"><b>Decoded</b><span class="res-text">“${esc((f.text ?? '').trimEnd())}”</span></div>` +
-      `<dl class="res-grid"><dt>Signal</dt><dd>${minus(f.snrDb, 1)} dB <span class="dim">(sent ${minus(p.snrDb)})</span></dd>` +
-      `<dt>Timing</dt><dd>${signed(f.dtSec, 2)} s <span class="dim">(sent ${signed(p.dtSec, 2)})</span></dd>` +
-      `<dt>Pitch</dt><dd>${signed(f.dfHz, 1)} Hz <span class="dim">(sent ${signed(p.dfHz, 1)})</span></dd>` +
-      `<dt>Work</dt><dd>${Math.round(r.ms!)} ms${f.pass ? `, harder pass “${esc(f.pass)}”` : ''}</dd></dl>`;
+      `<div class="res-head"><b>${t('Decoded')}</b><span class="res-text">“${esc((f.text ?? '').trimEnd())}”</span></div>` +
+      `<dl class="res-grid"><dt>${t('Signal')}</dt><dd>${minus(f.snrDb, 1)} dB ${sent(minus(p.snrDb))}</dd>` +
+      `<dt>${t('Timing')}</dt><dd>${signed(f.dtSec, 2)} s ${sent(signed(p.dtSec, 2))}</dd>` +
+      `<dt>${t('Pitch')}</dt><dd>${signed(f.dfHz, 1)} Hz ${sent(signed(p.dfHz, 1))}</dd>` +
+      `<dt>${t('Work')}</dt><dd>${Math.round(r.ms!)} ms${f.pass ? t(', harder pass “{pass}”', { pass: esc(f.pass) }) : ''}</dd></dl>`;
   } else {
     el.innerHTML =
-      `<div class="res-head"><b>Nothing decoded</b></div>` +
-      `<dl class="res-grid"><dt>Best sync</dt><dd>${r.sync ? `${r.sync.score.toFixed(2)} at ${signed(r.sync.dt, 2)} s` : '—'} <span class="dim">${r.sync && r.sync.score >= 0.3 ? '(a frame is there, too weak to read)' : '(noise level)'}</span></dd>` +
-      `<dt>Work</dt><dd>${Math.round(r.ms!)} ms, ${r.frames!.length} wrong payloads</dd></dl>`;
+      `<div class="res-head"><b>${t('Nothing decoded')}</b></div>` +
+      `<dl class="res-grid"><dt>${t('Best sync')}</dt><dd>${r.sync ? t('{score} at {dt} s', { score: num(r.sync.score, 2), dt: signed(r.sync.dt, 2) }) : '—'} <span class="dim">${r.sync && r.sync.score >= 0.3 ? t('(a frame is there, too weak to read)') : t('(noise level)')}</span></dd>` +
+      `<dt>${t('Work')}</dt><dd>${Math.round(r.ms!)} ms, ${tn(r.frames!.length, '{n} wrong payload', '{n} wrong payloads')}</dd></dl>`;
   }
 }
 function drawLab(): void {
@@ -920,7 +933,7 @@ function drawLab(): void {
   g.setLineDash([]);
   g.fillStyle = 'rgba(230,235,234,0.7)';
   g.font = `10px ${token('--f-data')}`;
-  g.fillText('slot boundary', xs + 4, 12);
+  g.fillText(t('slot boundary'), xs + 4, 12);
 }
 function drawLabChart(): void {
   const W = chartW('lab-chart');
@@ -932,16 +945,16 @@ function drawLabChart(): void {
   let s = '';
   for (const f of [0, 0.5, 1]) s += `<line x1="${X(lo)}" x2="${X(hi)}" y1="${Y(f)}" y2="${Y(f)}" class="grid"/><text x="38" y="${Y(f) + 4}" text-anchor="end" class="t-dim">${f * 100}%</text>`;
   for (let db = lo; db <= hi; db += W < 560 ? 8 : 4) s += `<text x="${X(db)}" y="${H - 16}" text-anchor="middle" class="t-dim">${minus(db)}</text>`;
-  s += `<text x="${X(hi)}" y="${H - 2}" text-anchor="end" class="t-dim">SNR in 2500 Hz, dB</text>`;
+  s += `<text x="${X(hi)}" y="${H - 2}" text-anchor="end" class="t-dim">${t('SNR in 2500 Hz, dB')}</text>`;
   const floor = FLOOR_DB[spec.id]!;
   s += `<line x1="${X(floor)}" x2="${X(floor)}" y1="${Y(1) - 6}" y2="${Y(0)}" class="ref"/>`;
-  s += `<text x="${X(floor) + 6}" y="${Y(1) - 2}" class="t-acc">measured: reliable to ${minus(floor)} dB</text>`;
+  s += `<text x="${X(floor) + 6}" y="${Y(1) - 2}" class="t-acc">${t('measured: reliable to {db} dB', { db: minus(floor) })}</text>`;
   const pts = [...labStats.entries()].sort((a, b) => a[0] - b[0]);
   for (const [db, st] of pts) {
     const r = 4 + Math.min(8, Math.sqrt(st.n) * 1.6);
-    s += `<circle cx="${X(db)}" cy="${Y(st.ok / st.n)}" r="${r}" class="pt"><title>${minus(db)} dB: ${st.ok} of ${st.n}</title></circle>`;
+    s += `<circle cx="${X(db)}" cy="${Y(st.ok / st.n)}" r="${r}" class="pt"><title>${t('{db} dB: {ok} of {n}', { db: minus(db), ok: st.ok, n: st.n })}</title></circle>`;
   }
-  if (!pts.length) s += `<text x="${X(-11)}" y="${Y(0.5)}" text-anchor="middle" class="t-dim">Your trials land here, one dot per SNR</text>`;
+  if (!pts.length) s += `<text x="${X(-11)}" y="${Y(0.5)}" text-anchor="middle" class="t-dim">${t('Your trials land here, one dot per SNR')}</text>`;
   const svg = $('lab-chart');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = s;
@@ -987,15 +1000,15 @@ function describe(p: Uint8Array): { label: string; sub: string; kind: Tx['kind']
   const pre = rep ? '↻ ' : '';
   const kind: Tx['kind'] = rep ? 'repeat' : f?.kind === 'ack' ? 'ack' : f?.kind === 'sound' || f?.kind === 'hello' ? 'beacon' : 'msg';
   if (!f) return { label: '?', sub: '', kind };
-  if (f.kind === 'first') return { label: `${pre}F1`, sub: `to #${f.dst}`, kind };
-  if (f.kind === 'next') return { label: `${pre}F${f.seq + 1}`, sub: 'next', kind };
+  if (f.kind === 'first') return { label: `${pre}F1`, sub: t('to #{id}', { id: f.dst }), kind };
+  if (f.kind === 'next') return { label: `${pre}F${f.seq + 1}`, sub: t('next'), kind };
   if (f.kind === 'ack') {
     let dots = '';
     for (let i = 0; i < ackFramesTotal; i++) dots += (f.received >> i) & 1 ? '●' : '○';
     return { label: `${pre}ACK`, sub: dots, kind };
   }
-  if (f.kind === 'sound') return { label: `${pre}BEACON`, sub: f.repeater ? 'repeater' : '', kind };
-  if (f.kind === 'hello') return { label: `${pre}HELLO`, sub: f.name.trim(), kind };
+  if (f.kind === 'sound') return { label: `${pre}${t('BEACON')}`, sub: f.repeater ? t('repeater') : '', kind };
+  if (f.kind === 'hello') return { label: `${pre}${t('HELLO')}`, sub: f.name.trim(), kind };
   return { label: f.kind, sub: '', kind };
 }
 let ackFramesTotal = 3;
@@ -1006,9 +1019,9 @@ function renderTimeline(el: HTMLElement, lanes: string[], txs: Tx[], last: numbe
   lanes.forEach((name, lane) => {
     html += `<div class="tl-lane">${name}</div>`;
     for (let s = 0; s < cols; s++) {
-      const t = txs.find((x) => x.lane === lane && x.slot === s);
-      html += t
-        ? `<div class="tl-c"><span class="chip" data-k="${t.kind}"${t.lost ? ' data-lost="true"' : ''}><b>${esc(t.label)}</b><i>${esc(t.lost ? 'lost' : t.sub)}</i></span></div>`
+      const tx = txs.find((x) => x.lane === lane && x.slot === s);
+      html += tx
+        ? `<div class="tl-c"><span class="chip" data-k="${tx.kind}"${tx.lost ? ' data-lost="true"' : ''}><b>${esc(tx.label)}</b><i>${esc(tx.lost ? t('lost') : tx.sub)}</i></span></div>`
         : '<div class="tl-c"></div>';
     }
   });
@@ -1017,7 +1030,7 @@ function renderTimeline(el: HTMLElement, lanes: string[], txs: Tx[], last: numbe
 
 // ---------------------------------------------------------------- 08 acks and retries
 
-const ACK_TEXT = 'SEE YOU AT THE BRIDGE';
+const ACK_TEXT = lang === 'es' ? 'NOS VEMOS EN EL PUENTE' : 'SEE YOU AT THE BRIDGE';
 const lose = { frames: new Set<number>([1]), ack: false };
 function acks(): void {
   const a = new AM.ChatSession({ stationId: 101 });
@@ -1057,8 +1070,11 @@ function acks(): void {
   const res = $('ack-result');
   res.dataset.ok = String(msg.state === 'delivered');
   res.innerHTML = msg.state === 'delivered'
-    ? `<b>Delivered.</b> B had the whole message after slot ${gotAt}; A knew it in slot ${doneAt} (${duration(doneAt * spec.slotSec)} in <span data-mode-name>${spec.label}</span>), after ${msg.round} round${msg.round > 1 ? 's' : ''} and ${frames} frame transmissions.`
-    : `<b>Failed</b> after ${msg.round} rounds without a complete ack.`;
+    ? t('<b>Delivered.</b> B had the whole message after slot {got}; A knew it in slot {done} ({time} in {mode}), after {rounds} and {frames} frame transmissions.', {
+      got: gotAt, done: doneAt, time: duration(doneAt * spec.slotSec), mode: `<span data-mode-name>${spec.label}</span>`,
+      rounds: tn(msg.round, '{n} round', '{n} rounds'), frames,
+    })
+    : t('<b>Failed</b> after {n} rounds without a complete ack.', { n: msg.round });
 }
 function setupAcks(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-lose]').forEach((btn) => {
@@ -1108,22 +1124,22 @@ function ale(): void {
     picks.set(c, (picks.get(c) ?? 0) + 1);
   }
   const lvl = (snr: number): string => (snr >= -12 ? 'good' : snr >= -18 ? 'warn' : 'bad');
-  let html = '<table class="ale"><thead><tr><th scope="row">Channel</th>';
+  let html = `<table class="ale"><thead><tr><th scope="row">${t('Channel')}</th>`;
   for (const ch of channels) html += `<th scope="col">${ch}</th>`;
   html += '</tr></thead><tbody>';
   for (const st of stations) {
-    html += `<tr><th scope="row">#${st} hears us</th>`;
+    html += `<tr><th scope="row">${t('#{id} hears us', { id: st })}</th>`;
     for (const ch of channels) { const v = reports.get(`${st}:${ch}`)!; html += `<td data-l="${lvl(v)}">${minus(v)}</td>`; }
     html += '</tr>';
   }
-  html += '<tr class="worst"><th scope="row">Worst case</th>';
+  html += `<tr class="worst"><th scope="row">${t('Worst case')}</th>`;
   for (const ch of channels) { const v = ranked.get(ch)!; html += `<td data-l="${lvl(v)}">${minus(v)}</td>`; }
-  html += '</tr><tr><th scope="row">Busy</th>';
+  html += `</tr><tr><th scope="row">${t('Busy')}</th>`;
   for (const ch of channels) {
     const n = busy.get(ch) ?? 0;
-    html += `<td><button type="button" class="busy" data-ch="${ch}" aria-pressed="${n > 0}" aria-label="channel ${ch} busy: ${n} other stations">${n ? '●'.repeat(n) : '·'}</button></td>`;
+    html += `<td><button type="button" class="busy" data-ch="${ch}" aria-pressed="${n > 0}" aria-label="${t('channel {ch} busy: {n} other stations', { ch, n })}">${n ? '●'.repeat(n) : '·'}</button></td>`;
   }
-  html += '</tr><tr class="picked"><th scope="row">Picked</th>';
+  html += `</tr><tr class="picked"><th scope="row">${t('Picked')}</th>`;
   for (const ch of channels) {
     const p = (picks.get(ch) ?? 0) / N;
     html += `<td><span class="pick" style="--p:${p}"></span><span class="pct">${p ? `${Math.round(p * 100)}%` : ''}</span></td>`;
@@ -1161,9 +1177,10 @@ function repeaters(): void {
   const sent: (Uint8Array | null)[][] = [];
   let msg: OutMessage | null = null;
   let doneAt = -1;
-  ackFramesTotal = AM.frameCount('MEET AT THE BRIDGE'.length);
+  const text = lang === 'es' ? 'TE ESPERO EN EL PUENTE' : 'MEET AT THE BRIDGE';
+  ackFramesTotal = AM.frameCount(text.length);
   for (let t = 0; t < 50; t++) {
-    if (t === 2) msg = a.send(303, 'MEET AT THE BRIDGE');
+    if (t === 2) msg = a.send(303, text);
     const old = sent[t - 2];
     if (old) {
       st.forEach((rx, i) => {
@@ -1183,8 +1200,8 @@ function repeaters(): void {
   const res = $('rpt-result');
   res.dataset.ok = String(msg?.state === 'delivered');
   res.innerHTML = msg?.state === 'delivered'
-    ? `<b>Delivered through R.</b> C had the message after slot ${got}, and C's ack came back to A the same way: A knew in slot ${doneAt}. A's frames go out three slots apart while a repeater is around, so R can fit its repeats in between.`
-    : `<b>Failed.</b> A tried ${msg?.round ?? 0} rounds. C never heard a frame, so it never sent an ack.`;
+    ? t("<b>Delivered through R.</b> C had the message after slot {got}, and C's ack came back to A the same way: A knew in slot {done}. A's frames go out three slots apart while a repeater is around, so R can fit its repeats in between.", { got, done: doneAt })
+    : t('<b>Failed.</b> A tried {n} rounds. C never heard a frame, so it never sent an ack.', { n: msg?.round ?? 0 });
   document.getElementById('rpt-map')?.setAttribute('data-on', String(on));
 }
 function setupRepeaters(): void {
@@ -1206,8 +1223,8 @@ function modes(): void {
   let s = '';
   for (const v of [9, 18, 36, 54, 108, 216]) s += `<line x1="60" x2="${W - 40}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="52" y="${Y(v) + 4}" text-anchor="end" class="t-dim">${v}</text>`;
   for (let db = -24; db <= -8; db += W < 560 ? 8 : 4) s += `<text x="${X(db)}" y="${H - 18}" text-anchor="middle" class="t-dim">${minus(db)} dB</text>`;
-  s += `<text x="${W - 40}" y="${H - 2}" text-anchor="end" class="t-dim">${W < 560 ? 'reliable down to →' : 'decodes reliably down to (SNR in 2500 Hz) →'}</text>`;
-  s += `<text x="60" y="14" class="t-dim">characters per minute, one frame per slot</text>`;
+  s += `<text x="${W - 40}" y="${H - 2}" text-anchor="end" class="t-dim">${W < 560 ? t('reliable down to →') : t('decodes reliably down to (SNR in 2500 Hz) →')}</text>`;
+  s += `<text x="60" y="14" class="t-dim">${t('characters per minute, one frame per slot')}</text>`;
   s += `<polyline class="trend" points="${MODES.map((m) => `${X(FLOOR_DB[m.id]!)},${Y(cpm(m))}`).join(' ')}"/>`;
   for (const m of MODES) {
     const on = m === spec;
@@ -1221,18 +1238,29 @@ function modes(): void {
     g.addEventListener('click', () => setMode(g.dataset.id!));
     g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMode(g.dataset.id!); } });
   });
-  let t = '<thead><tr><th>Mode</th><th>Baud</th><th>Frame</th><th>Slot</th><th>Width</th><th>Clock</th><th>Reliable to</th></tr></thead><tbody>';
+  const heads = [t('Mode'), t('Baud'), t('Frame'), t('Slot'), t('Width'), t('Clock'), t('Reliable to')];
+  let rows = `<thead><tr>${heads.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
   for (const m of MODES) {
-    t += `<tr${m === spec ? ' class="on"' : ''}><th scope="row"><button type="button" class="link" data-mode="${m.id}">${m.label}</button></th><td>${m.baud}</td><td>${secs(AM.frameDurationSec(m))}</td><td>${m.slotSec} s</td><td>${AM.bandwidthHz(m)} Hz</td><td>±${m.maxTimeOffsetSec} s</td><td>${minus(FLOOR_DB[m.id]!)} dB</td></tr>`;
+    rows += `<tr${m === spec ? ' class="on"' : ''}><th scope="row"><button type="button" class="link" data-mode="${m.id}">${m.label}</button></th><td>${dec(String(m.baud))}</td><td>${secs(AM.frameDurationSec(m))}</td><td>${dec(String(m.slotSec))} s</td><td>${dec(String(AM.bandwidthHz(m)))} Hz</td><td>±${dec(String(m.maxTimeOffsetSec))} s</td><td>${minus(FLOOR_DB[m.id]!)} dB</td></tr>`;
   }
-  $('modes-table').innerHTML = t + '</tbody>';
+  $('modes-table').innerHTML = rows + '</tbody>';
   $('modes-table').querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode!)));
 }
 
 // ---------------------------------------------------------------- start
 
+/** The same page in the other language: keep the chapter (the hash) and remember the choice for the app too. */
+function setupLangSwitch(): void {
+  const a = document.getElementById('lang-switch') as HTMLAnchorElement | null;
+  a?.addEventListener('click', () => {
+    storeLang(a.hreflang === 'es' ? 'es' : 'en');
+    a.hash = location.hash;
+  });
+}
+
 function start(): void {
   drawLogo();
+  setupLangSwitch();
   setupMode();
   void hero();
   setupBands();

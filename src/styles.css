@@ -41,6 +41,13 @@ h1, h2, h3 { font-family: var(--font-mono); text-transform: uppercase; letter-sp
 .sidebar-tool:hover { color: var(--text); background: var(--panel-raised); }
 .sidebar-tool[aria-pressed="true"] { color: var(--text); border-color: var(--accent); }
 .sidebar-tool[hidden] { display: none; }
+/* Language: the other language, named in itself, on a row of its own (an icon on the rail; on a phone only in Settings). */
+.sidebar-tools { flex-wrap: wrap; }
+.sidebar-tool.lang-tool { flex-basis: 100%; }
+.sidebar-collapsed .sidebar-tool.lang-tool { flex-basis: auto; }
+/* Until translatePage (i18n.ts) has put the page in its language; shown anyway after a moment if the script never runs. */
+html.i18n-pending body { visibility: hidden; animation: i18n-reveal 0s linear 1.5s forwards; }
+@keyframes i18n-reveal { to { visibility: visible; } }
 /* Rotate 180: the body turns (fixed children, like the toast, turn with it); a modal dialog sits in the top layer and turns itself. */
 html.rotated body { transform: rotate(180deg); }
 html.rotated dialog[open] { transform: rotate(180deg); }
@@ -280,6 +287,8 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
   .sidebar-tools { order: 4; }
   .sidebar-tool { padding: 6px 10px; }
   .tool-label { display: none; }
+  /* No room on the phone bar: the radio readout would shrink to nothing. Settings > Language has it. */
+  .sidebar-tool.lang-tool { display: none; }
   .sidebar-nav { order: 1; flex: 1 1 100%; min-width: 0; margin: 0; border-left: 0; border-top: 0; }
   .sidebar-nav .nav-item { flex: 1 1 auto; justify-content: center; gap: 4px; padding: 8px 4px; font-size: 0.85rem; }
   .sidebar-nav .nav-item.active { padding-left: 4px; }
@@ -393,6 +402,9 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .switch-state::before { content: 'Off'; }
 .switch-tile:has(input:checked) .switch-state { color: var(--accent); }
 .switch-tile:has(input:checked) .switch-state::before { content: 'On'; }
+/* CSS text is out of reach of translatePage (i18n.ts): each language here. */
+html:lang(es) .switch-state::before { content: 'No'; }
+html:lang(es) .switch-tile:has(input:checked) .switch-state::before { content: 'Sí'; }
 
 .error-bar { display: flex; align-items: stretch; font-size: 0.85rem; border: 1px solid #6b2f33; background: #2c1a1d; margin-bottom: 16px; }
 .error-bar[hidden] { display: none; }

@@ -5,6 +5,8 @@
  * overloaded, blue = selected.
  */
 
+import { t } from '../i18n/i18n';
+
 type Rgb = readonly [number, number, number];
 
 /** Colours of a channel box in one state: translucent fill, border and label. */
@@ -58,7 +60,7 @@ const DARK_CHROME = {
 export const THEMES: readonly WaterfallTheme[] = [
   {
     id: 'sdr',
-    label: 'Classic SDR (default)',
+    label: t('Classic SDR (default)'),
     stops: [[0, [0, 0, 40]], [0.2, [0, 40, 160]], [0.4, [0, 170, 200]], [0.6, [40, 200, 60]], [0.8, [240, 220, 40]], [1, [230, 30, 20]]],
     ...DARK_CHROME,
     spectrumLine: '#ffffff',
@@ -73,14 +75,14 @@ export const THEMES: readonly WaterfallTheme[] = [
   },
   {
     id: 'grey',
-    label: 'Greyscale',
+    label: t('Greyscale'),
     stops: [[0, [0, 0, 0]], [1, [255, 255, 255]]],
     ...DARK_CHROME,
     spectrumLine: '#ffd84a',
   },
   {
     id: 'phosphor',
-    label: 'Green phosphor',
+    label: t('Green phosphor'),
     stops: [[0, [0, 6, 0]], [0.5, [0, 120, 20]], [1, [170, 255, 170]]],
     ...DARK_CHROME,
     canvasBg: '#020a02',
@@ -93,7 +95,7 @@ export const THEMES: readonly WaterfallTheme[] = [
   },
   {
     id: 'sun',
-    label: 'High contrast (sunlight): dark signal on white',
+    label: t('High contrast (sunlight): dark signal on white'),
     stops: [[0, [255, 255, 255]], [0.35, [255, 214, 120]], [0.65, [220, 80, 20]], [1, [20, 0, 40]]],
     canvasBg: '#ffffff',
     axisBg: '#e6e6e6',

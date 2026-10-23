@@ -41,6 +41,7 @@
 
 import type { LqaTable } from '../ale/lqa';
 import { normalizeText } from './charset6';
+import { t } from '../i18n/i18n';
 import { Repeater } from './repeater';
 import {
   BROADCAST,
@@ -430,7 +431,7 @@ export class ChatSession {
    */
   send(dst: number, text: string): OutMessage {
     const clean = normalizeText(text).trim();
-    if (clean.length > MAX_TEXT_CHARS) throw new Error(`message is over ${MAX_TEXT_CHARS} characters`);
+    if (clean.length > MAX_TEXT_CHARS) throw new Error(t('message is over {n} characters', { n: MAX_TEXT_CHARS }));
     const chunks = splitText(clean);
     const msgId = this.allocateMsgId();
     const msg: OutInternal = {
@@ -465,7 +466,7 @@ export class ChatSession {
    * Throws when it does not fit 16 frames or all 16 message ids are in flight.
    */
   sendSprite(dst: number, sprite: Sprite): OutMessage {
-    if (!spriteFits(sprite.side, sprite.bpp)) throw new Error(`a ${sprite.side}x${sprite.side} sprite of ${1 << sprite.bpp} colours is over ${MAX_FRAMES} frames`);
+    if (!spriteFits(sprite.side, sprite.bpp)) throw new Error(t('a {side}x{side} sprite of {colours} colours is over {max} frames', { side: sprite.side, colours: 1 << sprite.bpp, max: MAX_FRAMES }));
     const data = encodeSprite(sprite);
     const msgId = this.allocateMsgId();
     const msg: OutInternal = {
@@ -517,7 +518,7 @@ export class ChatSession {
         return id;
       }
     }
-    throw new Error('too many messages in flight');
+    throw new Error(t('too many messages in flight'));
   }
 
   // --- receive ---------------------------------------------------------------

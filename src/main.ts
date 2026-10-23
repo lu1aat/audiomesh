@@ -28,6 +28,7 @@ import { SPRITE_GALLERY, parseRows } from './chat/sprite-gallery';
 import { SPRITE_PALETTE } from './chat/sprite';
 import { TestToneControl } from './ui/test-tone';
 import { DeferredSaver, LINK_KEY, loadJson, removeKey, saveJson } from './storage/store';
+import { LANGS, LANG_NAMES, bandLabel, dec, lang, num, storeLang, t, tn, translatePage, type Lang } from './i18n/i18n';
 
 const SETTINGS_KEY = 'audiochat:settings';
 
@@ -142,6 +143,13 @@ function saveSettings(settings: Settings): void {
 }
 
 const el = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
+
+// The static page in the chosen language, before anything takes references into it.
+translatePage();
+// How it works has one page per language.
+if (lang === 'es') {
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href^="./how-it-works.html"]')) a.href = a.getAttribute('href')!.replace('./how-it-works.html', './como-funciona.html');
+}
 
 const settings = loadSettings();
 const protocol = getProtocol(isProtocolId(settings.protocol) ? settings.protocol : DEFAULT_PROTOCOL_ID);
@@ -281,8 +289,8 @@ el('sync-server-use').addEventListener('click', () => {
   const wantMs = Math.round(r.offsetMs);
   const gotMs = settings.slotOffsetMs;
   clockBannerFlash = Math.abs(wantMs - gotMs) < 20
-    ? { text: `Server time applied: the slot grid moved by ${(gotMs / 1000).toFixed(2)} s.`, until: Date.now() + 5000 }
-    : { text: `Only ${(gotMs / 1000).toFixed(2)} s of ${(wantMs / 1000).toFixed(2)} s could be applied (the limit is 0.4 of a slot). Fix this device's clock.`, until: Date.now() + 15000 };
+    ? { text: t('Server time applied: the slot grid moved by {s} s.', { s: num(gotMs / 1000, 2) }), until: Date.now() + 5000 }
+    : { text: t("Only {got} s of {want} s could be applied (the limit is 0.4 of a slot). Fix this device's clock.", { got: num(gotMs / 1000, 2), want: num(wantMs / 1000, 2) }), until: Date.now() + 15000 };
   updateClockBanner();
   setTimeout(updateClockBanner, 5100);
 });
@@ -305,10 +313,10 @@ function updateClockBanner(): void {
   const off = r !== null && Math.abs(leftMs) > limitMs;
   let text = '';
   if (off) {
-    const secs = (Math.abs(leftMs) / 1000).toFixed(1);
-    text = `This device's clock is ${secs} s ${leftMs > 0 ? 'ahead of' : 'behind'} the server's. ` +
-      `Stations with the right time may not decode (this mode tolerates ${protocol.spec.maxTimeOffsetSec} s in total). ` +
-      'If nothing decodes but the waterfall shows activity in the channels, this is probably why.';
+    const vars = { s: num(Math.abs(leftMs) / 1000, 1), allow: dec(String(protocol.spec.maxTimeOffsetSec)) };
+    text = (leftMs > 0 ? t("This device's clock is {s} s ahead of the server's.", vars) : t("This device's clock is {s} s behind the server's.", vars)) + ' ' +
+      t('Stations with the right time may not decode (this mode tolerates {allow} s in total).', vars) + ' ' +
+      t('If nothing decodes but the waterfall shows activity in the channels, this is probably why.');
   }
   // Right after "Use server time" the bar shows the result, even if the clock is fine now.
   if (clockBannerFlash) text = clockBannerFlash.text;
@@ -323,10 +331,10 @@ function updateClockBanner(): void {
   const applied = settings.slotOffsetMs !== 0;
   const syncDot: DotColour = off ? 'red' : applied ? 'yellow' : r ? 'green' : null;
   setDot('sync', syncDot);
-  const syncTitle = off ? "Out of sync: the clock differs from the server's"
-    : applied ? `Applying a slot offset of ${(settings.slotOffsetMs / 1000).toFixed(2)} s`
-    : r ? 'In sync with the server, no offset applied'
-    : 'No clock check against the server yet';
+  const syncTitle = off ? t("Out of sync: the clock differs from the server's")
+    : applied ? t('Applying a slot offset of {s} s', { s: num(settings.slotOffsetMs / 1000, 2) })
+    : r ? t('In sync with the server, no offset applied')
+    : t('No clock check against the server yet');
   const syncDotEl = dots.get('sync');
   if (syncDotEl && syncDotEl.title !== syncTitle) syncDotEl.title = syncTitle;
 }
@@ -435,23 +443,24 @@ showIcon();
 /** Stored data: chat lines, stations and link statistics are kept and cleared separately. */
 function showStoredCounts(): void {
   const { chat: chatCount, stations, debug } = chat.counts;
-  el('stored-debug-count').textContent = `${debug} frame${debug === 1 ? '' : 's'}`;
-  el('stored-chat-count').textContent = `${chatCount} line${chatCount === 1 ? '' : 's'}`;
-  el('stored-stations-count').textContent = `${stations} station${stations === 1 ? '' : 's'}`;
+  el('stored-debug-count').textContent = tn(debug, '{n} frame', '{n} frames');
+  el('stored-chat-count').textContent = tn(chatCount, '{n} line', '{n} lines');
+  el('stored-stations-count').textContent = tn(stations, '{n} station', '{n} stations');
   const links = lqa.serialize();
-  el('stored-link-count').textContent = `${links.heard.length} station${links.heard.length === 1 ? '' : 's'} heard, ${links.samples.length} decodes`;
+  el('stored-link-count').textContent = tn(links.heard.length, '{n} station heard, {d} decodes', '{n} stations heard, {d} decodes', { d: links.samples.length });
 }
-function confirmClear(what: string, action: () => void): void {
-  if (!confirm(`Clear ${what}? This cannot be undone.`)) return;
+/** `question`: "Clear ...? This cannot be undone." */
+function confirmClear(question: string, action: () => void): void {
+  if (!confirm(question)) return;
   action();
   showStoredCounts();
   link.render();
 }
-el('clear-chat').addEventListener('click', () => confirmClear('all messages', () => chat.clearChat()));
-el('clear-stations').addEventListener('click', () => confirmClear('the list of known stations', () => chat.clearStations()));
-el('clear-debug').addEventListener('click', () => confirmClear('the frame log', () => chat.clearDebug()));
+el('clear-chat').addEventListener('click', () => confirmClear(t('Clear all messages? This cannot be undone.'), () => chat.clearChat()));
+el('clear-stations').addEventListener('click', () => confirmClear(t('Clear the list of known stations? This cannot be undone.'), () => chat.clearStations()));
+el('clear-debug').addEventListener('click', () => confirmClear(t('Clear the frame log? This cannot be undone.'), () => chat.clearDebug()));
 el('clear-link').addEventListener('click', () =>
-  confirmClear('the link statistics', () => {
+  confirmClear(t('Clear the link statistics? This cannot be undone.'), () => {
     linkSaver.cancel();
     lqa.clear();
     removeKey(LINK_KEY);
@@ -498,7 +507,7 @@ function applySidebar(): void {
   el('app').classList.toggle('sidebar-collapsed', collapsed);
   sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
   sidebarToggle.textContent = collapsed ? '»' : '«';
-  sidebarToggle.title = collapsed ? 'Expand the sidebar' : 'Collapse the sidebar';
+  sidebarToggle.title = collapsed ? t('Expand the sidebar') : t('Collapse the sidebar');
 }
 applySidebar();
 sidebarToggle.addEventListener('click', () => {
@@ -533,10 +542,27 @@ if (document.fullscreenEnabled) {
   document.addEventListener('fullscreenchange', () => {
     const on = document.fullscreenElement !== null;
     fullscreenButton.setAttribute('aria-pressed', String(on));
-    fullscreenButton.title = on ? 'Leave full screen' : 'Full screen';
+    fullscreenButton.title = on ? t('Leave full screen') : t('Full screen');
   });
 }
 el('station-id').textContent = `#${settings.stationId}`;
+
+/** Language (Settings, and the sidebar button that names the other one): stored, then the page reloads in it. */
+function setLang(next: Lang): void {
+  if (next === lang) return;
+  storeLang(next);
+  location.reload();
+}
+const langSelect = el<HTMLSelectElement>('lang-select');
+langSelect.replaceChildren(...LANGS.map((l) => new Option(LANG_NAMES[l], l)));
+langSelect.value = lang;
+langSelect.addEventListener('change', () => setLang(langSelect.value as Lang));
+const langButton = el<HTMLButtonElement>('lang-button');
+const otherLang: Lang = lang === 'es' ? 'en' : 'es';
+langButton.querySelector('.tool-label')!.textContent = LANG_NAMES[otherLang];
+langButton.lang = otherLang;
+langButton.title = otherLang === 'es' ? 'Usar audiomesh en español (la página se recarga)' : 'Use audiomesh in English (the page reloads)';
+langButton.addEventListener('click', () => setLang(otherLang));
 const display = new SpectrumDisplay(el<HTMLCanvasElement>('spectrum'));
 display.setSlotMs(protocol.spec.slotSec * 1000);
 
@@ -544,7 +570,7 @@ const bandSelect = el<HTMLSelectElement>('band-select');
 for (const b of bands) {
   const o = document.createElement('option');
   o.value = b.name;
-  o.textContent = `${b.name} · ${b.lowHz / 1000}–${b.highHz / 1000} kHz`;
+  o.textContent = `${bandLabel(b.name)} · ${dec(String(b.lowHz / 1000))}–${dec(String(b.highHz / 1000))} kHz`;
   bandSelect.append(o);
 }
 
@@ -572,9 +598,9 @@ function syncNotifications(): void {
   notifyBox.checked = notifier.enabled;
   notifyHint.textContent =
     notifier.state === 'unsupported'
-      ? 'This browser has no notifications (on iPhone, add the page to the home screen first).'
+      ? t('This browser has no notifications (on iPhone, add the page to the home screen first).')
       : notifier.state === 'denied'
-        ? 'Blocked in the browser: allow notifications for this site in its settings.'
+        ? t('Blocked in the browser: allow notifications for this site in its settings.')
         : '';
 }
 syncNotifications();
@@ -585,7 +611,7 @@ notifyBox.addEventListener('change', async () => {
 });
 
 el('notify-test').addEventListener('click', async () => {
-  notifyHint.textContent = 'Sending…';
+  notifyHint.textContent = t('Sending…');
   const result = await notifier.test();
   syncNotifications();
   notifyHint.textContent = notifyHint.textContent || result;
@@ -668,7 +694,7 @@ disclosure('map-block-toggle', 'map-block-body', settings.mapOpen, (open) => {
   saveSettings(settings);
 });
 disclosure('capture-block-toggle', 'capture-block-body', false, () => {});
-for (const name of ['notify', 'stats', 'modes', 'listen', 'announce', 'capture', 'screen', 'waterfall', 'sprites', 'stored', 'tone']) {
+for (const name of ['lang', 'notify', 'stats', 'modes', 'listen', 'announce', 'capture', 'screen', 'waterfall', 'sprites', 'stored', 'tone']) {
   disclosure(`set-${name}-toggle`, `set-${name}-body`, true, () => {});
 }
 // Capture is for debugging decodes: never stored, off at every start (see CaptureView).
@@ -722,7 +748,7 @@ applyLevels(settings.floorDb, settings.ceilDb);
 const protocolSelect = el<HTMLSelectElement>('protocol-select');
 if (!Array.isArray(settings.enabledModes)) settings.enabledModes = [...DEFAULT_SETTINGS.enabledModes];
 settings.enabledModes = settings.enabledModes.filter((id) => typeof id === 'string' && isProtocolId(id));
-const protocolText = (p: Protocol): string => `${p.spec.label} · ${p.spec.name} · ${p.spec.slotSec} s slots`;
+const protocolText = (p: Protocol): string => t('{mode} · {name} · {slot} s slots', { mode: p.spec.label, name: dec(p.spec.name), slot: dec(String(p.spec.slotSec)) });
 /** The selector offers the modes switched on in Settings, plus the one in use. */
 function fillProtocolSelect(): void {
   protocolSelect.replaceChildren();
@@ -738,7 +764,7 @@ function fillProtocolSelect(): void {
 /** "15 s", "1 min 20 s", "4 min". */
 function duration(sec: number): string {
   const s = Math.round(sec * 10) / 10;
-  if (s < 60) return `${s} s`;
+  if (s < 60) return `${dec(String(s))} s`;
   const rest = Math.round(s % 60);
   return `${Math.floor(s / 60)} min${rest ? ` ${rest} s` : ''}`;
 }
@@ -748,9 +774,11 @@ function duration(sec: number): string {
  */
 function modeDetails(p: Protocol): string[] {
   const { spec } = p;
+  const repeats = spec.repeats ?? 1;
+  const vars = { baud: dec(String(spec.baud)), air: duration(frameDurationSec(spec)), copies: repeats, slot: duration(spec.slotSec) };
   return [
-    `${spec.baud} baud · packet ${duration(frameDurationSec(spec))} on air${(spec.repeats ?? 1) > 1 ? ` (${spec.repeats} copies)` : ''}, ${duration(spec.slotSec)} slots`,
-    `message: ${FIRST_CHARS} chars ${duration(spec.slotSec)}, ${MAX_TEXT_CHARS} chars ${duration(MAX_FRAMES * spec.slotSec)}`,
+    repeats > 1 ? t('{baud} baud · packet {air} on air ({copies} copies), {slot} slots', vars) : t('{baud} baud · packet {air} on air, {slot} slots', vars),
+    t('message: {short} chars {shortTime}, {long} chars {longTime}', { short: FIRST_CHARS, shortTime: duration(spec.slotSec), long: MAX_TEXT_CHARS, longTime: duration(MAX_FRAMES * spec.slotSec) }),
   ];
 }
 /** Settings > Protocol and modes: one switch per protocol. The one in use cannot be switched off. */
@@ -759,7 +787,7 @@ for (const p of listProtocols()) {
   const inUse = p.spec.id === protocol.spec.id;
   const tile = document.createElement('label');
   tile.className = 'switch-tile';
-  tile.title = inUse ? `${protocolText(p)} · in use now: pick another protocol on the Network screen to switch it off` : protocolText(p);
+  tile.title = inUse ? `${protocolText(p)} · ${t('in use now: pick another protocol on the Network screen to switch it off')}` : protocolText(p);
   const name = document.createElement('span');
   name.className = 'switch-label';
   const title = document.createElement('span');
@@ -915,7 +943,7 @@ function applyOverload(nowMs = Date.now()): void {
   for (const cell of strip.children) {
     const over = overUntilMs.has(Number((cell as HTMLElement).dataset.channel));
     cell.classList.toggle('channel-over', over);
-    if (over) cell.setAttribute('title', 'Input overloaded: lower the microphone level');
+    if (over) cell.setAttribute('title', t('Input overloaded: lower the microphone level'));
     else cell.removeAttribute('title');
   }
 }
@@ -944,7 +972,7 @@ function renderStrip(): void {
     cell.className = 'channel-cell';
     cell.dataset.channel = String(c.number);
     cell.textContent = String(c.number);
-    cell.title = `Channel ${c.number}: each click moves it on: select, then block (nothing is sent on it; we still listen), then normal. With Auto beacon off, a selected channel carries every transmission.`;
+    cell.title = t('Channel {n}: each click moves it on: select, then block (nothing is sent on it; we still listen), then normal. With Auto beacon off, a selected channel carries every transmission.', { n: c.number });
     cell.addEventListener('click', () => toggleChannel(c.number));
     strip.append(cell);
   }
@@ -973,7 +1001,7 @@ function showToast(text: string, undo?: () => void): void {
   if (undo) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = 'Undo';
+    b.textContent = t('Undo');
     b.addEventListener('click', () => {
       undo();
       toast.hidden = true;
@@ -996,7 +1024,7 @@ function applyBlocked(): void {
   }
   const count = channels.filter((c) => blockedNow.has(c.number)).length;
   unblockButton.hidden = count === 0;
-  unblockButton.textContent = `${count} blocked · Unblock all`;
+  unblockButton.textContent = t('{n} blocked · Unblock all', { n: count });
 }
 unblockButton.addEventListener('click', () => {
   blockedNow.clear();
@@ -1011,7 +1039,7 @@ function toggleChannel(number: number): void {
     selectChannel(null);
     blockedNow.add(number);
     applyBlocked();
-    showToast(`Channel ${number} blocked for sending`, () => {
+    showToast(t('Channel {n} blocked for sending', { n: number }), () => {
       blockedNow.delete(number);
       applyBlocked();
     });
@@ -1034,7 +1062,7 @@ function selectBand(next: Band): void {
   display.setPlan(channels, bandwidthHz(protocol.spec), referenceTonesHz(band));
   settings.band = band.name;
   // Shown on the Network options header, also while it is collapsed.
-  el('net-options-summary').textContent = `${band.name} · ${protocol.spec.label}`;
+  el('net-options-summary').textContent = `${bandLabel(band.name)} · ${protocol.spec.label}`;
   const current = channels.find((c) => c.number === settings.channel && !blockedNow.has(c.number));
   selectChannel(current ? current.number : null);
   applyBlocked();
@@ -1079,9 +1107,9 @@ function updateStatus(): void {
     panel.dataset.tx = txLamp;
     panel.dataset.audio = audioLamp;
     keyAudio.setAttribute('aria-pressed', String(engine.running));
-    keyAudio.title = engine.running ? 'Turn audio off: stop listening and sending' : 'Turn audio on: listen to the microphone and allow sending';
+    keyAudio.title = engine.running ? t('Turn audio off: stop listening and sending') : t('Turn audio on: listen to the microphone and allow sending');
     keyTx.setAttribute('aria-pressed', String(engine.transmitAllowed));
-    keyTx.title = engine.transmitAllowed ? 'Transmit allowed: click to stop this station sending anything' : 'Transmit off: click to allow sending';
+    keyTx.title = engine.transmitAllowed ? t('Transmit allowed: click to stop this station sending anything') : t('Transmit off: click to allow sending');
   }
   const slotMs = protocol.spec.slotSec * 1000;
   const offsetMs = settings.slotOffsetMs;
@@ -1090,22 +1118,22 @@ function updateStatus(): void {
   cadenceFill.style.transform = `scaleX(${((now - slotStart) / slotMs).toFixed(4)})`;
   const secs = (ms: number): number => Math.max(0, Math.ceil(ms / 1000));
 
-  let count = status === 'stopped' ? 'Press Audio to start' : '';
-  if (status === 'txonly') count = 'No microphone';
+  let count = status === 'stopped' ? t('Press Audio to start') : '';
+  if (status === 'txonly') count = t('No microphone');
   else if (status !== 'stopped') {
-    if (tx && now < tx.startMs) count = `On air in ${secs(tx.startMs - now)} s`;
-    else if (tx && now < tx.endMs) count = `${secs(tx.endMs - now)} s left${chat.sendingChannel === null ? "" : `, ch ${chat.sendingChannel}`}`;
-    else if (now - lastRxMs < RX_NOTE_MS) count = 'Frame received';
-    else count = `${engine.transmitAllowed ? '' : 'TX off, '}next slot in ${secs(slotStart + slotMs - now)} s`;
+    if (tx && now < tx.startMs) count = t('On air in {s} s', { s: secs(tx.startMs - now) });
+    else if (tx && now < tx.endMs) count = chat.sendingChannel === null ? t('{s} s left', { s: secs(tx.endMs - now) }) : t('{s} s left, ch {ch}', { s: secs(tx.endMs - now), ch: chat.sendingChannel });
+    else if (now - lastRxMs < RX_NOTE_MS) count = t('Frame received');
+    else count = (engine.transmitAllowed ? '' : t('TX off, ')) + t('next slot in {s} s', { s: secs(slotStart + slotMs - now) });
     count = count.charAt(0).toUpperCase() + count.slice(1);
   }
-  const main = { stopped: 'Audio off', listening: 'Listening', preparing: 'Sending soon', sending: 'On air', txonly: 'Sending only' }[status];
+  const main = { stopped: t('Audio off'), listening: t('Listening'), preparing: t('Sending soon'), sending: t('On air'), txonly: t('Sending only') }[status];
   if (main !== shown.main) el('status-main').textContent = shown.main = main;
   if (count !== shown.count) el('status-count').textContent = shown.count = count;
 
   // Network screen: the last thing that happened and what comes next.
   const act = chat.lastAction;
-  const last = act ? act.text : 'nothing yet';
+  const last = act ? act.text : t('nothing yet');
   const lastAge = act ? formatAge((now - act.atMs) / 1000) : '';
   if (last !== shown.last) {
     el('activity-last').textContent = shown.last = last;
@@ -1149,8 +1177,8 @@ function setAudioState(running: boolean): void {
 function warnIfNoMic(): void {
   if (!engine.running || engine.hasMic) return;
   showError(
-    `No microphone (${engine.micErrorText ?? 'not available'}): this station can only send. ` +
-      'Connect a microphone or allow access to it, then reload the page to receive.',
+    t('No microphone ({why}): this station can only send.', { why: engine.micErrorText ?? t('not available') }) + ' ' +
+      t('Connect a microphone or allow access to it, then reload the page to receive.'),
   );
 }
 
@@ -1171,8 +1199,9 @@ function warnIfRateTooLow(): void {
   const lost = channels.filter((c) => c.baseHz + bandwidthHz(protocol.spec) > usableHz);
   if (lost.length === 0) return;
   showError(
-    `The audio device runs at ${engine.sampleRate} Hz, which cannot carry channels ` +
-      `${lost[0]!.number}–${lost[lost.length - 1]!.number} (above ~${Math.round(usableHz)} Hz).`,
+    t('The audio device runs at {rate} Hz, which cannot carry channels {from}–{to} (above ~{hz} Hz).', {
+      rate: engine.sampleRate, from: lost[0]!.number, to: lost[lost.length - 1]!.number, hz: Math.round(usableHz),
+    }),
   );
 }
 
@@ -1186,7 +1215,7 @@ audioOn.addEventListener('change', async () => {
       warnIfNoMic();
     }
   } catch (err) {
-    showError(`Could not start audio: ${err instanceof Error ? err.message : String(err)}`);
+    showError(t('Could not start audio: {why}', { why: err instanceof Error ? err.message : String(err) }));
   }
   setAudioState(engine.running);
 });
@@ -1277,7 +1306,7 @@ applySpriteStyle();
 
 /** Waterfall look (Settings > Waterfall). */
 const waterfallTheme = el<HTMLSelectElement>('waterfall-theme');
-for (const t of THEMES) waterfallTheme.append(new Option(t.label, t.id));
+for (const theme of THEMES) waterfallTheme.append(new Option(theme.label, theme.id));
 settings.waterfallTheme = themeById(String(settings.waterfallTheme)).id;
 waterfallTheme.value = settings.waterfallTheme;
 display.setTheme(settings.waterfallTheme);
@@ -1317,16 +1346,16 @@ const resetButton = el<HTMLButtonElement>('net-options-reset');
 let resetArmedTimer: ReturnType<typeof setTimeout> | undefined;
 resetButton.addEventListener('click', () => {
   if (resetArmedTimer === undefined) {
-    resetButton.textContent = 'Click again to reset';
+    resetButton.textContent = t('Click again to reset');
     resetArmedTimer = setTimeout(() => {
       resetArmedTimer = undefined;
-      resetButton.textContent = 'Reset to defaults';
+      resetButton.textContent = t('Reset to defaults');
     }, 4000);
     return;
   }
   clearTimeout(resetArmedTimer);
   resetArmedTimer = undefined;
-  resetButton.textContent = 'Reset to defaults';
+  resetButton.textContent = t('Reset to defaults');
   const d = DEFAULT_SETTINGS;
   const boxes: [HTMLInputElement, boolean][] = [
     [allowTx, d.allowTx],
