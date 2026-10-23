@@ -57,6 +57,29 @@ describe('chat session', () => {
     expect(b.nextTx(41)).toBeNull();
   });
 
+  it('tells the decoder which ack it waits for, until the message is delivered', () => {
+    const { a, b } = pair();
+    const labels = (slot: number) => a.decodeHints(slot).map((h) => h.label);
+    expect(labels(0)).toEqual(['ack', 'sound']);
+    const m = a.send(22, 'hello');
+    const tx = a.nextTx(0)!;
+    const msgId = (decodeFrame(tx) as { msgId: number }).msgId;
+    expect(m.state).toBe('waiting');
+    expect(labels(1)).toEqual([`ack 22:${msgId} 1`, `ack 22:${msgId}`, 'ack', 'sound']);
+    b.receive(tx, 0, -10);
+    let slot = 1;
+    for (; slot < 10 && m.state !== 'delivered'; slot++) {
+      const reply = b.nextTx(slot);
+      if (reply) a.receive(reply, slot, -10);
+    }
+    expect(m.state).toBe('delivered');
+    expect(labels(slot)).toEqual(['ack', 'sound']);
+    // A broadcast is never acked: nothing to expect.
+    a.send(BROADCAST, 'hi all');
+    a.nextTx(slot + 5);
+    expect(labels(slot + 6)).toEqual(['ack', 'sound']);
+  });
+
   it('delivers a one-frame directed message and gets the ack', () => {
     const { a, b, heard } = pair();
     const m = a.send(22, 'hello');

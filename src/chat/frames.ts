@@ -21,6 +21,11 @@
  *   bits 74..76 via: 0 = sent by `src` itself; 1..7 = repeated by a repeater with that
  *               tag (repeaterTag). `next` ends at bit 73, so 3 bits is all there is.
  *
+ * Spare bits are sent as 0, and decodeFrame refuses a frame with one set: that and the other
+ * "never sent" checks (icon bits without the present flag, a sound's unused report slot) turn
+ * most codewords a false decode could produce into nothing. The price: a new field put in a
+ * spare bit is dropped by stations running an older build, so every station must update.
+ *
  * SNR fields are whole dB offset by 30 (code 0..63 = -30..+33 dB), clamped. Channel 0
  * means "unknown". The link-quality reports let a sender learn which channel the
  * far end hears it best on (see src/ale/lqa.ts).
@@ -35,6 +40,7 @@
  */
 
 import { PAYLOAD_BITS } from '../protocol/gfsk8/codec';
+import { AP_UNKNOWN, type ApHint } from '../protocol/protocol';
 import type { LinkReport } from '../ale/lqa';
 import { CHAR_BITS, charToCode, codeToChar } from './charset6';
 import { MAX_SPRITE_SIDE, SPRITE_BODY_BITS, SPRITE_HEAD_BITS } from './sprite';
@@ -133,6 +139,11 @@ class BitWriter {
 class BitReader {
   private pos = 0;
   constructor(private readonly bits: Uint8Array) {}
+
+  /** Bits read so far: where the frame's body ends once it is read. */
+  get position(): number {
+    return this.pos;
+  }
 
   get(width: number): number {
     let v = 0;
@@ -270,6 +281,12 @@ export function decodeFrame(bits: Uint8Array): ChatFrame | null {
   if (src === 0) return null;
   const frame = decodeBody(r, kind, src);
   if (!frame) return null;
+  // Between the body and the via tag: spare bits, all 0, apart from the flags of hello and sound.
+  for (let i = r.position; i < VIA_POS; i++) {
+    if (!bits[i]) continue;
+    const flag = (i === REPEATER_FLAG_POS && (frame.kind === 'hello' || frame.kind === 'sound')) || (i === PROBE_FLAG_POS && frame.kind === 'sound');
+    if (!flag) return null;
+  }
   const via = viaOf(bits);
   if (via) frame.via = via;
   if ((frame.kind === 'hello' || frame.kind === 'sound') && bits[REPEATER_FLAG_POS]) frame.repeater = true;
@@ -303,15 +320,20 @@ function decodeBody(r: BitReader, kind: number, src: number): ChatFrame | null {
       if (subtype === CTRL_HELLO) {
         const name = r.getText(NAME_CHARS).trimEnd();
         const icon = r.get(8);
-        return r.get(1) ? { kind: 'hello', src, name, icon } : { kind: 'hello', src, name };
+        if (r.get(1)) return { kind: 'hello', src, name, icon };
+        return icon === 0 ? { kind: 'hello', src, name } : null; // no icon is sent as 0
       }
       if (subtype === CTRL_SOUND) {
         const reports: LinkReport[] = [];
         for (let i = 0; i < SOUND_REPORTS; i++) {
           const station = r.get(STATION_BITS);
           const channel = r.get(CHANNEL_BITS);
-          const snrDb = codeToSnr(r.get(SNR_BITS));
-          if (station !== 0) reports.push({ station, channel, snrDb });
+          const snrCode = r.get(SNR_BITS);
+          if (station !== 0) {
+            // Reports fill the slots in order, so a used slot never follows an unused one.
+            if (reports.length < i) return null;
+            reports.push({ station, channel, snrDb: codeToSnr(snrCode) });
+          } else if (channel !== 0 || snrCode !== 0) return null; // an unused slot is sent as 0
         }
         return { kind: 'sound', src, reports };
       }
@@ -333,6 +355,51 @@ function decodeBody(r: BitReader, kind: number, src: number): ChatFrame | null {
       return null;
     }
   }
+}
+
+// --- decoder hints ---------------------------------------------------------------
+
+/** Where an ack's bitmap starts, and where its fields end (the spare bits follow). */
+const ACK_RECEIVED_POS = 2 + 2 * STATION_BITS + 4;
+const ACK_END = ACK_RECEIVED_POS + 16 + CHANNEL_BITS + SNR_BITS;
+/** Where a ctrl frame's subtype sits. */
+const SUBTYPE_POS = 2 + STATION_BITS;
+
+/** A hint that knows nothing yet. */
+const unknownBits = (): Uint8Array => new Uint8Array(PAYLOAD_BITS).fill(AP_UNKNOWN);
+
+/** Mark `bits[from..to)` of `payload` as known. */
+function know(known: Uint8Array, payload: Uint8Array, from: number, to: number): void {
+  for (let i = from; i < to; i++) known[i] = payload[i]!;
+}
+
+/**
+ * What the decoder may assume about an ack before hearing it (ApHint, protocol.ts): its kind and its
+ * spare bits. With `expect`, the ack of one of our own messages: who sends it to whom and for which
+ * message, and with `received` also the bitmap. The via tag stays unknown: a repeater may carry it.
+ */
+export function ackHint(expect?: { src: number; dst: number; msgId: number; received?: number }): ApHint {
+  const payload = encodeFrame({
+    kind: 'ack', src: expect?.src ?? 1, dst: expect?.dst ?? 1, msgId: expect?.msgId ?? 0, received: expect?.received ?? 0, heardChannel: 0, heardSnrDb: 0,
+  });
+  const bits = unknownBits();
+  know(bits, payload, 0, 2);
+  know(bits, payload, ACK_END, VIA_POS);
+  if (!expect) return { label: 'ack', bits };
+  know(bits, payload, 2, ACK_RECEIVED_POS);
+  if (expect.received === undefined) return { label: `ack ${expect.src}:${expect.msgId}`, bits };
+  know(bits, payload, ACK_RECEIVED_POS, ACK_RECEIVED_POS + 16);
+  return { label: `ack ${expect.src}:${expect.msgId} ${expect.received.toString(16)}`, bits };
+}
+
+/** A sound's kind, subtype and spare bits (not the probe and repeater flags, nor the via tag). */
+export function soundHint(): ApHint {
+  const payload = encodeFrame({ kind: 'sound', src: 1, reports: [] });
+  const bits = unknownBits();
+  know(bits, payload, 0, 2);
+  know(bits, payload, SUBTYPE_POS, SUBTYPE_POS + 3);
+  know(bits, payload, PROBE_FLAG_POS + 1, REPEATER_FLAG_POS);
+  return { label: 'sound', bits };
 }
 
 /**

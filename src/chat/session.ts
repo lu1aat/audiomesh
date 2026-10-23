@@ -48,13 +48,16 @@ import {
   MAX_TEXT_CHARS,
   MSG_ID_COUNT,
   SOUND_REPORTS,
+  ackHint,
   decodeFrame,
   encodeFrame,
   frameKey,
   repeaterTag,
+  soundHint,
   splitText,
   type ChatFrame,
 } from './frames';
+import type { ApHint } from '../protocol/protocol';
 import { SpriteAssembly, encodeSprite, spriteFits, spriteFrameCount, type Sprite, type SpriteView } from './sprite';
 
 export type OutState =
@@ -203,6 +206,9 @@ interface InInternal {
 
 /** The same frame heard again within this many slots (direct and repeated) is handled once. */
 const DEDUP_SLOTS = 5;
+
+/** Acks the decoder is told to expect at most (2 hints each): stop and wait leaves one in flight, plus a recent failure. */
+const MAX_EXPECTED_ACKS = 2;
 
 const bit = (i: number): number => 1 << i;
 
@@ -829,6 +835,24 @@ export class ChatSession {
    */
   nextTx(slot: number): Uint8Array | null {
     return this.nextTxTo(slot)?.payload ?? null;
+  }
+
+  /**
+   * What the decoder may assume about frames in the window of `slot` (ApHint): the acks of our directed
+   * messages that wait for one (also a failed one, for a while: a late ack still delivers it), first
+   * with the full bitmap (the ack that delivers), then without; then any ack and any sound. Most
+   * specific first: the decoder stops at the first that works.
+   */
+  decodeHints(slot: number): ApHint[] {
+    const hints: ApHint[] = [];
+    const expected = this.out.filter((m) => m.dst !== BROADCAST && (m.state === 'sending' || m.state === 'waiting' ||
+      (m.state === 'failed' && m.lastTxSlot !== null && slot - m.lastTxSlot <= this.ackTimeoutSlots)));
+    for (const m of expected.slice(-MAX_EXPECTED_ACKS)) {
+      const expect = { src: m.dst, dst: this.stationId, msgId: m.msgId };
+      hints.push(ackHint({ ...expect, received: (1 << m.frames) - 1 }), ackHint(expect));
+    }
+    hints.push(ackHint(), soundHint());
+    return hints;
   }
 
   outlook(): SessionOutlook {

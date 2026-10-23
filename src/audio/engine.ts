@@ -22,6 +22,7 @@ import type { DecodeRequest, DecodeResponse } from '../dsp/decoder.worker';
 import rxWorkletUrl from '../dsp/worklets/slot-rx.worklet.ts?worker&url';
 import txWorkletUrl from '../dsp/worklets/gfsk-tx.worklet.ts?worker&url';
 import type { ChannelDecode } from '../protocol/multi-decode';
+import type { ApHint } from '../protocol/protocol';
 import { nextSlotStartMs, slotStartMs } from '../protocol/slot-clock';
 import { deepExtraSec, frameDurationSec, windowDurationSec, windowLeadSec, type ProtocolSpec } from '../protocol/spec';
 import { TxSchedule } from './tx-schedule';
@@ -94,6 +95,8 @@ export class AudioEngine {
   onFrameDone: () => void = () => {};
   /** Called once per slot, after that slot's audio has been analysed. */
   onDecoded: (result: DecodeResult) => void = () => {};
+  /** Asked once per window as it goes to the decoder: known bits of frames that may be in it (ApHint). */
+  decodeHints: (slotStartUtcMs: number) => readonly ApHint[] = () => [];
 
   constructor(private readonly spec: ProtocolSpec) {}
 
@@ -483,6 +486,7 @@ export class AudioEngine {
       window: samples,
       slotStartUtcMs,
       leadSec,
+      hints: this.decodeHints(slotStartUtcMs),
     };
     this.decoder.postMessage(request, [samples.buffer]);
   }

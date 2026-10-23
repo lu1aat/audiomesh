@@ -11,7 +11,7 @@
  * they start at about the same time against the slot grid (`timeOffsetSec` within a tolerance).
  */
 
-import type { ChannelDecode } from './multi-decode';
+import { channelOptions, type ChannelDecode, type ChannelDecodeOptions } from './multi-decode';
 import type { DecodedFrame, Demodulator, FrameCodec, UndecodedCandidate } from './protocol';
 import { symbolDurationSec, type ProtocolSpec } from './spec';
 
@@ -133,10 +133,12 @@ export function decodeChannelsCombining(
   baseFreqsHz: readonly number[],
   leadSec: number | undefined,
   slotStartUtcMs: number,
+  options: ChannelDecodeOptions = {},
 ): ChannelDecode[] {
   const later: UndecodedCandidate[] = [];
+  const next = channelOptions(options);
   const out = baseFreqsHz.map((baseFreqHz) => {
-    const frames: DecodedFrame[] = [...demodulator.decode(window, baseFreqHz, leadSec)];
+    const frames: DecodedFrame[] = [...demodulator.decode(window, baseFreqHz, leadSec, next())];
     const sync = demodulator.lastSync;
     for (const cand of demodulator.lastUndecoded) {
       const hit = pool.resolve(slotStartUtcMs, cand);

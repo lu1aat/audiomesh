@@ -5,7 +5,7 @@
  * hundreds of milliseconds, so neither may do it.
  */
 
-import type { Demodulator } from '../protocol/protocol';
+import type { ApHint, Demodulator } from '../protocol/protocol';
 import type { ChannelDecode } from '../protocol/multi-decode';
 import { CandidatePool, decodeChannelsCombining } from '../protocol/combine';
 import { getProtocol } from '../protocol/registry';
@@ -21,6 +21,8 @@ export interface DecodeRequest {
   slotStartUtcMs: number;
   /** Audio before the slot boundary at the window's start; longer than the protocol's with deep decoding. */
   leadSec: number;
+  /** What the chat layer knows about frames that may be in this window (ack and sound layouts, acks it waits for). */
+  hints?: readonly ApHint[];
 }
 
 export type DecodeResponse =
@@ -29,6 +31,13 @@ export type DecodeResponse =
 
 /** A sample this close to full scale is pinned (browsers deliver a clipped ADC as exactly +-1). */
 const CLIP_LEVEL = 0.999;
+
+/**
+ * Share of a slot after which a window's remaining channels get the plain decode only, without the
+ * harder passes (other soft metrics, hints): windows keep coming once per slot, and a slow device
+ * must not fall behind them. Desktop Node decodes a whole band plainly in under a fifth of a slot.
+ */
+const HARDER_BUDGET_SLOT_FRACTION = 0.4;
 
 interface Decoder {
   demodulator: Demodulator;
@@ -51,7 +60,7 @@ function decoderFor(protocolId: ProtocolId, sampleRate: number): Decoder {
 }
 
 self.onmessage = (event: MessageEvent<DecodeRequest>) => {
-  const { id, protocolId, sampleRate, baseFreqsHz, window, slotStartUtcMs, leadSec } = event.data;
+  const { id, protocolId, sampleRate, baseFreqsHz, window, slotStartUtcMs, leadSec, hints } = event.data;
   try {
     // Input overload: clipping flattens the wave tops against full scale, so it shows as
     // runs of samples pinned there. A lone loud peak is not clipping.
@@ -69,7 +78,8 @@ self.onmessage = (event: MessageEvent<DecodeRequest>) => {
     }
     const t0 = performance.now();
     const { demodulator, pool } = decoderFor(protocolId, sampleRate);
-    const channels = decodeChannelsCombining(demodulator, pool, window, baseFreqsHz, leadSec, slotStartUtcMs);
+    const harderBudgetMs = HARDER_BUDGET_SLOT_FRACTION * getProtocol(protocolId).spec.slotSec * 1000;
+    const channels = decodeChannelsCombining(demodulator, pool, window, baseFreqsHz, leadSec, slotStartUtcMs, { hints, harderBudgetMs });
     const response: DecodeResponse = { id, ok: true, channels, decodeMs: performance.now() - t0, peak, clipped };
     self.postMessage(response);
   } catch (err) {

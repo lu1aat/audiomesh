@@ -4,7 +4,7 @@
  * and in Node tests.
  */
 
-import type { DecodedFrame, Demodulator, SyncReport } from './protocol';
+import type { ApHint, DecodedFrame, Demodulator, SyncReport } from './protocol';
 
 /** What one channel of one window produced. */
 export interface ChannelDecode {
@@ -15,15 +15,35 @@ export interface ChannelDecode {
   readonly sync: SyncReport | null;
 }
 
+/** What decoding a window's channels may try beyond the plain decode (DecodeOptions, per window). */
+export interface ChannelDecodeOptions {
+  /** Known bits of frames that may be on the air: DecodeOptions.hints. */
+  readonly hints?: readonly ApHint[];
+  /**
+   * The harder passes (other metrics, hints) run on a channel only while the window has taken less than
+   * this, ms, so a slot full of weak frames cannot make the decoder fall behind the slots. Default: no limit.
+   */
+  readonly harderBudgetMs?: number;
+}
+
+/** A per-channel DecodeOptions source that keeps to `harderBudgetMs`, timed from this call. */
+export function channelOptions(options: ChannelDecodeOptions): () => { hints: readonly ApHint[]; harder: boolean } {
+  const t0 = performance.now();
+  const budget = options.harderBudgetMs ?? Infinity;
+  return () => ({ hints: options.hints ?? [], harder: performance.now() - t0 < budget });
+}
+
 /** Decode `window` once per channel. Results are in the order of `baseFreqsHz`. */
 export function decodeChannels(
   demodulator: Demodulator,
   window: Float32Array,
   baseFreqsHz: readonly number[],
   leadSec?: number,
+  options: ChannelDecodeOptions = {},
 ): ChannelDecode[] {
+  const next = channelOptions(options);
   return baseFreqsHz.map((baseFreqHz) => {
-    const frames = demodulator.decode(window, baseFreqHz, leadSec);
+    const frames = demodulator.decode(window, baseFreqHz, leadSec, next());
     return { baseFreqHz, frames, sync: demodulator.lastSync };
   });
 }

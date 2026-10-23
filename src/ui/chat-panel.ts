@@ -393,6 +393,7 @@ export class ChatPanel {
       this.pump();
     };
     engine.onDecoded = (result) => this.showResult(result);
+    engine.decodeHints = (slotStartUtcMs) => this.session.decodeHints(Math.round(slotStartUtcMs / (this.protocol.spec.slotSec * 1000)));
   }
 
   /** Forget the chat lines (messages and notices). Stations and link statistics stay. */
@@ -896,7 +897,7 @@ export class ChatPanel {
     console.log(
       `slot ${when}: ${result.channels.length} channels, ${heard.length === 0 ? 'nothing decoded' : `${heard.length} frame${heard.length === 1 ? '' : 's'}`} ` +
       `(${result.decodeMs.toFixed(0)} ms)` +
-      heard.map((h) => ` · ch ${this.channelNumber(h.baseFreqHz)} ${signed(h.frame.snrDb, 0)} dB${h.frame.copies ? ` (${h.frame.copies} copies combined)` : ''}`).join('') +
+      heard.map((h) => ` · ch ${this.channelNumber(h.baseFreqHz)} ${signed(h.frame.snrDb, 0)} dB${h.frame.copies ? ` (${h.frame.copies} copies combined)` : ''}${h.frame.pass ? ` (harder pass: ${h.frame.pass})` : ''}`).join('') +
       // Why nothing decoded, on the channel we transmit on: that is the one being tested.
       (heard.length === 0 && ours?.sync ? this.syncHint(ours.sync) : ''),
     );

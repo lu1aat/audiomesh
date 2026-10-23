@@ -17,6 +17,7 @@ function stubCodec(accept: (copies: readonly Float32Array[]) => boolean): FrameC
     calls: 0,
     encode: () => new Uint8Array(0),
     decode: () => null,
+    decodeHarder: () => null,
     decodeCombined(copies: readonly Float32Array[]) {
       c.calls++;
       return accept(copies) ? PAYLOAD : null;
@@ -136,8 +137,10 @@ describe('retransmission combining through the demodulator (Fast, 48 kHz)', () =
       payload[0] = 1;
       const demodulator = protocol.createDemodulator(rate);
       const pool = new CandidatePool(protocol.createCodec(), spec);
-      const first = decodeChannelsCombining(demodulator, pool, windowWith(payload, -15, random), [base], lead, 0)[0]!;
-      const second = decodeChannelsCombining(demodulator, pool, windowWith(payload, -15, random), [base], lead, 10 * SLOT_MS)[0]!;
+      // Plain decodes only: the harder passes decode some of these copies alone (1 of 6 here).
+      const plain = { harderBudgetMs: 0 };
+      const first = decodeChannelsCombining(demodulator, pool, windowWith(payload, -15, random), [base], lead, 0, plain)[0]!;
+      const second = decodeChannelsCombining(demodulator, pool, windowWith(payload, -15, random), [base], lead, 10 * SLOT_MS, plain)[0]!;
       alone += first.frames.length;
       const hit = second.frames.find((f) => f.copies === 2);
       if (hit) {

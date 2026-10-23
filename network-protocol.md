@@ -363,6 +363,18 @@ to hundreds of milliseconds.
    hand them to `FrameCodec.decode()` (§3). The CRC/LDPC/all-zero checks are the
    final judge — a wrong sync candidate is simply refused, never accepted as
    corrupt data. Duplicate payloads across candidates are collapsed.
+   **Harder passes**: the best candidate with sync ≥ 0.27 that the plain decode
+   (log-power soft bits) refuses is tried again with other soft metrics
+   (`gfsk8/soft-metrics.ts`: tone magnitude, the exact Rician likelihood, and
+   WSJT-X's 2- and 3-symbol coherent metrics, which add the complex tone values
+   of neighbouring symbols, the modulation being phase-continuous), then with
+   each a priori hint (`ApHint`: payload bits the layer above knows before the
+   frame is heard — an ack's kind and spare bits, a sound's, and for an ack we
+   wait for, its sender, destination, message id and full bitmap) fixed before
+   BP. The CRC and parity checks still judge, and a hinted result must agree
+   with its hint. About +0.5 dB at the 50% point and much more at the weak
+   end; acks we wait for gain about 2 dB (measured numbers in `codec.ts`,
+   `soft-metrics.ts` and `CLAUDE.md`).
 6. **SNR estimate**: once a payload is known, its symbols are known, so signal
    energy = energy in the correct tone per symbol, noise = mean energy in the
    other 7 tones. Reported in a 2500 Hz reference bandwidth (the standard
@@ -438,6 +450,13 @@ Other wire-format notes:
   it was last heard at — the wire-level input to link-quality tracking (§11).
 - The codec (`src/protocol/gfsk8/codec.ts`) requires exactly `PAYLOAD_BITS = 77`
   bits; `frames.ts` throws if a value doesn't fit its field width.
+- **Spare bits are sent as 0 and checked**: a receiver refuses a frame with a
+  spare bit set (outside the probe, repeater and via fields), icon bits without
+  the icon-present flag, or a `sound` report slot that is unused (station 0) but
+  not all zero, or unused before a used one. These never come from a real
+  sender, so the checks discard most false decodes for free. The price: a new
+  field placed in a spare bit is dropped by receivers running an older build,
+  so every station must be updated together.
 
 ### Sprite frames (`ctrl` subtypes 2 and 3)
 

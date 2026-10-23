@@ -27,6 +27,47 @@ export interface DecodedFrame {
   readonly snrDb: number;
   /** Set when several receptions of this frame (a retransmission heard in other slots) were combined to decode it. */
   readonly copies?: number;
+  /**
+   * Set when the plain decode failed and a harder pass decoded it (FrameCodec.decodeHarder): the soft
+   * metric, and the hint it assumed if any, e.g. "coh3" or "mag+ack".
+   */
+  readonly pass?: string;
+}
+
+/** A payload bit an ApHint does not know. */
+export const AP_UNKNOWN = 2;
+
+/**
+ * A priori knowledge about a frame that may be on the air (the a priori decoding of WSJT-X): one byte
+ * per payload bit, 0 or 1 where the bit is known, AP_UNKNOWN where it is not. A candidate that does not
+ * decode plainly is tried again with the known bits fixed; the parity checks and the CRC still judge
+ * the result, which must also agree with every known bit. The layer above the codec writes these (it
+ * knows the frame layout and what it is waiting for); the codec knows nothing about frames.
+ */
+export interface ApHint {
+  /** What the hint assumes, for logs: "ack", "sound", "ack of 12:3 all". */
+  readonly label: string;
+  readonly bits: Uint8Array;
+}
+
+/**
+ * One candidate's complex tone values, for coherent soft metrics: the DFT of each symbol at each tone,
+ * and how far each tone's phase turns from the start of a symbol to the start of the next one.
+ */
+export interface ToneComplex {
+  /** symbolCount * toneCount, row-major by symbol. */
+  readonly re: Float32Array;
+  readonly im: Float32Array;
+  /** Radians, symbolCount * toneCount: tone t sent in symbol k turns this much by the start of symbol k + 1. */
+  readonly advance: Float32Array;
+}
+
+/** What Demodulator.decode may try beyond the plain decode of each candidate. */
+export interface DecodeOptions {
+  /** Known bits of frames that may be on the air, tried on real-looking candidates that do not decode plainly. */
+  readonly hints?: readonly ApHint[];
+  /** False = the plain decode only (no other metrics, no hints): when there is no time for more. Default true. */
+  readonly harder?: boolean;
 }
 
 /**
@@ -53,6 +94,16 @@ export interface FrameCodec {
    * null when they do not decode together, which includes receptions of different frames.
    */
   decodeCombined(copies: readonly Float32Array[]): Uint8Array | null;
+  /**
+   * A candidate decode() refused, tried harder: other soft metrics (coherent ones need `complex`, asked
+   * for only when they are reached) and the hints. Costs up to tens of BP runs, so the caller gates it
+   * on a real-looking sync. `pass` names what decoded it.
+   */
+  decodeHarder(
+    toneEnergies: Float32Array,
+    complex: (() => ToneComplex) | null,
+    hints: readonly ApHint[],
+  ): { payload: Uint8Array; pass: string } | null;
 }
 
 /** Symbols -> audio. Continuous phase across symbols; never a hard switch. */
@@ -105,7 +156,7 @@ export interface Demodulator {
    * `leadSec`: how much audio precedes the slot boundary (default windowLeadSec);
    * a longer window with a longer lead is searched over +-leadSec (deep decoding).
    */
-  decode(window: Float32Array, baseFreqHz: number, leadSec?: number): DecodedFrame[];
+  decode(window: Float32Array, baseFreqHz: number, leadSec?: number, options?: DecodeOptions): DecodedFrame[];
 }
 
 export interface Protocol {

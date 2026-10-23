@@ -8,6 +8,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ackHint, soundHint } from '../src/chat/frames';
 import { decodeWav16 } from '../src/dsp/wav';
 import { CandidatePool, decodeChannelsCombining } from '../src/protocol/combine';
 import { distinctFrames } from '../src/protocol/multi-decode';
@@ -30,13 +31,14 @@ describe.skipIf(metas.length === 0)('replay captured windows', () => {
       const protocol = getProtocol(meta.protocolId);
       let pool = pools.get(meta.protocolId);
       if (!pool) pools.set(meta.protocolId, (pool = new CandidatePool(protocol.createCodec(), protocol.spec)));
-      const channels = decodeChannelsCombining(demodulator, pool, wav.samples, meta.baseFreqsHz, meta.leadSec, meta.slotStartUtcMs);
+      // The hints every station sends with every window (no expected acks: what the capturing station waited for is not saved).
+      const channels = decodeChannelsCombining(demodulator, pool, wav.samples, meta.baseFreqsHz, meta.leadSec, meta.slotStartUtcMs, { hints: [ackHint(), soundHint()] });
       const ms = performance.now() - t0;
       const heard = distinctFrames(channels);
       const synced = channels.filter((c) => (c.sync?.score ?? 0) >= 0.3).map((c) => `${c.baseFreqHz.toFixed(0)}Hz:${c.sync!.score.toFixed(2)}`);
       console.log(`${file}${meta.note ? ` [${meta.note}]` : ''}: ${heard.length} frame(s) now (${meta.channels.reduce((n: number, c: { decoded: number }) => n + c.decoded, 0)} on the air), ` +
         `sync ${synced.join(' ') || 'none'}, ${ms.toFixed(0)} ms` +
-        heard.map((h) => ` | ${h.baseFreqHz.toFixed(0)}Hz ${h.frame.snrDb.toFixed(0)} dB dt ${h.frame.timeOffsetSec.toFixed(2)}${h.frame.copies ? ` (${h.frame.copies} copies)` : ''}`).join(''));
+        heard.map((h) => ` | ${h.baseFreqHz.toFixed(0)}Hz ${h.frame.snrDb.toFixed(0)} dB dt ${h.frame.timeOffsetSec.toFixed(2)}${h.frame.copies ? ` (${h.frame.copies} copies)` : ''}${h.frame.pass ? ` [${h.frame.pass}]` : ''}`).join(''));
     });
   }
 });

@@ -19,6 +19,10 @@
  * sync of all copies of the frame jointly and adds the copies' tone energies before decoding
  * (ISCAT-style), falling back to subsets of copies when the whole set does not decode.
  *
+ * The best candidate with a real-looking sync that does not decode is tried harder: other
+ * soft metrics, the coherent ones fed this candidate's complex tone values, and a priori
+ * knowledge (DecodeOptions.hints). See FrameCodec.decodeHarder and MAX_HARDER.
+ *
  * Timing resolution is one decimated sample (5 ms, 1/32 of a symbol) and the
  * frequency grid is 1 Hz, both far finer than non-coherent detection needs.
  *
@@ -26,7 +30,7 @@
  * hundreds of milliseconds.
  */
 
-import type { DecodedFrame, Demodulator, FrameCodec, SyncReport, UndecodedCandidate } from '../protocol';
+import type { DecodedFrame, DecodeOptions, Demodulator, FrameCodec, SyncReport, ToneComplex, UndecodedCandidate } from '../protocol';
 import { binsPerTone, repeatCount, symbolDurationSec, transmitSymbolCount, windowLeadSec, type ProtocolSpec } from '../spec';
 
 /** Baseband samples per symbol after decimation: 200 Hz at 6.25 baud. */
@@ -63,6 +67,15 @@ const UNDECODED_MIN_SCORE = 0.27;
 /** At this weak, the true frame is often not the top sync peak, so a few are kept per channel and window. */
 const MAX_UNDECODED = 3;
 
+/**
+ * Candidates per channel and window tried harder (FrameCodec.decodeHarder) after the plain decode
+ * failed: the best real-looking one (sync >= UNDECODED_MIN_SCORE) that failed. Each costs up to
+ * (1 + hints) x 5 BP runs, 50-60 ms in Node with two hints. Measured (Fast -14 and -15 dB, Turbo
+ * -11 dB, 96 frames each): every harder decode came from the best failed candidate; the second and
+ * third, tried in about half the windows, cost as much and decoded nothing.
+ */
+const MAX_HARDER = 1;
+
 /** With repeated copies, subsets of copies are tried only up to this many copies (2^n attempts). */
 const MAX_SUBSET_COPIES = 6;
 
@@ -95,6 +108,8 @@ export class Gfsk8Demodulator implements Demodulator {
   private readonly bins: number;
   private readonly copies: number;
   private readonly suppressSamples: number;
+  /** One candidate's complex tone values (see toneComplex), refilled per call. */
+  private readonly complex: { re: Float32Array; im: Float32Array; advance: Float32Array };
 
   constructor(
     private readonly sampleRate: number,
@@ -190,11 +205,15 @@ export class Gfsk8Demodulator implements Demodulator {
     }
     this.syncStart = Int32Array.from(syncStarts);
     this.syncTone = Uint8Array.from(syncTones);
+    const frameSize = spec.symbolCount * this.tones;
+    this.complex = { re: new Float32Array(frameSize), im: new Float32Array(frameSize), advance: new Float32Array(frameSize) };
   }
 
-  decode(window: Float32Array, baseFreqHz: number, leadSec = windowLeadSec(this.spec)): DecodedFrame[] {
+  decode(window: Float32Array, baseFreqHz: number, leadSec = windowLeadSec(this.spec), options: DecodeOptions = {}): DecodedFrame[] {
     this.lastSync = null;
     this.lastUndecoded = [];
+    const hints = options.hints ?? [];
+    let harderLeft = options.harder === false ? 0 : MAX_HARDER;
     const { baseband, count } = this.toBaseband(window, baseFreqHz);
     const positions = count - this.windowSamples + 1;
     const lastSymbolOffset = this.symbolStart[this.symbolStart.length - 1]!;
@@ -229,10 +248,19 @@ export class Gfsk8Demodulator implements Demodulator {
           energies.set(spectra.subarray(from, from + this.tones), k * this.tones);
         }
       }
-      const found = this.decodeCopies(copyEnergies, cand.score >= UNDECODED_MIN_SCORE);
+      const real = cand.score >= UNDECODED_MIN_SCORE;
+      let found = this.decodeCopies(copyEnergies, real);
+      if (!found && real && harderLeft > 0) {
+        harderLeft--;
+        this.sumCopies(copyEnergies, sum);
+        // Coherent metrics need one copy's own phases: plain protocols only (the codec ignores them otherwise).
+        const complex = this.bins === 1 && this.copies === 1 ? () => this.toneComplex(baseband, cand) : null;
+        const hard = this.codec.decodeHarder(sum, complex, hints);
+        if (hard) found = { payload: hard.payload, used: Array.from({ length: this.copies }, (_, i) => i), pass: hard.pass };
+      }
       if (!found) {
         // The strongest real-looking candidates that failed, for a later retransmission to be added to.
-        if (this.lastUndecoded.length < MAX_UNDECODED && cand.score >= UNDECODED_MIN_SCORE) {
+        if (this.lastUndecoded.length < MAX_UNDECODED && real) {
           this.sumCopies(copyEnergies, sum);
           this.lastUndecoded.push({
             energies: sum.slice(),
@@ -253,9 +281,43 @@ export class Gfsk8Demodulator implements Demodulator {
         timeOffsetSec: cand.start / this.rateDecHz - leadSec,
         snrDb: this.estimateSnrDb(sum, this.codec.encode(found.payload)),
         ...(found.used.length > 1 ? { copies: found.used.length } : {}),
+        ...(found.pass ? { pass: found.pass } : {}),
       });
     }
     return frames;
+  }
+
+  /**
+   * The DFT of each symbol at each tone, at one candidate (the spectrogram keeps only energies), and
+   * each tone's phase turn from one symbol's start to the next (the coherent metrics undo it).
+   */
+  private toneComplex(baseband: { re: Float32Array; im: Float32Array }, cand: { start: number; hypothesis: number }): ToneComplex {
+    const { re, im } = baseband;
+    const { tones, windowSamples: L } = this;
+    const cos = this.toneCos[cand.hypothesis]!;
+    const sin = this.toneSin[cand.hypothesis]!;
+    const out = this.complex;
+    for (let k = 0; k < this.spec.symbolCount; k++) {
+      const p = cand.start + this.symbolStart[k]!;
+      const step = k + 1 < this.spec.symbolCount ? this.symbolStart[k + 1]! - this.symbolStart[k]! : 0;
+      for (let t = 0; t < tones; t++) {
+        const o = t * L;
+        let sr = 0;
+        let si = 0;
+        for (let n = 0; n < L; n++) {
+          const xr = re[p + n]!;
+          const xi = im[p + n]!;
+          const c = cos[o + n]!;
+          const s = sin[o + n]!;
+          sr += xr * c + xi * s;
+          si += xi * c - xr * s;
+        }
+        out.re[k * tones + t] = sr;
+        out.im[k * tones + t] = si;
+        out.advance[k * tones + t] = this.rowOmega[cand.hypothesis * tones + t]! * step;
+      }
+    }
+    return out;
   }
 
   /**
@@ -263,7 +325,7 @@ export class Gfsk8Demodulator implements Demodulator {
    * sync looks real, every smaller subset (largest first), since a copy lost to a fade or a burst
    * of noise only pollutes the sum. `used` says which copies decoded it.
    */
-  private decodeCopies(copies: readonly Float32Array[], tryAll: boolean): { payload: Uint8Array; used: number[] } | null {
+  private decodeCopies(copies: readonly Float32Array[], tryAll: boolean): { payload: Uint8Array; used: number[]; pass?: string } | null {
     const n = copies.length;
     const everyone = Array.from({ length: n }, (_, i) => i);
     const first = this.codec.decodeCombined(copies);

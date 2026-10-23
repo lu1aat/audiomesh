@@ -102,7 +102,8 @@ describe('sync report (why a slot did not decode)', () => {
     const d = new Gfsk8Demodulator(rate, spec, codec);
     let seen = 0;
     for (let t = 0; t < 4; t++) {
-      const frames = d.decode(makeWindow(payloadOf(random), random, 0.8, -16), 1000);
+      // Plain decode only: the harder passes decode some of these.
+      const frames = d.decode(makeWindow(payloadOf(random), random, 0.8, -16), 1000, undefined, { harder: false });
       if (frames.length === 0 && d.lastSync!.score > 0.28) {
         seen++;
         expect(Math.abs(d.lastSync!.timeOffsetSec - 0.8)).toBeLessThan(0.3);
