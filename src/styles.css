@@ -97,6 +97,7 @@ html.rotated dialog[open] { transform: rotate(180deg); }
 .nav-item { text-align: left; background: var(--panel); color: var(--text-dim); border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 8px 10px; font: inherit; cursor: pointer; }
 .nav-item:last-child { border-bottom: 0; }
 .nav-item { display: flex; align-items: center; justify-content: space-between; }
+.nav-item[hidden] { display: none; }
 .nav-item:disabled { opacity: 0.6; cursor: default; }
 .nav-item:disabled:hover { background: var(--panel); }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: #4a505b; flex: none; }
@@ -109,6 +110,11 @@ html.rotated dialog[open] { transform: rotate(180deg); }
 .block-toggle .dot[data-dot="sync"] { margin-left: 0; }
 .nav-item:hover { background: var(--panel-raised); }
 .nav-item.active { background: var(--panel-raised); color: var(--text); font-weight: 600; border-left: var(--sep) solid var(--accent); padding-left: calc(10px - 2px); }
+/* How it works: a link to its own page (new tab), so it carries ↗ where the screens carry their dot. */
+.nav-link { text-decoration: none; }
+.nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.nav-ext { flex: none; font-size: 0.8em; line-height: 1; }
+.sidebar-collapsed .nav-ext { display: none; }
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .screen { flex: 1; min-height: 0; box-sizing: border-box; padding: 12px 16px; }
 .screen[hidden] { display: none; }
@@ -277,6 +283,10 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
   .sidebar-nav { order: 1; flex: 1 1 100%; min-width: 0; margin: 0; border-left: 0; border-top: 0; }
   .sidebar-nav .nav-item { flex: 1 1 auto; justify-content: center; gap: 4px; padding: 8px 4px; font-size: 0.85rem; }
   .sidebar-nav .nav-item.active { padding-left: 4px; }
+  /* No room for a fifth label on the bar: the link is its icon, like the sidebar tools. */
+  .sidebar-nav .nav-link { flex: none; padding: 8px 10px; }
+  .sidebar-nav .nav-link .nav-label, .sidebar-nav .nav-link .nav-ext { display: none; }
+  .sidebar-nav .nav-link .nav-short { display: inline; }
   .radio { order: 3; flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; row-gap: 4px; padding: 4px 8px; }
   .radio-keys { grid-template-columns: auto auto; }
   .radio-key { padding: 4px 10px; }
@@ -748,6 +758,15 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
 .help-body p.hint { margin: 8px 0 0; max-width: 62ch; }
 .hp-section { margin: 0 0 36px; scroll-margin-top: 8px; }
 .hp-lead { font-size: 1.05rem; color: var(--text); max-width: 56ch; }
+/* How it works lives on its own page (new tab, so the station keeps running): one card at the top, one link per section. */
+.hp-tour { display: grid; gap: 4px; max-width: 46rem; margin: 0 0 28px; padding: 12px 14px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); text-decoration: none; }
+.hp-tour:hover { border-color: var(--accent); background: var(--panel-raised); }
+.hp-tour:focus-visible, .hp-more a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hp-tour-title { font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent-fg); }
+.hp-tour-text { font-size: 0.9rem; color: var(--text-dim); max-width: 62ch; }
+.hp-more { margin: 10px 0 0; font-size: 0.88rem; }
+.hp-more a { color: var(--accent-fg); text-underline-offset: 3px; }
+.hp-more a:hover { color: var(--text); }
 .hp-jump { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 24px; }
 .hp-jump button { background: var(--panel-alt); color: var(--text-dim); border: 1px solid var(--border); border-radius: 0; padding: 4px 12px; font: inherit; font-size: 0.85rem; cursor: pointer; }
 .hp-jump button:hover { color: var(--text); background: var(--panel-raised); }

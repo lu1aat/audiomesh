@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>How audiomesh works</title>
+    <meta
+      name="description"
+      content="How audiomesh works, step by step, with demos that run its own modulator, decoder and network code."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+<header class="bar">
+  <a class="brand" href="#top"><svg id="logo" viewBox="0 0 34 31" aria-hidden="true"></svg>audiomesh</a>
+  <span class="bar-sub">How it works</span>
+  <label class="mode-pick">Mode <select id="mode" aria-label="Mode used by every demo on this page"></select></label>
+</header>
+
+<main class="page" id="top">
+  <section class="hero wide">
+    <div class="col" style="margin-inline:0; display:grid; gap:18px">
+      <div class="eyebrow">audiomesh · How it works</div>
+      <h1>A network made of sound</h1>
+      <p class="lede">audiomesh sends text between browsers through nothing but a speaker and a microphone. No Wi-Fi, no server, no cable: the air in the room is the network. This page follows one message from the keyboard to another device's screen. The demos run audiomesh's own modulator, decoder and network code, right here in the page.</p>
+    </div>
+    <figure class="figure" style="margin:0">
+      <div class="canvas-box"><canvas id="hero-pic" aria-label="Waterfall of one audiomesh frame in noise"></canvas></div>
+      <div class="figure-bar">
+        <button class="primary" id="hero-play" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> Hear this frame</button>
+        <p id="hero-caption">One frame heard through noise, drawn the way the receiver measures it.</p>
+      </div>
+    </figure>
+  </section>
+
+  <nav class="toc wide" aria-label="Chapters">
+    <ol>
+      <li><a href="#air">The air is the cable</a></li>
+      <li><a href="#bits">Text becomes bits</a></li>
+      <li><a href="#armour">Armour against noise</a></li>
+      <li><a href="#tones">Bits become tones</a></li>
+      <li><a href="#sync">Finding the frame</a></li>
+      <li><a href="#slots">Everyone keeps time</a></li>
+      <li><a href="#lab">The receiver, end to end</a></li>
+      <li><a href="#acks">Did it arrive?</a></li>
+      <li><a href="#channels">Choosing a channel</a></li>
+      <li><a href="#repeaters">One hop further</a></li>
+      <li><a href="#modes">Speed or reach</a></li>
+    </ol>
+  </nav>
+
+  <!-- 01 -->
+  <section class="ch wide" id="air">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 01</span><h2>The air is the cable</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>A phone's speaker and microphone cover a wide range of pitches. audiomesh splits that range into three bands and uses one at a time: <b>low</b> (100–300 Hz), <b>audible</b> (300 Hz–10 kHz) and <b>ultrasonic</b> (17.5–21 kHz). Ultrasonic is the default. It carries well across a room and most adults can't hear it.</p>
+      <p>Each band holds fixed, numbered channels, the same on every device. A station listens to every channel of its band at once, so a frame can go out on any of them and still be heard.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Band plan <span class="tag">tap a band</span></div>
+      <div class="demo-body">
+        <div class="row"><span class="ctl-label" style="margin-right:4px">Sound card</span>
+          <div class="seg" role="group" aria-label="Sound card sample rate">
+            <button type="button" data-rate="16000" aria-pressed="false">16 kHz</button>
+            <button type="button" data-rate="44100" aria-pressed="false">44.1 kHz</button>
+            <button type="button" data-rate="48000" aria-pressed="true">48 kHz</button>
+          </div>
+          <span class="hint">A Bluetooth headset can force 16 kHz.</span>
+        </div>
+        <svg class="chart" id="band-svg" role="img" aria-label="The three bands on a frequency scale"></svg>
+        <svg class="chart" id="band-zoom" role="img" aria-label="Channels in the chosen band"></svg>
+        <p class="hint" id="band-note" style="font-size:0.92rem; color:var(--text)"></p>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/band/band-plan.ts</code>. The app keeps a margin below the sound card's limit and uses only 45% of the sample rate.</p>
+  </section>
+
+  <!-- 02 -->
+  <section class="ch wide" id="bits">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 02</span><h2>Text becomes bits</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>Every frame carries exactly 77 bits. To fit more text in them, audiomesh uses a 6-bit alphabet of 64 symbols: capital letters, digits and punctuation. Lower case arrives as upper case and anything else as a question mark, the same trade FT8 and JS8 make.</p>
+      <p>The first frame of a message says who sent it, who it is for and which message it belongs to, which leaves room for 7 characters. Each following frame carries 9 more. A message can use up to 16 frames, which makes 142 characters.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Frame builder <span class="tag">encodeFrame()</span></div>
+      <div class="demo-body">
+        <div class="composer">
+          <input type="text" id="msg-text" maxlength="142" value="Meet at the old bridge at noon" aria-label="Message text" spellcheck="false">
+          <select id="msg-to" aria-label="Recipient"><option value="0">To everyone</option><option value="202">To station #202</option></select>
+        </div>
+        <div class="arrives">Arrives as: <span id="msg-norm"></span></div>
+        <p id="msg-stats" style="font-size:0.95rem"></p>
+        <div class="frames" id="msg-frames"></div>
+        <div class="legend">
+          <span><i style="background:var(--c-kind)"></i>frame kind</span><span><i style="background:var(--c-src)"></i>sender id</span>
+          <span><i style="background:var(--c-msg)"></i>message number</span><span><i style="background:var(--c-seq)"></i>frame number</span>
+          <span><i style="background:var(--c-dst)"></i>destination (0 = everyone)</span><span><i style="background:var(--c-text)"></i>6-bit characters</span>
+          <span><i style="background:var(--c-via)"></i>repeater tag</span>
+        </div>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/chat/frames.ts</code> and <code>src/chat/charset6.ts</code>. Station ids are random numbers from 1 to 1023; names travel in separate “hello” frames.</p>
+  </section>
+
+  <!-- 03 -->
+  <section class="ch wide" id="armour">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 03</span><h2>Armour against noise</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>Sound in a room fades, echoes and collides with other sound. So the 77 bits get two layers of protection before they go out. A 14-bit CRC lets the receiver check its own work. Then an LDPC code (the one FT8 uses) adds 83 parity bits, for a 174-bit codeword. Almost half of what goes on the air is redundancy that lets the receiver rebuild what it lost.</p>
+      <p>The 174 bits become 58 symbols of 3 bits each. Below is the first frame of your message, symbol by symbol. Damage it and watch the real decoder try to recover it.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Break it <span class="tag">Gfsk8Codec.decode()</span></div>
+      <div class="demo-body">
+        <div class="pipe" aria-label="How 77 bits grow to 174">
+          <div class="pipe-row"><span>payload</span><div class="pipe-bar"><span class="p-pay" style="width:44.25%">77</span></div></div>
+          <div class="pipe-row"><span>+ CRC-14</span><div class="pipe-bar"><span class="p-pay" style="width:44.25%">77</span><span class="p-crc" style="width:8.05%">14</span></div></div>
+          <div class="pipe-row"><span>+ LDPC parity</span><div class="pipe-bar"><span class="p-pay" style="width:44.25%">77</span><span class="p-crc" style="width:8.05%">14</span><span class="p-par" style="width:47.7%">83 parity</span></div></div>
+        </div>
+        <div class="row">
+          <span class="ctl-label">Brush</span>
+          <div class="seg" role="group" aria-label="Brush">
+            <button type="button" data-brush="erase" aria-pressed="true">Erase</button>
+            <button type="button" data-brush="wrong" aria-pressed="false">Wrong tone</button>
+          </div>
+          <span class="hint">Tap or drag across symbols.</span>
+        </div>
+        <div class="sym-grid" id="fec-grid" aria-label="The 79 symbols of the frame"></div>
+        <div class="legend"><span><i class="lg-sync"></i>sync (not data)</span><span><i class="lg-data"></i>data symbol, tone 0–7</span><span><i class="lg-erase"></i>erased: heard nothing useful</span><span><i class="lg-wrong"></i>wrong: heard the wrong tone</span></div>
+        <div class="row">
+          <button type="button" id="fec-erase20">Erase 20</button>
+          <button type="button" id="fec-erase26">Erase 26</button>
+          <button type="button" id="fec-wrong5">5 wrong</button>
+          <button type="button" id="fec-wrong10">10 wrong</button>
+          <button type="button" id="fec-reset">Repair all</button>
+          <span class="count" id="fec-count"></span>
+        </div>
+        <div class="verdict" id="fec-result" aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="col prose" style="margin-inline:0">
+      <p>A symbol the receiver knows it missed costs far less than one it heard wrong. The decoder survives about 20 erased symbols out of 58, but only about 6 wrong ones. Either way it never returns wrong text. When the parity checks or the CRC fail, it returns nothing.</p>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/protocol/gfsk8/codec.ts</code>, <code>ldpc.ts</code> (belief propagation, up to 30 iterations) and <code>crc14.ts</code>. The LDPC tables come from ft8_lib, which takes them from WSJT-X.</p>
+  </section>
+
+  <!-- 04 -->
+  <section class="ch wide" id="tones">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 04</span><h2>Bits become tones</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>Three bits choose one of eight tones, so each symbol is a short whistle at one of eight pitches. The tones sit exactly one symbol rate apart (6.25 Hz in Normal), which is the closest spacing at which a receiver can still tell them apart.</p>
+      <p>Neighbouring tones differ in just one bit, a Gray code. The most common mistake, energy landing one tone off, then costs one bit instead of up to three.</p>
+      <p>The pitch also glides from tone to tone along a Gaussian curve instead of jumping. A jump would splatter energy into neighbouring channels. The glide keeps the whole frame within the width of 8 tones.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">The frame as tones <span class="tag">Gfsk8Modulator</span></div>
+      <div class="demo-body">
+        <div class="tone-layout">
+          <table class="gray" id="gray-table" aria-label="Gray code: bits to tone"></table>
+          <div class="tone-figs">
+            <div class="canvas-box"><canvas id="tone-grid" aria-label="The 79 symbols of the first frame as tones"></canvas></div>
+            <div class="canvas-box"><canvas id="tone-glide" aria-label="Frequency over time: stepped versus Gaussian"></canvas></div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="primary" type="button" id="tone-play" aria-pressed="false"><span aria-hidden="true">▶</span> Play the frame</button>
+          <span class="hint" id="tone-stats"></span>
+        </div>
+        <p class="hint">Yellow symbols are the sync pattern, teal ones carry your data. Playback runs at 1 kHz so you can hear it; the app sends the same thing in the band you choose.</p>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/protocol/gfsk8/modulator.ts</code>. Bandwidth-time product 2.0, the FT8 choice. Samples are made on the fly, a block at a time, so the audio thread never waits.</p>
+  </section>
+
+  <!-- 05 -->
+  <section class="ch wide" id="sync">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 05</span><h2>Finding the frame</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>The receiver doesn't know exactly when a frame starts or at exactly what pitch. Clocks disagree a little, and sound cards run a few hundred parts per million apart. So every frame carries the same 7-tone pattern three times, at its start, middle and end: <b>3 1 4 0 6 5 2</b>. It is a Costas array, a pattern that lines up with a shifted copy of itself in only one place.</p>
+      <p>The receiver slides the pattern over the whole recording and asks, at every position: what share of the energy in those 21 symbols lands on the predicted tones? Pure noise scores about 0.23. A real frame scores 0.3 or more, usually far more.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Slide the pattern <span class="tag">drag on the picture</span></div>
+      <div class="demo-body">
+        <div class="canvas-box"><canvas id="sync-pic" tabindex="0" aria-label="Receive window. Drag, or use the arrow keys, to move the sync template."></canvas></div>
+        <div class="score"><span class="score-num" id="sync-score">0.00</span><div class="score-bar" id="sync-score-bar" aria-hidden="true"></div><span id="sync-verdict"></span></div>
+        <div class="hint" id="sync-where"></div>
+        <div class="canvas-box"><canvas id="sync-curve" aria-label="Sync score at every start time"></canvas></div>
+        <div class="controls">
+          <div class="ctl"><label class="ctl-label" for="sync-snr">Signal <output id="sync-snr-out">−12 dB</output></label><input type="range" id="sync-snr" min="-22" max="0" step="1" value="-12"></div>
+          <div class="row" style="align-self:end"><button class="primary" type="button" id="sync-search">Search like the receiver</button><button type="button" id="sync-new">New recording</button><button type="button" class="link" id="sync-show">Show me</button></div>
+        </div>
+        <p class="hint">This picture uses a coarse grid: whole tones and quarter symbols. The real receiver steps by 1/32 of a symbol and about 1 Hz, then hands its 8 best candidates to the decoder.</p>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/protocol/gfsk8/demodulator.ts</code>. It mixes the channel down to 0 Hz, keeps 32 samples per symbol and measures the tones with a sliding DFT.</p>
+  </section>
+
+  <!-- 06 -->
+  <section class="ch wide" id="slots">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 06</span><h2>Everyone keeps time</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>Stations never agree on when to talk. Time is already cut into slots counted from 1 January 1970, UTC: 15 seconds each in Normal. Any device with a correct clock knows when every slot starts without asking anyone. A station starts sending at a slot boundary.</p>
+      <p>The receiver records a bit more than one frame, from a little before the boundary to a little after the frame should end. A frame from a clock that is somewhat fast or slow still fits inside. The Sync tools in the app help when it doesn't.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Slots <span class="tag">live, from this device's clock</span></div>
+      <div class="demo-body">
+        <div class="clock">
+          <div><span>UTC now</span><output id="clock-utc">--:--:--</output></div>
+          <div><span>Slot number</span><output id="clock-slot">—</output></div>
+          <div><span>Into this slot</span><output id="clock-into">—</output></div>
+        </div>
+        <svg class="chart" id="slot-svg" role="img" aria-label="Our receive window and the other station's frame"></svg>
+        <div class="controls">
+          <div class="ctl"><label class="ctl-label" for="skew">Their clock is off by <output id="skew-out">0 s</output></label><input type="range" id="skew" min="-5" max="5" step="0.1" value="1"></div>
+          <label class="check" style="align-self:end"><input type="checkbox" id="deep"> Deep decode (search further)</label>
+        </div>
+        <div class="verdict" id="slot-verdict" aria-live="polite"></div>
+        <p class="hint" id="slot-facts"></p>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/protocol/slot-clock.ts</code> and <code>src/audio/engine.ts</code>, which re-anchors the audio clock to the wall clock every slot and shifts the window by the speaker and microphone latency.</p>
+  </section>
+
+  <!-- 07 -->
+  <section class="ch wide" id="lab">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 07</span><h2>The receiver, end to end</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>Now all of it at once. Choose how weak the signal is and how far off the other station's clock and sound card are, then send a frame. The page builds what a microphone would hear (the real modulator plus white noise) and gives it to the real receiver. It mixes the channel down, measures the eight tones, searches for the sync, decodes the best candidates and checks the CRC.</p>
+      <p>Signal strength is measured against the noise in 2500 Hz, the weak-signal radio convention. At −18 dB the noise in that width is about 60 times stronger than the signal and you can't hear the frame at all. In Normal it still decodes.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Decode lab <span class="tag">Gfsk8Demodulator.decode(), in a worker</span></div>
+      <div class="demo-body">
+        <div class="controls">
+          <div class="ctl"><label class="ctl-label" for="lab-text">Text, up to 7 characters</label><input type="text" id="lab-text" maxlength="7" value="HELLO" spellcheck="false" style="text-transform:uppercase"></div>
+          <div class="ctl"><label class="ctl-label" for="lab-snr">Signal <output id="lab-snr-out">−12 dB</output></label><input type="range" id="lab-snr" min="-28" max="6" step="1" value="-12"><span class="hint" id="lab-snr-hint"></span></div>
+          <div class="ctl"><label class="ctl-label" for="lab-dt">Clock error <output id="lab-dt-out">0 s</output></label><input type="range" id="lab-dt" min="-2" max="2" step="0.1" value="0.6"></div>
+          <div class="ctl"><label class="ctl-label" for="lab-df">Sound card error <output id="lab-df-out">0 Hz</output></label><input type="range" id="lab-df" min="-5" max="5" step="0.5" value="1.5"></div>
+        </div>
+        <div class="row">
+          <button class="primary lab-go" type="button" id="lab-send">Send one frame</button>
+          <button class="lab-go" type="button" id="lab-run">Run 20 trials</button>
+          <button type="button" id="lab-play" aria-pressed="false"><span aria-hidden="true">▶</span> Hear what the mic heard</button>
+          <span class="hint" id="lab-progress" aria-live="polite"></span>
+        </div>
+        <div class="canvas-box"><canvas id="lab-pic" aria-label="The received window"></canvas></div>
+        <div class="lab-out">
+          <div class="verdict" id="lab-result" aria-live="polite"></div>
+          <div style="display:grid; gap:6px; min-width:0">
+            <svg class="chart" id="lab-chart" role="img" aria-label="Share of frames decoded at each signal strength"></svg>
+            <div class="row" style="justify-content:space-between"><span class="wrong-count">Wrong text returned so far: <output id="lab-wrong">0</output></span><button type="button" class="link" id="lab-clear">Clear dots</button></div>
+          </div>
+        </div>
+        <p class="hint">The lab runs at 1 kHz with an 8 kHz sample rate to stay light. The app does the same at 17.5–21 kHz and 48 kHz, on every channel of the band, every slot.</p>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/dsp/decoder.worker.ts</code> and <code>src/protocol/gfsk8/demodulator.ts</code>. When the plain decode fails but the sync looks real, the receiver tries harder: other ways of reading the tones, and bits it can predict, like the shape of an ack it is waiting for.</p>
+  </section>
+
+  <!-- 08 -->
+  <section class="ch wide" id="acks">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 08</span><h2>Did it arrive?</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>A message to one station gets an answer. Once the receiver has heard the last frame, it sends an <b>ack</b>: a 16-bit map with one bit for each frame it holds. The sender then resends only the frames the map lacks, for up to four rounds. A message to everyone is never acked.</p>
+      <p>A station that transmits can't hear, so the sender sends nothing new while it waits. And since decoding takes a moment after each slot, an answer always goes out two slots after the frame it answers.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">A sends B “SEE YOU AT THE BRIDGE” <span class="tag">two real ChatSessions</span></div>
+      <div class="demo-body">
+        <div class="row"><span class="ctl-label">Lose in the air</span>
+          <button type="button" data-lose="0">Frame 1</button><button type="button" data-lose="1">Frame 2</button><button type="button" data-lose="2">Frame 3</button><button type="button" data-lose="ack">B's first ack</button>
+        </div>
+        <div class="tl-wrap" id="ack-timeline"></div>
+        <div class="legend"><span><i style="background:var(--line-strong)"></i>message frame</span><span><i style="background:var(--good)"></i>ack: ● frame held, ○ missing</span><span><i style="background:var(--bad)"></i>lost in the air</span></div>
+        <div class="verdict" id="ack-result" aria-live="polite"></div>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/chat/session.ts</code>. A complete ack goes out twice, two slots apart, because a lost ack would otherwise cost a whole resend round.</p>
+  </section>
+
+  <!-- 09 -->
+  <section class="ch wide" id="channels">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 09</span><h2>Choosing a channel</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>There is no control channel. Everyone decodes the whole band, so the question is which channel the <i>other</i> station hears best. Speakers, microphones and rooms differ, and how well you hear them says little about how well they hear you. So stations tell each other: every ack and every beacon carries reports like “I hear #101 on channel 12 at −9 dB”.</p>
+      <p>To send, a station takes the worst case over everyone it is sending to, avoids channels where others have been transmitting (each one costs 4 dB), keeps the channels within 3 dB of the best and picks one of them at random, so that not everyone piles onto the same channel.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Sending to #201 and #202 <span class="tag">LqaTable.chooseChannel(), 400 times</span></div>
+      <div class="demo-body">
+        <div class="ale-wrap" id="ale-wrap"></div>
+        <div class="row"><button type="button" id="ale-new">New reports</button><span class="hint">Tap a channel's Busy cell to add other transmitters there (up to two).</span></div>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/ale/lqa.ts</code> and <code>src/ale/channel-load.ts</code>. ALE (automatic link establishment) is the HF radio idea behind it.</p>
+  </section>
+
+  <!-- 10 -->
+  <section class="ch wide" id="repeaters">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 10</span><h2>One hop further</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>When two stations can't hear each other, one in between can relay. A repeater sends again what it hears directly from others, two or four slots later, with a 3-bit tag that says who repeated it. It never repeats a repeat, so a frame travels one hop at most. It never repeats beacons either, since a beacon measures one particular link.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">A, R and C in a row <span class="tag">three real ChatSessions</span></div>
+      <div class="demo-body">
+        <svg class="rpt-map" id="rpt-map" viewBox="0 0 560 120" role="img" aria-label="A and C are out of range of each other; R hears both">
+          <circle class="reach" cx="110" cy="62" r="150"/><circle class="reach" cx="450" cy="62" r="150"/>
+          <line class="gap" x1="140" y1="104" x2="420" y2="104"/>
+          <text class="lbl" x="280" y="118" text-anchor="middle">A and C can't hear each other</text>
+          <circle class="node" cx="110" cy="56" r="26"/><text x="110" y="61" text-anchor="middle">A</text>
+          <circle class="node r" cx="280" cy="56" r="26"/><text x="280" y="61" text-anchor="middle">R</text>
+          <circle class="node" cx="450" cy="56" r="26"/><text x="450" y="61" text-anchor="middle">C</text>
+        </svg>
+        <label class="check"><input type="checkbox" id="rpt-on" checked> R is a repeater</label>
+        <div class="tl-wrap" id="rpt-timeline"></div>
+        <div class="legend"><span><i style="background:var(--line-strong)"></i>message frame</span><span><i style="background:var(--good)"></i>ack</span><span><i style="background:var(--accent-hi)"></i>beacon</span><span><i style="background:var(--c-seq)"></i>↻ repeated</span></div>
+        <div class="verdict" id="rpt-result" aria-live="polite"></div>
+      </div>
+    </div>
+    <p class="code-ref col" style="margin-inline:0">In the code: <code>src/chat/repeater.ts</code>. The tag is the repeater's id modulo 7, plus 1: three bits are all the room a frame has left.</p>
+  </section>
+
+  <!-- 11 -->
+  <section class="ch wide" id="modes">
+    <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Chapter 11</span><h2>Speed or reach</h2></div>
+    <div class="col prose" style="margin-inline:0">
+      <p>Every mode uses the same frame, the same code and the same sync. Only the symbol rate changes, and everything else follows from it. Halve the rate and frames take twice as long, reach about 3 dB deeper into the noise and carry half the text per minute. Both stations must use the same mode.</p>
+    </div>
+    <div class="demo">
+      <div class="demo-title">Six modes <span class="tag">tap one to use it on this page</span></div>
+      <div class="demo-body">
+        <svg class="chart" id="modes-chart" role="img" aria-label="Characters per minute against sensitivity for each mode"></svg>
+        <div class="table-wrap"><table class="modes" id="modes-table"></table></div>
+        <p class="hint">Sensitivity was measured in simulation with white noise, at 48 kHz, with unknown timing; never a wrong payload. Turbo, Fast and Normal have also been used over the air. Two more variants, Spread and Burst, trade speed for tolerance of wobbling or fading signals.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing wide">
+    <h2>Try it with two devices</h2>
+    <p>Open the app on two phones or laptops in the same room. Pick the same mode and band on both, turn on Audio and Allow transmit, and send a message. Check that both clocks are right first.</p>
+    <a class="cta" href="./">Open audiomesh</a>
+    <p class="fineprint">audiomesh runs entirely in the browser: no backend, and no audio ever leaves the device. It borrows from FT8 and JS8 but does not talk to them. The full over-the-air specification is <code>network-protocol.md</code> in the repository.</p>
+  </section>
+</main>
+    <script type="module" src="/src/how-it-works/main.ts"></script>
+  </body>
+</html>

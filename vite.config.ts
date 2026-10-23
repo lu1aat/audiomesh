@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
 // Self-signed certificate for the dev server, if one has been generated into
@@ -79,6 +80,13 @@ export default defineConfig({
     // Worklets are loaded via `?worker&url` and must stay separate chunks.
     assetsInlineLimit: 0,
     modulePreload: { polyfill: false },
+    // Two pages: the app, and How it works (src/how-it-works/), a step-by-step tour that runs the app's own modules.
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        howItWorks: fileURLToPath(new URL('./how-it-works.html', import.meta.url)),
+      },
+    },
   },
   // getUserMedia needs a secure context: localhost works, a LAN IP over http does not.
   server: {

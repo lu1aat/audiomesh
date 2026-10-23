@@ -42,6 +42,7 @@
           <button class="nav-item" data-screen="stats" id="nav-stats" title="Network stats" hidden><span class="nav-label">Stats</span><span class="nav-short" aria-hidden="true">🌐</span></button>
           <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">⚙️</span><span class="dot" data-dot="settings"></span></button>
           <button class="nav-item" data-screen="help" title="Help"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">❓</span></button>
+          <a class="nav-item nav-link" href="./how-it-works.html" target="_blank" rel="noopener" title="How it works, step by step (opens in a new tab, so the station keeps running)"><span class="nav-label">How it works</span><span class="nav-short" aria-hidden="true">📖</span><span class="nav-ext" aria-hidden="true">↗</span></a>
         </div>
       </nav>
 
@@ -326,6 +327,11 @@
               <button type="button" data-help-jump="help-fix">Fix it</button>
             </nav>
 
+            <a class="hp-tour" href="./how-it-works.html" target="_blank" rel="noopener">
+              <span class="hp-tour-title">How it works, step by step ↗</span>
+              <span class="hp-tour-text">Eleven short chapters with demos that run this app's own code, from the bits in a frame to a decode lab with the real receiver. It opens in a new tab, so your station keeps running.</span>
+            </a>
+
             <section class="hp-section" id="help-start">
               <h3>Send your first message</h3>
               <p class="hp-lead">audiomesh sends text from one device's speaker to another device's microphone. No internet, no account. Three steps, and every setting stays on its default.</p>
@@ -438,25 +444,29 @@
                 </svg>
                 <figcaption>Nothing but sound crosses between the two devices.</figcaption>
               </figure>
+              <p>Every frame is 79 tones long. 21 of them are a fixed pattern that lets the receiver find the frame even when it is quieter than the noise. The rest carry the text plus enough spare information to rebuild it when about a third of the tones are drowned out. When the receiver cannot be sure, it shows nothing rather than the wrong text.</p>
+              <p class="hp-more"><a href="./how-it-works.html#tones" target="_blank" rel="noopener">Hear a frame and see the tones it is made of ↗</a></p>
               <p>Everything is cut into <b>slots</b> that start at the same moment on every station (the time of day, to the second). In each slot a station sends one <b>frame</b>, a small chunk of the message. That is why the clocks matter, and why a long message takes a while.</p>
               <figure class="hp-diagram">
                 <svg viewBox="0 0 680 190" role="img" aria-labelledby="hp-d2-t hp-d2-d">
                   <title id="hp-d2-t">A 3-frame message and its confirmation</title>
-                  <desc id="hp-d2-d">Over six slots of 15 seconds, you send frames 1, 2 and 3 in the first three slots. The other station answers with a confirmation in slot four, and repeats it in slot six. Your message then shows as delivered.</desc>
-                  <g class="d-grid"><path d="M80 24 V150 M164 24 V150 M248 24 V150 M332 24 V150 M416 24 V150 M500 24 V150 M584 24 V150"/></g>
-                  <text x="122" y="18" class="d-dim" text-anchor="middle">slot 1</text><text x="206" y="18" class="d-dim" text-anchor="middle">slot 2</text><text x="290" y="18" class="d-dim" text-anchor="middle">slot 3</text><text x="374" y="18" class="d-dim" text-anchor="middle">slot 4</text><text x="458" y="18" class="d-dim" text-anchor="middle">slot 5</text><text x="542" y="18" class="d-dim" text-anchor="middle">slot 6</text>
+                  <desc id="hp-d2-d">Over seven slots of 15 seconds, you send frames 1, 2 and 3 in the first three slots. The other station decodes the last frame during slot four, answers with a confirmation in slot five and repeats it in slot seven. Your message shows as delivered once you have decoded the confirmation, in slot six.</desc>
+                  <g class="d-grid"><path d="M80 24 V150 M152 24 V150 M224 24 V150 M296 24 V150 M368 24 V150 M440 24 V150 M512 24 V150 M584 24 V150"/></g>
+                  <g class="d-dim" text-anchor="middle"><text x="116" y="18">slot 1</text><text x="188" y="18">slot 2</text><text x="260" y="18">slot 3</text><text x="332" y="18">slot 4</text><text x="404" y="18">slot 5</text><text x="476" y="18">slot 6</text><text x="548" y="18">slot 7</text></g>
                   <text x="12" y="63" class="d-label">You</text><text x="12" y="123" class="d-label">Station</text>
-                  <g class="d-frame d-tx"><rect x="86" y="44" width="72" height="30"/><rect x="170" y="44" width="72" height="30"/><rect x="254" y="44" width="72" height="30"/></g>
-                  <g class="d-text" text-anchor="middle"><text x="122" y="64">frame 1</text><text x="206" y="64">frame 2</text><text x="290" y="64">frame 3</text></g>
-                  <g class="d-frame d-ack"><rect x="338" y="104" width="72" height="30"/><rect x="506" y="104" width="72" height="30" class="d-again"/></g>
-                  <g class="d-text" text-anchor="middle"><text x="374" y="124">got it</text><text x="542" y="124">got it</text></g>
-                  <path class="d-flow" d="M290 76 V92 H374 V102"/>
-                  <path class="d-flow" d="M374 136 V158 H122"/>
-                  <text x="248" y="176" class="d-ok">✓✓ delivered</text>
-                  <text x="542" y="150" class="d-dim" text-anchor="middle">sent twice, in case you missed it</text>
+                  <g class="d-frame d-tx"><rect x="86" y="44" width="60" height="30"/><rect x="158" y="44" width="60" height="30"/><rect x="230" y="44" width="60" height="30"/></g>
+                  <g class="d-text" text-anchor="middle"><text x="116" y="64">frame 1</text><text x="188" y="64">frame 2</text><text x="260" y="64">frame 3</text></g>
+                  <text x="332" y="124" class="d-dim" text-anchor="middle">decoding</text>
+                  <g class="d-frame d-ack"><rect x="374" y="104" width="60" height="30"/><rect x="518" y="104" width="60" height="30" class="d-again"/></g>
+                  <g class="d-text" text-anchor="middle"><text x="404" y="124">got it</text><text x="548" y="124">got it</text></g>
+                  <path class="d-flow" d="M260 76 V92 H404 V102"/>
+                  <path class="d-flow" d="M404 136 V164 H476"/>
+                  <text x="484" y="168" class="d-ok">✓✓ delivered</text>
+                  <text x="548" y="150" class="d-dim" text-anchor="middle">sent twice, in case it was missed</text>
                 </svg>
-                <figcaption>25 characters need 3 frames: 3 slots to send, then the confirmation. If a frame is lost, the confirmation says which, and only that one is sent again.</figcaption>
+                <figcaption>25 characters need 3 frames: 3 slots to send, one slot while the other station decodes the last frame, then the confirmation. If a frame is lost, the confirmation says which, and only that one is sent again.</figcaption>
               </figure>
+              <p class="hp-more"><a href="./how-it-works.html#acks" target="_blank" rel="noopener">Lose frames on purpose and watch them get resent ↗</a></p>
             </section>
 
             <section class="hp-section" id="help-modes">
@@ -478,6 +488,7 @@
                 </table>
               </div>
               <p class="hint"><i>142 chars</i> is the time for one full message (16 frames, one per slot). <i>Down to</i> is the weakest signal that still decodes reliably, in dB in a 2500 Hz noise bandwidth: the longer the bar, the further it reaches. Unsure? <b>Fast</b> in the same room, <b>Normal</b> for anything farther. <b>Spread</b> and <b>Burst</b> are variants for difficult rooms, not steps on the speed scale.</p>
+              <p class="hp-more"><a href="./how-it-works.html#lab" target="_blank" rel="noopener">Try any mode against noise in the decode lab ↗</a></p>
             </section>
 
             <section class="hp-section" id="help-bands">
@@ -504,6 +515,7 @@
                 <li><b>Audible</b>: works on any hardware, but you will hear it.</li>
                 <li><b>Low</b> (100 to 300 Hz): a narrow band for special cases.</li>
               </ul>
+              <p class="hp-more"><a href="./how-it-works.html#air" target="_blank" rel="noopener">See each band's channels in every mode, and what your sound card can carry ↗</a></p>
             </section>
 
             <section class="hp-section" id="help-talk">
@@ -519,6 +531,7 @@
                   <p>Tap its name in the list. It answers with a small "got it", lost pieces are sent again by themselves, and the message shows how far it got:</p>
                 </div>
               </div>
+              <p class="hp-more"><a href="./how-it-works.html#bits" target="_blank" rel="noopener">Type a message and see the frames it becomes, bit by bit ↗</a></p>
               <figure class="hp-shot hp-wide">
                 <div class="hp-screen" aria-hidden="true" inert>
                   <ul class="rx-list hp-list hp-states">
@@ -586,10 +599,11 @@
                 </div>
                 <div class="hp-opt">
                   <dt aria-hidden="true" inert><span class="switch-tile"><span class="switch-label">Deep decode</span><span class="switch"><input type="checkbox" tabindex="-1" /><span class="switch-track"><span class="switch-thumb"></span></span></span><span class="switch-state"></span></span></dt>
-                  <dd>Also looks for frames that arrive up to 3 seconds off in time, for a station whose clock is wrong. Costs about a third more processing.</dd>
+                  <dd>Searches further in time, for a station whose clock is wrong: 3 seconds more each side on top of the usual 2 in Normal (less in Fast and Turbo, whose slots are short). Costs about a third more processing.</dd>
                 </div>
               </dl>
               <p><b>Test</b> sends one beacon that every station hearing it answers, so you see who hears you and how well. <b>Announce</b> sends your name and icon. <b>Reset to defaults</b> (press twice) puts these options back; Audio, your name and timing stay.</p>
+              <p class="hp-more"><a href="./how-it-works.html#channels" target="_blank" rel="noopener">How Auto channel picks a channel from the other stations' reports ↗</a></p>
               <h4>Reach farther with a repeater</h4>
               <figure class="hp-diagram">
                 <svg viewBox="0 0 680 150" role="img" aria-labelledby="hp-d4-t hp-d4-d">
@@ -605,6 +619,7 @@
                 </svg>
                 <figcaption>One hop: the repeater sends again what it heard from A, and C hears it. C sees A's name and who relayed it.</figcaption>
               </figure>
+              <p class="hp-more"><a href="./how-it-works.html#repeaters" target="_blank" rel="noopener">Switch a repeater on and off and watch a message get through ↗</a></p>
             </section>
 
             <section class="hp-section" id="help-sync">
@@ -624,11 +639,12 @@
                   <rect x="420" y="96" width="220" height="24" class="d-frame d-tx d-late"/>
                   <text x="520" y="113" class="d-text" text-anchor="middle">frame</text>
                   <path class="d-bracket" d="M150 150 H590"/>
-                  <text x="370" y="166" class="d-dim" text-anchor="middle">the window the receiver listens to (a slot, plus a little each side)</text>
+                  <text x="370" y="166" class="d-dim" text-anchor="middle">the window the receiver records: the frame, plus 2 s each side in Normal</text>
                   <text x="654" y="112" class="d-bad">✗</text>
                 </svg>
                 <figcaption>When the frame starts too late or too early, part of it falls outside the window.</figcaption>
               </figure>
+              <p class="hp-more"><a href="./how-it-works.html#slots" target="_blank" rel="noopener">Move a clock and watch the frame fall out of the window, with today's slots live ↗</a></p>
               <p>Open <b>Network</b>, then the <b>Sync</b> section. Its dot says how things stand: green is fine, yellow means an offset is applied, red means your clock is off against the server.</p>
               <ul class="hp-list-plain">
                 <li><b>Check against server</b>, then <b>Use server time</b>, aligns you with the clock of the server this page came from. The page checks by itself at startup and every 10 minutes, and shows a warning bar when the difference is large.</li>
@@ -656,6 +672,7 @@
                 <summary>On a phone</summary>
                 <p>Phone clocks drift, so sync them. The browser stops audio when the screen turns off or the tab is in the background: keep the page open and the screen on. A Bluetooth headset can force a low sample rate and make the ultrasonic band unavailable; use the phone's own speaker and microphone. The microphone needs the page to be on https (or localhost). If the speaker and microphone sit at the bottom edge, use <b>Rotate 180°</b> in the sidebar to point them at the other station.</p>
               </details>
+              <p class="hp-more"><a href="./how-it-works.html#lab" target="_blank" rel="noopener">See how weak a signal, and how wrong a clock, the receiver still copes with ↗</a></p>
             </section>
           </div>
         </section>

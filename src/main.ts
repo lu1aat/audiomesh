@@ -872,8 +872,8 @@ function updateDots(): void {
   setDot('settings', settings.nickname.trim() === '' ? 'yellow' : null);
 }
 
-/** Sidebar navigation: one screen visible at a time. */
-const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item:not(:disabled)');
+/** Sidebar navigation: one screen visible at a time. How it works is a link to another page, not a screen. */
+const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item[data-screen]:not(:disabled)');
 function showScreen(name: string): void {
   for (const item of navItems) {
     const active = item.dataset.screen === name;
