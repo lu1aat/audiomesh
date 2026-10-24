@@ -117,11 +117,6 @@ html.rotated dialog[open] { transform: rotate(180deg); }
 .block-toggle .dot[data-dot="sync"] { margin-left: 0; }
 .nav-item:hover { background: var(--panel-raised); }
 .nav-item.active { background: var(--panel-raised); color: var(--text); font-weight: 600; border-left: var(--sep) solid var(--accent); padding-left: calc(10px - 2px); }
-/* How it works: a link to its own page (new tab), so it carries ↗ where the screens carry their dot. */
-.nav-link { text-decoration: none; }
-.nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.nav-ext { flex: none; font-size: 0.8em; line-height: 1; }
-.sidebar-collapsed .nav-ext { display: none; }
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .screen { flex: 1; min-height: 0; box-sizing: border-box; padding: 12px 16px; }
 .screen[hidden] { display: none; }
@@ -292,10 +287,6 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
   .sidebar-nav { order: 1; flex: 1 1 100%; min-width: 0; margin: 0; border-left: 0; border-top: 0; }
   .sidebar-nav .nav-item { flex: 1 1 auto; justify-content: center; gap: 4px; padding: 8px 4px; font-size: 0.85rem; }
   .sidebar-nav .nav-item.active { padding-left: 4px; }
-  /* No room for a fifth label on the bar: the link is its icon, like the sidebar tools. */
-  .sidebar-nav .nav-link { flex: none; padding: 8px 10px; }
-  .sidebar-nav .nav-link .nav-label, .sidebar-nav .nav-link .nav-ext { display: none; }
-  .sidebar-nav .nav-link .nav-short { display: inline; }
   .radio { order: 3; flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; row-gap: 4px; padding: 4px 8px; }
   .radio-keys { grid-template-columns: auto auto; }
   .radio-key { padding: 4px 10px; }
@@ -764,13 +755,30 @@ html:lang(es) .switch-tile:has(input:checked) .switch-state::before { content: '
 /* Help: a quick start (A, B, C) first, then the longer reference. The mock screens inside are
    the app's own markup (sidebar tile, switch tiles, bubbles, station rows), inert and without ids. */
 .help-body { max-width: 66rem; line-height: 1.55; }
+/* Two tabs: how to use it (the text below) and How it works (that page in an iframe, which fills the
+   screen edge to edge and scrolls by itself, so the screen does not). */
+.help-tabs { display: flex; margin: 0 0 18px; border-bottom: 1px solid var(--border); }
+.help-tabs [role="tab"] { margin-bottom: -1px; padding: 6px 14px; background: none; color: var(--text-dim); border: 0; border-bottom: var(--sep) solid transparent; border-radius: 0; font: inherit; font-weight: 600; cursor: pointer; }
+.help-tabs [role="tab"]:hover { color: var(--text); }
+.help-tabs [role="tab"][aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.help-tabs [role="tab"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.screen-help.how-open { display: flex; flex-direction: column; overflow: hidden; }
+.screen-help.how-open .help-tabs { margin-bottom: 0; }
+.help-how { flex: 1; min-height: 0; margin: 0 -16px -12px; }
+.help-how[hidden] { display: none; }
+.help-how iframe { display: block; width: 100%; height: 100%; border: 0; background: var(--bg); }
+/* Shown once loaded: by then the page has dropped what the app already has (brand, language link). */
+.help-how iframe:not(.ready) { visibility: hidden; }
+@media (max-width: 700px) {
+  .screen-help.how-open > h2 { display: none; } /* the tabs say it; the phone needs the height */
+}
 .help-body p { margin: 8px 0; max-width: 62ch; }
 .help-body h3 { font-size: 1.05rem; margin: 0 0 8px; padding-bottom: 6px; color: var(--text); border-bottom: 1px solid var(--border); }
 .help-body h4 { font-size: 0.95rem; margin: 18px 0 4px; font-family: var(--font-ui); color: var(--text); }
 .help-body p.hint { margin: 8px 0 0; max-width: 62ch; }
 .hp-section { margin: 0 0 36px; scroll-margin-top: 8px; }
 .hp-lead { font-size: 1.05rem; color: var(--text); max-width: 56ch; }
-/* How it works lives on its own page (new tab, so the station keeps running): one card at the top, one link per section. */
+/* How it works is the second tab: one card at the top, one link per section, each opening the tab at its chapter. */
 .hp-tour { display: grid; gap: 4px; max-width: 46rem; margin: 0 0 28px; padding: 12px 14px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); text-decoration: none; }
 .hp-tour:hover { border-color: var(--accent); background: var(--panel-raised); }
 .hp-tour:focus-visible, .hp-more a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -823,29 +831,13 @@ html:lang(es) .switch-tile:has(input:checked) .switch-state::before { content: '
 .hp-diagram text { fill: var(--text); font: 12px var(--font-ui); }
 .hp-diagram .d-dim, .hp-diagram .d-dim text { fill: var(--text-dim); font-size: 11px; }
 .hp-diagram .d-label { font-weight: 600; font-size: 13px; }
-.hp-diagram .d-ok { fill: var(--good); font-weight: 700; font-size: 14px; }
-.hp-diagram .d-bad { fill: var(--bad); font-weight: 700; font-size: 16px; }
-.d-device rect { fill: var(--panel-alt); stroke: var(--border-strong); stroke-width: 1.5; }
-.d-device .d-screen { fill: var(--bg); stroke: var(--border); stroke-width: 1; }
-.d-device circle { fill: none; stroke: var(--text-dim); }
-.d-wave path, .d-arrow, .d-flow, .d-gap, .d-bracket { fill: none; stroke: var(--accent); stroke-width: 2; }
-.d-arrow { stroke: var(--text-dim); stroke-width: 1.5; }
+.d-flow, .d-gap { fill: none; stroke: var(--accent); stroke-width: 2; }
 .d-head { fill: var(--text-dim); }
-.d-grid path { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; }
-.d-frame { fill: var(--panel-raised); stroke: var(--accent); stroke-width: 1.5; }
-.d-frame.d-ack { stroke: var(--good); }
-.d-frame .d-again, rect.d-again { stroke-dasharray: 4 3; fill: none; }
 .d-text text { fill: var(--text); font-size: 12px; }
 .d-flow { stroke: var(--text-dim); stroke-width: 1.2; stroke-dasharray: 5 4; }
 .d-gap { stroke: var(--bad); stroke-width: 1.2; stroke-dasharray: 2 5; }
-.d-band rect { fill: var(--panel-alt); stroke: var(--border-strong); stroke-width: 1; }
-.d-band rect.d-pick { stroke: var(--accent); stroke-width: 2; fill: color-mix(in srgb, var(--accent) 10%, var(--panel-alt)); }
-.d-ch rect { fill: var(--accent); }
 .d-node path { fill: color-mix(in srgb, var(--text) 8%, var(--panel)); stroke: var(--border-strong); stroke-width: 1.5; }
 .d-node path.d-rep { stroke: var(--accent); stroke-width: 3; }
-.d-window { fill: none; stroke: var(--text-dim); stroke-width: 1; stroke-dasharray: 5 4; }
-.d-frame.d-late { stroke: var(--bad); }
-.d-bracket { stroke: var(--text-dim); stroke-width: 1; }
 .d-sprite rect.d-sprite-bg { fill: var(--panel-alt); stroke: var(--border); }
 .d-sprite g { fill: var(--accent); }
 .d-sprite path { fill: var(--accent); }
@@ -869,18 +861,12 @@ html:lang(es) .switch-tile:has(input:checked) .switch-state::before { content: '
 .hp-fix[open] summary { border-bottom: 1px solid var(--border); }
 .hp-fix p { margin: 0; padding: 8px 12px 10px; }
 
-.help-lead { margin: 0 0 4px; color: var(--text-dim); }
 .help-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
 .help-table th, .help-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-.help-table .mode-letter { color: var(--text-dim); font-weight: 400; }
 .help-table th { color: var(--text-dim); font-weight: 600; white-space: nowrap; }
-.help-table .help-pick { background: var(--panel-raised); }
 @media (max-width: 700px) {
   .help-table { font-size: 0.8rem; }
   .help-table th, .help-table td { padding: 5px 6px; }
-  /* Narrow screen: the slot column goes (the mode selector shows it), so "Best for" fits. */
-  .help-table th:nth-child(2), .help-table td:nth-child(2) { display: none; }
-  .help-table td:first-child, .help-table td:nth-child(3), .help-table td:nth-child(4) { white-space: nowrap; }
 }
 
 .capture-block .clock-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -952,7 +938,4 @@ html:lang(es) .switch-tile:has(input:checked) .switch-state::before { content: '
 .thread-menu .menu-danger { color: var(--bad, #e5534b); }
 .thread-menu .menu-head { padding: 8px 12px; font-size: 0.75rem; color: var(--text-dim); border-bottom: 1px solid var(--border); }
 
-.hp-modes td:nth-child(4) { white-space: nowrap; }
-.hp-bar { display: inline-block; width: 5.5rem; height: 6px; margin-right: 8px; vertical-align: middle; background: linear-gradient(to right, var(--accent) var(--v), var(--panel-raised) var(--v)); }
-@media (max-width: 700px) { .hp-bar { width: 2.5rem; } }
 .contact-unread { flex: none; margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 10px; background: #2fb344; color: #fff; font-size: 0.72rem; font-weight: 700; line-height: 20px; text-align: center; }

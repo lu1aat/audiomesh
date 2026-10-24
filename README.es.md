@@ -4,7 +4,8 @@
 
 **[▶ Abrir la app](https://lu1aat.github.io/audiomesh/)**: corre en el
 navegador, no hay que instalar nada. **[Cómo funciona](https://lu1aat.github.io/audiomesh/como-funciona.html)**:
-once capítulos cortos con demos en vivo.
+once capítulos cortos con demos en vivo. En la app son la segunda pestaña de Ayuda (📖),
+así la estación sigue funcionando mientras leés.
 
 Una pequeña red acústica que funciona entera en el navegador y usa el parlante y el
 micrófono como radio. Las estaciones intercambian mensajes, anuncios,

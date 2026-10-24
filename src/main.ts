@@ -17,7 +17,6 @@ import { statsRecord } from './stats/stats-record';
 import { StatsView } from './stats/stats-view';
 import { ChatPanel } from './ui/chat-panel';
 import { Notifier } from './ui/notifier';
-import { installedApp, rememberReturn, singleWindowApp } from './ui/installed';
 import { CaptureView } from './ui/capture-view';
 import { WindowCapture } from './dsp/window-capture';
 import { LinkView, type StationsView } from './ui/link-view';
@@ -147,17 +146,11 @@ const el = <T extends HTMLElement>(id: string): T => document.getElementById(id)
 
 // The static page in the chosen language, before anything takes references into it.
 translatePage();
-// How it works has one page per language. It opens in a new tab so the station keeps running,
-// except in an installed app on a phone, where that tab would cover the app with no way back:
-// there it opens in place (the station stops until the back gesture brings the app back).
-const inPlace = singleWindowApp();
+// How it works has one page per language. Inside the app it is Help's second tab (see showHelpTab);
+// the address still names the right page for "open in a new tab".
+const HOW_PAGE = lang === 'es' ? './como-funciona.html' : './how-it-works.html';
 for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href^="./how-it-works.html"]')) {
-  if (lang === 'es') a.href = a.getAttribute('href')!.replace('./how-it-works.html', './como-funciona.html');
-  if (!inPlace) continue;
-  a.removeAttribute('target');
-  a.addEventListener('click', rememberReturn);
-  if (a.title) a.title = t('How it works, step by step (the station stops until you come back)');
-  a.querySelector<HTMLElement>('.nav-ext')?.setAttribute('hidden', '');
+  a.href = a.getAttribute('href')!.replace('./how-it-works.html', HOW_PAGE);
 }
 
 const settings = loadSettings();
@@ -596,7 +589,7 @@ const notifier = new Notifier();
 void notifier.init();
 // Installed as an app: ask the browser not to evict the offline copy, or the chat, stations and
 // link stats in localStorage, under storage pressure. Chrome grants it without a prompt.
-if (installedApp()) void navigator.storage?.persist?.();
+if (matchMedia('(display-mode: standalone)').matches) void navigator.storage?.persist?.();
 chat.notifier = notifier;
 // Also notify while the page is visible but another screen (Network, Users, Settings) is showing, like the unread dot.
 notifier.attentive = () => !document.hidden && document.hasFocus() && !el('screen-chat').hidden;
@@ -912,7 +905,7 @@ function updateDots(): void {
   setDot('settings', settings.nickname.trim() === '' ? 'yellow' : null);
 }
 
-/** Sidebar navigation: one screen visible at a time. How it works is a link to another page, not a screen. */
+/** Sidebar navigation: one screen visible at a time. */
 const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item[data-screen]:not(:disabled)');
 function showScreen(name: string): void {
   for (const item of navItems) {
@@ -938,6 +931,42 @@ for (const chip of document.querySelectorAll<HTMLButtonElement>('[data-help-jump
   chip.addEventListener('click', () => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.getElementById(chip.dataset.helpJump!)?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  });
+}
+// Help has two tabs: how to use the app, and How it works, which is that page in an iframe. It loads
+// the first time the tab opens and then stays, so it keeps its place and its demos; the station keeps
+// running meanwhile. The page knows it is framed and drops what the app already has (how-it-works/main.ts).
+const howFrame = el<HTMLIFrameElement>('how-frame');
+howFrame.addEventListener('load', () => howFrame.classList.add('ready'));
+const helpTabs = [...document.querySelectorAll<HTMLButtonElement>('#screen-help [role="tab"]')];
+function showHelpTab(tab: string, chapter = ''): void {
+  for (const b of helpTabs) {
+    const on = b.dataset.tab === tab;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+    el(b.getAttribute('aria-controls')!).hidden = !on;
+  }
+  el('screen-help').classList.toggle('how-open', tab === 'how');
+  if (tab !== 'how') return;
+  if (!howFrame.getAttribute('src')) howFrame.src = chapter ? `${HOW_PAGE}#${chapter}` : HOW_PAGE;
+  else if (chapter) howFrame.contentDocument?.getElementById(chapter)?.scrollIntoView({ block: 'start' });
+}
+for (const b of helpTabs) {
+  b.addEventListener('click', () => showHelpTab(b.dataset.tab!));
+  b.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const other = helpTabs.find((o) => o !== b)!;
+    other.focus();
+    showHelpTab(other.dataset.tab!);
+  });
+}
+// Links to a chapter (the card and each section's "→") open the tab there. A new tab or window still opens the page.
+for (const a of document.querySelectorAll<HTMLAnchorElement>(`a[href^="${HOW_PAGE}"]`)) {
+  a.addEventListener('click', (e) => {
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    showScreen('help');
+    showHelpTab('how', new URL(a.href).hash.slice(1));
   });
 }
 // The Network screen is where audio is turned on and the network shows up: start there.

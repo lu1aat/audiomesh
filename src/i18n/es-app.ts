@@ -50,8 +50,9 @@ export const ES_APP: Readonly<Record<string, string>> = {
   'Stats': 'Estadísticas',
   'Settings': 'Ajustes',
   'Help': 'Ayuda',
-  'How it works, step by step (opens in a new tab, so the station keeps running)': 'Cómo funciona, paso a paso (se abre en otra pestaña, así la estación sigue funcionando)',
-  'How it works, step by step (the station stops until you come back)': 'Cómo funciona, paso a paso (la estación se detiene hasta que vuelvas)',
+  'Help and how it works': 'Ayuda y cómo funciona',
+  'How to use it': 'Cómo se usa',
+  'How audiomesh works, step by step': 'Cómo funciona audiomesh, paso a paso',
   'How it works': 'Cómo funciona',
   'No station name set: other stations only see your random id.': 'No pusiste nombre de estación: las otras estaciones solo ven tu id al azar.',
   'Set your name': 'Poné tu nombre',
@@ -170,9 +171,9 @@ export const ES_APP: Readonly<Record<string, string>> = {
   'Options': 'Opciones',
   'Clocks': 'Relojes',
   'Fix it': 'Problemas',
-  'How it works, step by step ↗': 'Cómo funciona, paso a paso ↗',
-  "Eleven short chapters with demos that run this app's own code, from the bits in a frame to a decode lab with the real receiver. It opens in a new tab, so your station keeps running.":
-    'Once capítulos cortos con demos que corren el código de esta misma app, desde los bits de una trama hasta un laboratorio de decodificación con el receptor real. Se abre en otra pestaña, así tu estación sigue funcionando.',
+  'How it works, step by step →': 'Cómo funciona, paso a paso →',
+  "Eleven short chapters with demos that run this app's own code, from the bits in a frame to a decode lab with the real receiver. Your station keeps running while you read.":
+    'Once capítulos cortos con demos que corren el código de esta misma app, desde los bits de una trama hasta un laboratorio de decodificación con el receptor real. Tu estación sigue funcionando mientras leés.',
   'Send your first message': 'Mandá tu primer mensaje',
   "audiomesh sends text from one device's speaker to another device's microphone. No internet, no account. Three steps, and every setting stays on its default.":
     'audiomesh manda texto del parlante de un dispositivo al micrófono de otro. Sin internet, sin cuenta. Tres pasos, y todos los ajustes quedan como vienen.',
@@ -206,82 +207,21 @@ export const ES_APP: Readonly<Record<string, string>> = {
   '✓✓ delivered': '✓✓ entregado',
   'A conversation on Messages.': 'Una conversación en Mensajes.',
   'Text is shown in upper case with a limited set of symbols. That is how it fits so few sound frames.': 'El texto se muestra en mayúsculas, sin tildes y con pocos signos. Así entra en tan pocas tramas de sonido.',
-  'Your device turns text into a short run of tones and plays it. The other device listens, finds the tones even in noise, and turns them back into letters. The tones are high and quiet by default, so you may hear nothing at all.':
-    'Tu dispositivo convierte el texto en una tirada corta de tonos y la reproduce. El otro dispositivo escucha, encuentra los tonos incluso en medio del ruido y los vuelve a convertir en letras. Por defecto los tonos son agudos y suaves, así que puede que no escuches nada.',
-  'Sound travels from one device to another': 'El sonido viaja de un dispositivo a otro',
-  'A phone on the left plays tones from its speaker. They cross the air as waves and reach the microphone of a phone on the right.':
-    'Un teléfono a la izquierda reproduce tonos por su parlante. Cruzan el aire como ondas y llegan al micrófono de un teléfono a la derecha.',
   'you': 'vos',
-  'station': 'estación',
-  '8 tones, one every 0.16 s': '8 tonos, uno cada 0,16 s',
-  'speaker to microphone, through the air': 'de parlante a micrófono, por el aire',
-  'Nothing but sound crosses between the two devices.': 'Entre los dos dispositivos no pasa nada más que sonido.',
-  'Every frame is 79 tones long. 21 of them are a fixed pattern that lets the receiver find the frame even when it is quieter than the noise. The rest carry the text plus enough spare information to rebuild it when about a third of the tones are drowned out. When the receiver cannot be sure, it shows nothing rather than the wrong text.':
-    'Cada trama dura 79 tonos. 21 son un patrón fijo que le permite al receptor encontrar la trama aunque sea más débil que el ruido. El resto lleva el texto más suficiente información de sobra para reconstruirlo cuando se pierde alrededor de un tercio de los tonos. Cuando el receptor no está seguro, no muestra nada antes que mostrar un texto equivocado.',
-  'Hear a frame and see the tones it is made of ↗': 'Escuchá una trama y mirá los tonos que la forman ↗',
-  'Everything is cut into slots that start at the same moment on every station (the time of day, to the second). In each slot a station sends one frame, a small chunk of the message. That is why the clocks matter, and why a long message takes a while.':
-    'Todo está cortado en <b>ranuras</b> que empiezan en el mismo momento en todas las estaciones (la hora del día, al segundo). En cada ranura una estación manda una <b>trama</b>, un pedacito del mensaje. Por eso importan los relojes, y por eso un mensaje largo tarda un rato.',
-  'A 3-frame message and its confirmation': 'Un mensaje de 3 tramas y su confirmación',
-  'Over seven slots of 15 seconds, you send frames 1, 2 and 3 in the first three slots. The other station decodes the last frame during slot four, answers with a confirmation in slot five and repeats it in slot seven. Your message shows as delivered once you have decoded the confirmation, in slot six.':
-    'A lo largo de siete ranuras de 15 segundos, mandás las tramas 1, 2 y 3 en las tres primeras. La otra estación decodifica la última trama durante la ranura cuatro, contesta con una confirmación en la ranura cinco y la repite en la siete. Tu mensaje figura como entregado cuando decodificaste la confirmación, en la ranura seis.',
-  'slot 1': 'ranura 1',
-  'slot 2': 'ranura 2',
-  'slot 3': 'ranura 3',
-  'slot 4': 'ranura 4',
-  'slot 5': 'ranura 5',
-  'slot 6': 'ranura 6',
-  'slot 7': 'ranura 7',
-  'You': 'Vos',
-  'frame 1': 'trama 1',
-  'frame 2': 'trama 2',
-  'frame 3': 'trama 3',
-  'decoding': 'decodificando',
-  'got it': 'recibido',
-  'sent twice, in case it was missed': 'se manda dos veces, por si se pierde',
-  '25 characters need 3 frames: 3 slots to send, one slot while the other station decodes the last frame, then the confirmation. If a frame is lost, the confirmation says which, and only that one is sent again.':
-    '25 caracteres necesitan 3 tramas: 3 ranuras para mandar, una ranura mientras la otra estación decodifica la última trama, y después la confirmación. Si se pierde una trama, la confirmación dice cuál, y se reenvía solo esa.',
-  'Lose frames on purpose and watch them get resent ↗': 'Perdé tramas a propósito y mirá cómo se reenvían ↗',
   'Choose a mode': 'Elegí un modo',
   'The default is Normal. Slower modes reach further and work in more noise. Faster modes send more, but need a good signal and clocks that agree closely. Both stations must use the same mode, or they cannot hear each other at all. Change it on Network in Network options; the page reloads.':
     'El predeterminado es <b>Normal</b>. Los modos más lentos llegan más lejos y funcionan con más ruido. Los más rápidos mandan más, pero necesitan buena señal y relojes bien sincronizados. <b>Las dos estaciones tienen que usar el mismo modo</b>, o no se escuchan para nada. Se cambia en <b>Red</b>, en <i>Opciones de red</i>; la página se recarga.',
-  '142 chars': '142 caract.',
-  'Down to': 'Hasta',
-  'Best for': 'Ideal para',
-  '2.5 s': '2,5 s',
-  'Fastest; a testing tool for devices very close': 'El más rápido; una herramienta de prueba para dispositivos muy cerca',
-  'Devices nearby (same room): recommended': '<b>Dispositivos cerca</b> (misma habitación): recomendado',
-  'Faster, medium distance': 'Más rápido, distancia media',
-  'The default. General use': '<b>El predeterminado</b>. Uso general',
-  'Long range': 'Largo alcance',
-  'Longest range, weakest signals': '<b>Máximo alcance</b>, señales más débiles',
-  'Like Normal, but for a moving speaker or microphone, people walking about, a shaky signal; uses 3 times the width':
-    'Como Normal, pero para un parlante o micrófono en movimiento, gente caminando, una señal que tiembla; usa 3 veces el ancho',
-  'Like Normal, but the message is sent four times in a row, so a fade or a noise burst costs little; slower to decode, so listen on fewer channels':
-    'Como Normal, pero el mensaje se manda cuatro veces seguidas, así que un desvanecimiento o una ráfaga de ruido cuesta poco; más lento de decodificar, así que conviene escuchar menos canales',
-  '142 chars is the time for one full message (16 frames, one per slot). Down to is the weakest signal that still decodes reliably, in dB in a 2500 Hz noise bandwidth: the longer the bar, the further it reaches. Unsure? Fast in the same room, Normal for anything farther. Spread and Burst are variants for difficult rooms, not steps on the speed scale.':
-    '<i>142 caract.</i> es el tiempo de un mensaje completo (16 tramas, una por ranura). <i>Hasta</i> es la señal más débil que todavía se decodifica con confianza, en dB en un ancho de ruido de 2500 Hz: cuanto más larga la barra, más lejos llega. ¿Dudás? <b>Fast</b> en la misma habitación, <b>Normal</b> para cualquier cosa más lejos. <b>Spread</b> y <b>Burst</b> son variantes para lugares difíciles, no escalones de la escala de velocidad.',
-  'Try any mode against noise in the decode lab ↗': 'Probá cualquier modo contra el ruido en el laboratorio de decodificación ↗',
+  'Unsure? Fast in the same room, Normal for anything farther, Long or Deep for the weakest signals. Turbo is a testing tool for devices very close; Spread and Burst are variants of Normal for difficult rooms.':
+    '¿Dudás? <b>Fast</b> en la misma habitación, <b>Normal</b> para cualquier cosa más lejos, <b>Long</b> o <b>Deep</b> para las señales más débiles. <b>Turbo</b> es una herramienta de prueba para dispositivos muy cerca; <b>Spread</b> y <b>Burst</b> son variantes de Normal para lugares difíciles.',
+  'Compare the modes: speed, width, clock and reach →': 'Compará los modos: velocidad, ancho, reloj y alcance →',
   'Choose a band': 'Elegí una banda',
   'The band is the range of pitches the signal uses. The default is ultrasonic: inaudible, and the most channels. Both stations need the same band too.':
     'La banda es el rango de tonos que usa la señal. La predeterminada es la <b>ultrasónica</b>: inaudible, y la que más canales tiene. Las dos estaciones también necesitan la misma banda.',
-  'The three bands and their channels': 'Las tres bandas y sus canales',
-  'Low band, 100 to 300 hertz, 3 channels. Audible band, 300 to 10000 hertz, 4 channels. Ultrasonic band, 17500 to 21000 hertz, 10 channels, inaudible. Not drawn to scale.':
-    'Banda baja, de 100 a 300 hercios, 3 canales. Banda audible, de 300 a 10000 hercios, 4 canales. Banda ultrasónica, de 17500 a 21000 hercios, 10 canales, inaudible. No está dibujado a escala.',
-  'low pitch': 'grave',
-  'high pitch': 'agudo',
-  'Low': 'Baja',
-  'Audible': 'Audible',
-  'Ultrasonic': 'Ultrasónica',
-  '17.5–21 kHz': '17,5–21 kHz',
-  '3 channels': '3 canales',
-  '4 channels': '4 canales',
-  '10 channels': '10 canales',
-  'Not to scale. The highlighted band is the default.': 'No está a escala. La banda resaltada es la predeterminada.',
   'Ultrasonic (17.5 to 21 kHz): silent to most people. Needs a 48 kHz sound card and a speaker and microphone that reach that high.':
     '<b>Ultrasónica</b> (de 17,5 a 21 kHz): silenciosa para la mayoría de la gente. Necesita una placa de sonido de 48 kHz y un parlante y un micrófono que lleguen tan alto.',
   'Audible: works on any hardware, but you will hear it.': '<b>Audible</b>: funciona en cualquier equipo, pero la vas a escuchar.',
   'Low (100 to 300 Hz): a narrow band for special cases.': '<b>Baja</b> (de 100 a 300 Hz): una banda angosta para casos especiales.',
-  "See each band's channels in every mode, and what your sound card can carry ↗": 'Mirá los canales de cada banda en cada modo, y qué soporta tu placa de sonido ↗',
+  "See each band's channels in every mode, and what your sound card can carry →": 'Mirá los canales de cada banda en cada modo, y qué soporta tu placa de sonido →',
   'Talk to other stations': 'Hablá con otras estaciones',
   'Stations appear when you hear their Test or Announce. The app also sends one every few minutes by itself, so a station you have not met yet turns up on its own.':
     'Las estaciones aparecen cuando escuchás su <b>Probar</b> o su <b>Anunciarse</b>. La app también manda uno sola cada pocos minutos, así que una estación que todavía no conocés aparece por su cuenta.',
@@ -290,7 +230,7 @@ export const ES_APP: Readonly<Record<string, string>> = {
   'To one station': 'Para una estación',
   'Tap its name in the list. It answers with a small "got it", lost pieces are sent again by themselves, and the message shows how far it got:':
     'Tocá su nombre en la lista. Contesta con un pequeño “recibido”, las partes perdidas se reenvían solas y el mensaje muestra hasta dónde llegó:',
-  'Type a message and see the frames it becomes, bit by bit ↗': 'Escribí un mensaje y mirá las tramas en que se convierte, bit por bit ↗',
+  'Type a message and see the frames it becomes, bit by bit →': 'Escribí un mensaje y mirá las tramas en que se convierte, bit por bit →',
   'COFFEE AT 5?': 'CAFE A LAS 5?',
   '⏳ waiting for a slot': '⏳ esperando una ranura',
   'COFFEE AT 5? BRING THE CABLE': 'CAFE A LAS 5? TRAE EL CABLE',
@@ -330,7 +270,7 @@ export const ES_APP: Readonly<Record<string, string>> = {
     'Busca más lejos en el tiempo, para una estación con el reloj mal: 3 segundos más de cada lado, además de los 2 habituales en Normal (menos en Fast y Turbo, que tienen ranuras cortas). Cuesta alrededor de un tercio más de procesamiento.',
   'Test sends one beacon that every station hearing it answers, so you see who hears you and how well. Announce sends your name and icon. Reset to defaults (press twice) puts these options back; Audio, your name and timing stay.':
     '<b>Probar</b> manda una baliza que contesta toda estación que la escuche, así ves quién te escucha y qué tan bien. <b>Anunciarse</b> manda tu nombre y tu ícono. <b>Restablecer valores</b> (tocalo dos veces) vuelve estas opciones a como vienen; el audio, tu nombre y el desfase quedan.',
-  "How Auto channel picks a channel from the other stations' reports ↗": 'Cómo elige un canal el Canal automático a partir de los informes de las otras estaciones ↗',
+  "How Auto channel picks a channel from the other stations' reports →": 'Cómo elige un canal el Canal automático a partir de los informes de las otras estaciones →',
   'Reach farther with a repeater': 'Llegá más lejos con un repetidor',
   'A repeater between two stations that are out of range': 'Un repetidor entre dos estaciones que no se alcanzan',
   'Station A and station C are too far apart to hear each other. A repeater R sits between them: it hears A and repeats the frame, and C hears R.':
@@ -339,19 +279,11 @@ export const ES_APP: Readonly<Record<string, string>> = {
   'message': 'mensaje',
   'repeated': 'repetido',
   "One hop: the repeater sends again what it heard from A, and C hears it. C sees A's name and who relayed it.": 'Un salto: el repetidor vuelve a mandar lo que escuchó de A, y C lo escucha. C ve el nombre de A y quién lo retransmitió.',
-  'Switch a repeater on and off and watch a message get through ↗': 'Prendé y apagá un repetidor y mirá cómo pasa un mensaje ↗',
+  'Switch a repeater on and off and watch a message get through →': 'Prendé y apagá un repetidor y mirá cómo pasa un mensaje →',
   'Clocks and timing': 'Relojes y tiempo',
   'Slots start at the same second on every station, so every clock must be close to right. A receiver tolerates about 2 seconds of error in Normal, less in the faster modes (under half a second in Turbo). If you hear frames but nothing decodes, a clock is probably off.':
     'Las ranuras empiezan en el mismo segundo en todas las estaciones, así que todos los relojes tienen que estar casi en hora. Un receptor tolera unos 2 segundos de error en Normal, menos en los modos más rápidos (menos de medio segundo en Turbo). Si escuchás tramas pero no se decodifica nada, seguramente hay un reloj corrido.',
-  'A frame that arrives too late for its slot': 'Una trama que llega demasiado tarde para su ranura',
-  "Two rows of slots. In the top row the frame sits in the middle of the listening window. In the bottom row the sender's clock is late, the frame is pushed past the end of the window and cannot be decoded.":
-    'Dos filas de ranuras. En la de arriba, la trama queda en el medio de la ventana de escucha. En la de abajo, el reloj del remitente está atrasado: la trama se pasa del final de la ventana y no se puede decodificar.',
-  'Clocks agree': 'Relojes en hora',
-  'Clock off': 'Reloj corrido',
-  'frame': 'trama',
-  'the window the receiver records: the frame, plus 2 s each side in Normal': 'la ventana que graba el receptor: la trama, más 2 s de cada lado en Normal',
-  'When the frame starts too late or too early, part of it falls outside the window.': 'Cuando la trama empieza demasiado tarde o demasiado temprano, una parte queda fuera de la ventana.',
-  "Move a clock and watch the frame fall out of the window, with today's slots live ↗": 'Corré un reloj y mirá cómo la trama se cae de la ventana, con las ranuras de hoy en vivo ↗',
+  "Move a clock and watch the frame fall out of the window, with today's slots live →": 'Corré un reloj y mirá cómo la trama se cae de la ventana, con las ranuras de hoy en vivo →',
   'Open Network, then the Sync section. Its dot says how things stand: green is fine, yellow means an offset is applied, red means your clock is off against the server.':
     'Abrí <b>Red</b> y después la sección <b>Sincronización</b>. Su punto dice cómo están las cosas: verde está bien, amarillo quiere decir que se aplica un desfase y rojo que tu reloj está corrido respecto del servidor.',
   'Check against server, then Use server time, aligns you with the clock of the server this page came from. The page checks by itself at startup and every 10 minutes, and shows a warning bar when the difference is large.':
@@ -371,7 +303,7 @@ export const ES_APP: Readonly<Record<string, string>> = {
   'On a phone': 'En un teléfono',
   "Phone clocks drift, so sync them. The browser stops audio when the screen turns off or the tab is in the background: keep the page open and the screen on. A Bluetooth headset can force a low sample rate and make the ultrasonic band unavailable; use the phone's own speaker and microphone. The microphone needs the page to be on https (or localhost). If the speaker and microphone sit at the bottom edge, use Rotate 180° in the sidebar to point them at the other station.":
     'Los relojes de los teléfonos se corren, así que sincronizalos. El navegador corta el audio cuando se apaga la pantalla o la pestaña queda en segundo plano: dejá la página abierta y la pantalla encendida. Un auricular Bluetooth puede forzar una frecuencia de muestreo baja y dejar sin banda ultrasónica; usá el parlante y el micrófono del propio teléfono. El micrófono necesita que la página esté en https (o localhost). Si el parlante y el micrófono están en el borde de abajo, usá <b>Girar 180°</b> en la barra lateral para apuntarlos a la otra estación.',
-  'See how weak a signal, and how wrong a clock, the receiver still copes with ↗': 'Mirá qué tan débil una señal, y qué tan corrido un reloj, todavía aguanta el receptor ↗',
+  'See how weak a signal, and how wrong a clock, the receiver still copes with →': 'Mirá qué tan débil una señal, y qué tan corrido un reloj, todavía aguanta el receptor →',
 
   // --- index.html: Settings --------------------------------------------------------
   'Station name': 'Nombre de la estación',
@@ -934,9 +866,5 @@ export const ES_APP: Readonly<Record<string, string>> = {
 /** Page texts that read the same in Spanish (names, units, numbers): no entry needed. */
 export const SAME_APP: ReadonlySet<string> = new Set([
   'audiomesh', 'Audio', 'TX', 'A', 'B', 'C', 'R', 's', 'Hz', 'px',
-  'Turbo', 'Fast', 'Medium', 'Normal', 'Long', 'Deep', 'Spread', 'Burst',
-  '(T)', '(C)', '(B)', '(A)', '(L)', '(D)', '(Q)', '(I)',
-  '-100 dB', '-30 dB', '-9 dB', '-11 dB', '-14 dB', '-16 dB', '-18 dB', '-21 dB', '-23 dB',
-  '4 s', '5 s', '10 s', '15 s', '30 s', '40 s', '60 s', '1 min 20 s', '2 min 40 s', '4 min', '8 min', '16 min',
-  '100–300 Hz', '300 Hz–10 kHz', '🦊 ANA',
+  '-100 dB', '-30 dB', '-9 dB', '4 s', '🦊 ANA',
 ]);

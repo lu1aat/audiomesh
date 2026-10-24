@@ -4,7 +4,8 @@
 
 **[▶ Open the live app](https://lu1aat.github.io/audiomesh/)** — runs in
 your browser, nothing to install. **[How it works](https://lu1aat.github.io/audiomesh/how-it-works.html)**:
-eleven short chapters with live demos.
+eleven short chapters with live demos. In the app they are the second tab of Help (📖),
+so the station keeps running while you read.
 
 A small acoustic network that runs entirely in the browser, using the speaker and
 microphone as the radio. Stations exchange messages, announcements, link

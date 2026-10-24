@@ -45,8 +45,7 @@
           <button class="nav-item active" data-screen="network" aria-current="page" title="Network"><span class="nav-label">Network</span><span class="nav-short" aria-hidden="true">📡</span><span class="dot" data-dot="network"></span></button>
           <button class="nav-item" data-screen="stats" id="nav-stats" title="Network stats" hidden><span class="nav-label">Stats</span><span class="nav-short" aria-hidden="true">🌐</span></button>
           <button class="nav-item" data-screen="settings" title="Settings"><span class="nav-label">Settings</span><span class="nav-short" aria-hidden="true">⚙️</span><span class="dot" data-dot="settings"></span></button>
-          <button class="nav-item" data-screen="help" title="Help"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">❓</span></button>
-          <a class="nav-item nav-link" href="./how-it-works.html" target="_blank" rel="noopener" title="How it works, step by step (opens in a new tab, so the station keeps running)"><span class="nav-label">How it works</span><span class="nav-short" aria-hidden="true">📖</span><span class="nav-ext" aria-hidden="true">↗</span></a>
+          <button class="nav-item" data-screen="help" title="Help and how it works"><span class="nav-label">Help</span><span class="nav-short" aria-hidden="true">📖</span></button>
         </div>
       </nav>
 
@@ -319,10 +318,13 @@
 
         <section id="screen-help" class="screen screen-help" hidden>
           <h2>Help</h2>
-          <div class="help-body">
+          <div class="help-tabs" role="tablist" aria-label="Help">
+            <button type="button" role="tab" id="help-tab-start" data-tab="start" aria-controls="help-panel-start" aria-selected="true">How to use it</button>
+            <button type="button" role="tab" id="help-tab-how" data-tab="how" aria-controls="help-panel-how" aria-selected="false" tabindex="-1">How it works</button>
+          </div>
+          <div class="help-body" id="help-panel-start" role="tabpanel" aria-labelledby="help-tab-start">
             <nav class="hp-jump" aria-label="Help sections">
               <button type="button" data-help-jump="help-start">Quick start</button>
-              <button type="button" data-help-jump="help-how">How it works</button>
               <button type="button" data-help-jump="help-modes">Modes</button>
               <button type="button" data-help-jump="help-bands">Bands</button>
               <button type="button" data-help-jump="help-talk">Messages</button>
@@ -331,9 +333,9 @@
               <button type="button" data-help-jump="help-fix">Fix it</button>
             </nav>
 
-            <a class="hp-tour" href="./how-it-works.html" target="_blank" rel="noopener">
-              <span class="hp-tour-title">How it works, step by step ↗</span>
-              <span class="hp-tour-text">Eleven short chapters with demos that run this app's own code, from the bits in a frame to a decode lab with the real receiver. It opens in a new tab, so your station keeps running.</span>
+            <a class="hp-tour" href="./how-it-works.html">
+              <span class="hp-tour-title">How it works, step by step →</span>
+              <span class="hp-tour-text">Eleven short chapters with demos that run this app's own code, from the bits in a frame to a decode lab with the real receiver. Your station keeps running while you read.</span>
             </a>
 
             <section class="hp-section" id="help-start">
@@ -430,96 +432,22 @@
               <p class="hint">Text is shown in upper case with a limited set of symbols. That is how it fits so few sound frames.</p>
             </section>
 
-            <section class="hp-section" id="help-how">
-              <h3>How it works</h3>
-              <p>Your device turns text into a short run of tones and plays it. The other device listens, finds the tones even in noise, and turns them back into letters. The tones are high and quiet by default, so you may hear nothing at all.</p>
-              <figure class="hp-diagram">
-                <svg viewBox="0 0 680 150" role="img" aria-labelledby="hp-d1-t hp-d1-d">
-                  <title id="hp-d1-t">Sound travels from one device to another</title>
-                  <desc id="hp-d1-d">A phone on the left plays tones from its speaker. They cross the air as waves and reach the microphone of a phone on the right.</desc>
-                  <g class="d-device"><rect x="24" y="30" width="64" height="90" rx="0"/><rect x="34" y="42" width="44" height="52" class="d-screen"/><circle cx="56" cy="108" r="4"/></g>
-                  <text x="56" y="142" class="d-label" text-anchor="middle">you</text>
-                  <g class="d-device"><rect x="592" y="30" width="64" height="90" rx="0"/><rect x="602" y="42" width="44" height="52" class="d-screen"/><circle cx="624" cy="108" r="4"/></g>
-                  <text x="624" y="142" class="d-label" text-anchor="middle">station</text>
-                  <g class="d-wave"><path d="M110 75 q14 -30 0 -60" transform="translate(0 15)"/><path d="M150 75 q20 -45 0 -90" transform="translate(0 15)"/><path d="M200 75 q26 -60 0 -120" transform="translate(0 15)" /></g>
-                  <path class="d-arrow" d="M240 75 H570"/><path class="d-head" d="M570 75 l-10 -6 v12 z"/>
-                  <text x="405" y="62" class="d-label" text-anchor="middle">8 tones, one every 0.16 s</text>
-                  <text x="405" y="102" class="d-dim" text-anchor="middle">speaker to microphone, through the air</text>
-                </svg>
-                <figcaption>Nothing but sound crosses between the two devices.</figcaption>
-              </figure>
-              <p>Every frame is 79 tones long. 21 of them are a fixed pattern that lets the receiver find the frame even when it is quieter than the noise. The rest carry the text plus enough spare information to rebuild it when about a third of the tones are drowned out. When the receiver cannot be sure, it shows nothing rather than the wrong text.</p>
-              <p class="hp-more"><a href="./how-it-works.html#tones" target="_blank" rel="noopener">Hear a frame and see the tones it is made of ↗</a></p>
-              <p data-i18n>Everything is cut into <b>slots</b> that start at the same moment on every station (the time of day, to the second). In each slot a station sends one <b>frame</b>, a small chunk of the message. That is why the clocks matter, and why a long message takes a while.</p>
-              <figure class="hp-diagram">
-                <svg viewBox="0 0 680 190" role="img" aria-labelledby="hp-d2-t hp-d2-d">
-                  <title id="hp-d2-t">A 3-frame message and its confirmation</title>
-                  <desc id="hp-d2-d">Over seven slots of 15 seconds, you send frames 1, 2 and 3 in the first three slots. The other station decodes the last frame during slot four, answers with a confirmation in slot five and repeats it in slot seven. Your message shows as delivered once you have decoded the confirmation, in slot six.</desc>
-                  <g class="d-grid"><path d="M80 24 V150 M152 24 V150 M224 24 V150 M296 24 V150 M368 24 V150 M440 24 V150 M512 24 V150 M584 24 V150"/></g>
-                  <g class="d-dim" text-anchor="middle"><text x="116" y="18">slot 1</text><text x="188" y="18">slot 2</text><text x="260" y="18">slot 3</text><text x="332" y="18">slot 4</text><text x="404" y="18">slot 5</text><text x="476" y="18">slot 6</text><text x="548" y="18">slot 7</text></g>
-                  <text x="12" y="63" class="d-label">You</text><text x="12" y="123" class="d-label">Station</text>
-                  <g class="d-frame d-tx"><rect x="86" y="44" width="60" height="30"/><rect x="158" y="44" width="60" height="30"/><rect x="230" y="44" width="60" height="30"/></g>
-                  <g class="d-text" text-anchor="middle"><text x="116" y="64">frame 1</text><text x="188" y="64">frame 2</text><text x="260" y="64">frame 3</text></g>
-                  <text x="332" y="124" class="d-dim" text-anchor="middle">decoding</text>
-                  <g class="d-frame d-ack"><rect x="374" y="104" width="60" height="30"/><rect x="518" y="104" width="60" height="30" class="d-again"/></g>
-                  <g class="d-text" text-anchor="middle"><text x="404" y="124">got it</text><text x="548" y="124">got it</text></g>
-                  <path class="d-flow" d="M260 76 V92 H404 V102"/>
-                  <path class="d-flow" d="M404 136 V164 H476"/>
-                  <text x="484" y="168" class="d-ok">✓✓ delivered</text>
-                  <text x="548" y="150" class="d-dim" text-anchor="middle">sent twice, in case it was missed</text>
-                </svg>
-                <figcaption>25 characters need 3 frames: 3 slots to send, one slot while the other station decodes the last frame, then the confirmation. If a frame is lost, the confirmation says which, and only that one is sent again.</figcaption>
-              </figure>
-              <p class="hp-more"><a href="./how-it-works.html#acks" target="_blank" rel="noopener">Lose frames on purpose and watch them get resent ↗</a></p>
-            </section>
-
             <section class="hp-section" id="help-modes">
               <h3>Choose a mode</h3>
               <p data-i18n>The default is <b>Normal</b>. Slower modes reach further and work in more noise. Faster modes send more, but need a good signal and clocks that agree closely. <b>Both stations must use the same mode</b>, or they cannot hear each other at all. Change it on <b>Network</b> in <i>Network options</i>; the page reloads.</p>
-              <div class="table-wrap">
-                <table class="help-table hp-modes">
-                  <thead><tr><th>Mode</th><th>Slot</th><th>142 chars</th><th>Down to</th><th>Best for</th></tr></thead>
-                  <tbody>
-                    <tr><td><b>Turbo</b> <span class="mode-letter">(T)</span></td><td>2.5 s</td><td>40 s</td><td><span class="hp-bar" style="--v:39%"></span>-9 dB</td><td>Fastest; a testing tool for devices very close</td></tr>
-                    <tr class="help-pick"><td><b>Fast</b> <span class="mode-letter">(C)</span></td><td>5 s</td><td>1 min 20 s</td><td><span class="hp-bar" style="--v:48%"></span>-11 dB</td><td data-i18n><b>Devices nearby</b> (same room): recommended</td></tr>
-                    <tr><td><b>Medium</b> <span class="mode-letter">(B)</span></td><td>10 s</td><td>2 min 40 s</td><td><span class="hp-bar" style="--v:61%"></span>-14 dB</td><td>Faster, medium distance</td></tr>
-                    <tr class="help-pick"><td><b>Normal</b> <span class="mode-letter">(A)</span></td><td>15 s</td><td>4 min</td><td><span class="hp-bar" style="--v:78%"></span>-18 dB</td><td data-i18n><b>The default</b>. General use</td></tr>
-                    <tr><td><b>Long</b> <span class="mode-letter">(L)</span></td><td>30 s</td><td>8 min</td><td><span class="hp-bar" style="--v:91%"></span>-21 dB</td><td>Long range</td></tr>
-                    <tr><td><b>Deep</b> <span class="mode-letter">(D)</span></td><td>60 s</td><td>16 min</td><td><span class="hp-bar" style="--v:100%"></span>-23 dB</td><td data-i18n><b>Longest range</b>, weakest signals</td></tr>
-                    <tr><td><b>Spread</b> <span class="mode-letter">(Q)</span></td><td>15 s</td><td>4 min</td><td><span class="hp-bar" style="--v:70%"></span>-16 dB</td><td>Like Normal, but for a moving speaker or microphone, people walking about, a shaky signal; uses 3 times the width</td></tr>
-                    <tr><td><b>Burst</b> <span class="mode-letter">(I)</span></td><td>15 s</td><td>4 min</td><td><span class="hp-bar" style="--v:70%"></span>-16 dB</td><td>Like Normal, but the message is sent four times in a row, so a fade or a noise burst costs little; slower to decode, so listen on fewer channels</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p data-i18n class="hint"><i>142 chars</i> is the time for one full message (16 frames, one per slot). <i>Down to</i> is the weakest signal that still decodes reliably, in dB in a 2500 Hz noise bandwidth: the longer the bar, the further it reaches. Unsure? <b>Fast</b> in the same room, <b>Normal</b> for anything farther. <b>Spread</b> and <b>Burst</b> are variants for difficult rooms, not steps on the speed scale.</p>
-              <p class="hp-more"><a href="./how-it-works.html#lab" target="_blank" rel="noopener">Try any mode against noise in the decode lab ↗</a></p>
+              <p data-i18n>Unsure? <b>Fast</b> in the same room, <b>Normal</b> for anything farther, <b>Long</b> or <b>Deep</b> for the weakest signals. <b>Turbo</b> is a testing tool for devices very close; <b>Spread</b> and <b>Burst</b> are variants of Normal for difficult rooms.</p>
+              <p class="hp-more"><a href="./how-it-works.html#modes">Compare the modes: speed, width, clock and reach →</a></p>
             </section>
 
             <section class="hp-section" id="help-bands">
               <h3>Choose a band</h3>
               <p data-i18n>The band is the range of pitches the signal uses. The default is <b>ultrasonic</b>: inaudible, and the most channels. Both stations need the same band too.</p>
-              <figure class="hp-diagram">
-                <svg viewBox="0 0 680 170" role="img" aria-labelledby="hp-d3-t hp-d3-d">
-                  <title id="hp-d3-t">The three bands and their channels</title>
-                  <desc id="hp-d3-d">Low band, 100 to 300 hertz, 3 channels. Audible band, 300 to 10000 hertz, 4 channels. Ultrasonic band, 17500 to 21000 hertz, 10 channels, inaudible. Not drawn to scale.</desc>
-                  <path class="d-arrow" d="M20 28 H660"/><path class="d-head" d="M660 28 l-10 -6 v12 z"/>
-                  <text x="20" y="18" class="d-dim">low pitch</text><text x="660" y="18" class="d-dim" text-anchor="end">high pitch</text>
-                  <g class="d-band"><rect x="20" y="48" width="190" height="64"/><rect x="245" y="48" width="190" height="64"/><rect x="470" y="48" width="190" height="64" class="d-pick"/></g>
-                  <g class="d-ch"><rect x="50" y="86" width="8" height="18"/><rect x="100" y="86" width="8" height="18"/><rect x="150" y="86" width="8" height="18"/>
-                    <rect x="275" y="86" width="8" height="18"/><rect x="333" y="86" width="8" height="18"/><rect x="391" y="86" width="8" height="18"/><rect x="449" y="86" width="8" height="18"/>
-                    <rect x="497" y="86" width="8" height="18"/><rect x="515" y="86" width="8" height="18"/><rect x="533" y="86" width="8" height="18"/><rect x="551" y="86" width="8" height="18"/><rect x="569" y="86" width="8" height="18"/><rect x="587" y="86" width="8" height="18"/><rect x="605" y="86" width="8" height="18"/><rect x="623" y="86" width="8" height="18"/><rect x="641" y="86" width="8" height="18"/><rect x="479" y="86" width="8" height="18"/></g>
-                  <g class="d-text"><text x="34" y="70">Low</text><text x="259" y="70">Audible</text><text x="484" y="70">Ultrasonic</text></g>
-                  <g class="d-dim"><text x="115" y="130" text-anchor="middle">100–300 Hz</text><text x="340" y="130" text-anchor="middle">300 Hz–10 kHz</text><text x="565" y="130" text-anchor="middle">17.5–21 kHz</text></g>
-                  <g class="d-dim"><text x="115" y="148" text-anchor="middle">3 channels</text><text x="340" y="148" text-anchor="middle">4 channels</text><text x="565" y="148" text-anchor="middle">10 channels</text></g>
-                </svg>
-                <figcaption>Not to scale. The highlighted band is the default.</figcaption>
-              </figure>
               <ul class="hp-list-plain">
                 <li data-i18n><b>Ultrasonic</b> (17.5 to 21 kHz): silent to most people. Needs a 48 kHz sound card and a speaker and microphone that reach that high.</li>
                 <li data-i18n><b>Audible</b>: works on any hardware, but you will hear it.</li>
                 <li data-i18n><b>Low</b> (100 to 300 Hz): a narrow band for special cases.</li>
               </ul>
-              <p class="hp-more"><a href="./how-it-works.html#air" target="_blank" rel="noopener">See each band's channels in every mode, and what your sound card can carry ↗</a></p>
+              <p class="hp-more"><a href="./how-it-works.html#air">See each band's channels in every mode, and what your sound card can carry →</a></p>
             </section>
 
             <section class="hp-section" id="help-talk">
@@ -535,7 +463,7 @@
                   <p>Tap its name in the list. It answers with a small "got it", lost pieces are sent again by themselves, and the message shows how far it got:</p>
                 </div>
               </div>
-              <p class="hp-more"><a href="./how-it-works.html#bits" target="_blank" rel="noopener">Type a message and see the frames it becomes, bit by bit ↗</a></p>
+              <p class="hp-more"><a href="./how-it-works.html#bits">Type a message and see the frames it becomes, bit by bit →</a></p>
               <figure class="hp-shot hp-wide">
                 <div class="hp-screen" aria-hidden="true" inert>
                   <ul class="rx-list hp-list hp-states">
@@ -607,7 +535,7 @@
                 </div>
               </dl>
               <p data-i18n><b>Test</b> sends one beacon that every station hearing it answers, so you see who hears you and how well. <b>Announce</b> sends your name and icon. <b>Reset to defaults</b> (press twice) puts these options back; Audio, your name and timing stay.</p>
-              <p class="hp-more"><a href="./how-it-works.html#channels" target="_blank" rel="noopener">How Auto channel picks a channel from the other stations' reports ↗</a></p>
+              <p class="hp-more"><a href="./how-it-works.html#channels">How Auto channel picks a channel from the other stations' reports →</a></p>
               <h4>Reach farther with a repeater</h4>
               <figure class="hp-diagram">
                 <svg viewBox="0 0 680 150" role="img" aria-labelledby="hp-d4-t hp-d4-d">
@@ -623,32 +551,13 @@
                 </svg>
                 <figcaption>One hop: the repeater sends again what it heard from A, and C hears it. C sees A's name and who relayed it.</figcaption>
               </figure>
-              <p class="hp-more"><a href="./how-it-works.html#repeaters" target="_blank" rel="noopener">Switch a repeater on and off and watch a message get through ↗</a></p>
+              <p class="hp-more"><a href="./how-it-works.html#repeaters">Switch a repeater on and off and watch a message get through →</a></p>
             </section>
 
             <section class="hp-section" id="help-sync">
               <h3>Clocks and timing</h3>
               <p>Slots start at the same second on every station, so every clock must be close to right. A receiver tolerates about 2 seconds of error in Normal, less in the faster modes (under half a second in Turbo). If you hear frames but nothing decodes, a clock is probably off.</p>
-              <figure class="hp-diagram">
-                <svg viewBox="0 0 680 170" role="img" aria-labelledby="hp-d5-t hp-d5-d">
-                  <title id="hp-d5-t">A frame that arrives too late for its slot</title>
-                  <desc id="hp-d5-d">Two rows of slots. In the top row the frame sits in the middle of the listening window. In the bottom row the sender's clock is late, the frame is pushed past the end of the window and cannot be decoded.</desc>
-                  <text x="12" y="30" class="d-label">Clocks agree</text>
-                  <text x="12" y="104" class="d-label">Clock off</text>
-                  <rect x="150" y="14" width="440" height="40" class="d-window"/>
-                  <rect x="228" y="22" width="284" height="24" class="d-frame d-tx"/>
-                  <text x="370" y="39" class="d-text" text-anchor="middle">frame</text>
-                  <text x="620" y="39" class="d-ok">✓</text>
-                  <rect x="150" y="88" width="440" height="40" class="d-window"/>
-                  <rect x="420" y="96" width="220" height="24" class="d-frame d-tx d-late"/>
-                  <text x="520" y="113" class="d-text" text-anchor="middle">frame</text>
-                  <path class="d-bracket" d="M150 150 H590"/>
-                  <text x="370" y="166" class="d-dim" text-anchor="middle">the window the receiver records: the frame, plus 2 s each side in Normal</text>
-                  <text x="654" y="112" class="d-bad">✗</text>
-                </svg>
-                <figcaption>When the frame starts too late or too early, part of it falls outside the window.</figcaption>
-              </figure>
-              <p class="hp-more"><a href="./how-it-works.html#slots" target="_blank" rel="noopener">Move a clock and watch the frame fall out of the window, with today's slots live ↗</a></p>
+              <p class="hp-more"><a href="./how-it-works.html#slots">Move a clock and watch the frame fall out of the window, with today's slots live →</a></p>
               <p data-i18n>Open <b>Network</b>, then the <b>Sync</b> section. Its dot says how things stand: green is fine, yellow means an offset is applied, red means your clock is off against the server.</p>
               <ul class="hp-list-plain">
                 <li data-i18n><b>Check against server</b>, then <b>Use server time</b>, aligns you with the clock of the server this page came from. The page checks by itself at startup and every 10 minutes, and shows a warning bar when the difference is large.</li>
@@ -676,8 +585,11 @@
                 <summary>On a phone</summary>
                 <p data-i18n>Phone clocks drift, so sync them. The browser stops audio when the screen turns off or the tab is in the background: keep the page open and the screen on. A Bluetooth headset can force a low sample rate and make the ultrasonic band unavailable; use the phone's own speaker and microphone. The microphone needs the page to be on https (or localhost). If the speaker and microphone sit at the bottom edge, use <b>Rotate 180°</b> in the sidebar to point them at the other station.</p>
               </details>
-              <p class="hp-more"><a href="./how-it-works.html#lab" target="_blank" rel="noopener">See how weak a signal, and how wrong a clock, the receiver still copes with ↗</a></p>
+              <p class="hp-more"><a href="./how-it-works.html#lab">See how weak a signal, and how wrong a clock, the receiver still copes with →</a></p>
             </section>
+          </div>
+          <div class="help-how" id="help-panel-how" role="tabpanel" aria-labelledby="help-tab-how" hidden>
+            <iframe id="how-frame" title="How audiomesh works, step by step"></iframe>
           </div>
         </section>
 

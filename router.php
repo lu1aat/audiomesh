@@ -89,7 +89,8 @@ if ($extension === 'html') {
         "connect-src 'self' wss://broker.emqx.io:8084; " .
         "form-action 'none'; " .
         "base-uri 'self'; " .
-        "frame-ancestors 'none'"
+        // 'self', not 'none': the app's Help screen shows How it works in an iframe.
+        "frame-ancestors 'self'"
     );
     header('Referrer-Policy: no-referrer');
     header('X-Content-Type-Options: nosniff');
