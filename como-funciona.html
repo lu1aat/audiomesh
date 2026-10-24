@@ -38,13 +38,13 @@
     <div class="col" style="margin-inline:0; display:grid; gap:18px">
       <div class="eyebrow">audiomesh · Cómo funciona</div>
       <h1>Una red hecha de sonido</h1>
-      <p class="lede">audiomesh manda texto entre navegadores usando solo un parlante y un micrófono. Sin Wi-Fi, sin servidor, sin cables: el aire de la habitación es la red. Esta página sigue a un mensaje desde el teclado hasta la pantalla de otro dispositivo. Las demos corren el modulador, el decodificador y el código de red de audiomesh, acá mismo en la página.</p>
+      <p class="lede">audiomesh manda texto entre navegadores solo con un parlante y un micrófono: sin Wi-Fi, sin servidor, sin cables. Esta página sigue un mensaje del teclado a la pantalla de otro dispositivo, con demos que corren el modulador, el decodificador y el código de red reales de audiomesh.</p>
     </div>
     <figure class="figure" style="margin:0">
       <div class="canvas-box"><canvas id="hero-pic" aria-label="Cascada de una trama de audiomesh en medio del ruido"></canvas></div>
       <div class="figure-bar">
         <button class="primary" id="hero-play" type="button" aria-pressed="false"><span aria-hidden="true">▶</span> Escuchar esta trama</button>
-        <p id="hero-caption">Una trama escuchada a través del ruido, dibujada como la mide el receptor.</p>
+        <p id="hero-caption">Una trama en medio del ruido, como la mide el receptor.</p>
       </div>
     </figure>
   </section>
@@ -69,8 +69,8 @@
   <section class="ch wide" id="air">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 01</span><h2>El aire es el cable</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>El parlante y el micrófono de un teléfono cubren un rango amplio de tonos. audiomesh divide ese rango en tres bandas y usa una por vez: <b>baja</b> (100–300 Hz), <b>audible</b> (300 Hz–10 kHz) y <b>ultrasónica</b> (17,5–21 kHz). La ultrasónica es la predeterminada: se propaga bien dentro de una habitación y la mayoría de los adultos no la oye.</p>
-      <p>Cada banda tiene canales fijos y numerados, iguales en todos los dispositivos. Una estación escucha todos los canales de su banda a la vez, así que una trama puede salir por cualquiera de ellos y se escucha igual.</p>
+      <p>audiomesh reparte los tonos que cubren un parlante y un micrófono en tres bandas y usa una por vez: <b>baja</b> (100–300 Hz), <b>audible</b> (300 Hz–10 kHz) y <b>ultrasónica</b> (17,5–21 kHz). La ultrasónica es la predeterminada: llega bien a toda la habitación y casi ningún adulto la oye.</p>
+      <p>Cada banda tiene canales numerados, iguales en todos los dispositivos. Como cada estación escucha todos los canales a la vez, una trama puede salir por cualquiera.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Plan de bandas <span class="tag">tocá una banda</span></div>
@@ -88,15 +88,15 @@
         <p class="hint" id="band-note" style="font-size:0.92rem; color:var(--text)"></p>
       </div>
     </div>
-    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/band/band-plan.ts</code>. La app deja un margen por debajo del límite de la placa de sonido y usa solo el 45 % de la frecuencia de muestreo.</p>
+    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/band/band-plan.ts</code>. La app deja margen bajo el límite de la placa de sonido: usa hasta el 45 % de la frecuencia de muestreo.</p>
   </section>
 
   <!-- 02 -->
   <section class="ch wide" id="bits">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 02</span><h2>El texto se vuelve bits</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Cada trama lleva exactamente 77 bits. Para que entre más texto, audiomesh usa un alfabeto de 6 bits con 64 símbolos: letras mayúsculas, dígitos y signos de puntuación. Las minúsculas llegan como mayúsculas, las letras con tilde sin la tilde (É como E, Ñ como N) y cualquier otra cosa como un signo de pregunta: el mismo compromiso que hacen FT8 y JS8.</p>
-      <p>La primera trama de un mensaje dice quién lo manda, para quién es y a qué mensaje pertenece, así que le queda lugar para 7 caracteres. Cada trama siguiente lleva 9 más. Un mensaje puede usar hasta 16 tramas: 142 caracteres.</p>
+      <p>Cada trama lleva 77 bits. Para que entre más texto, audiomesh usa un alfabeto de 6 bits: mayúsculas, dígitos y puntuación. Las minúsculas llegan en mayúscula, las tildes se pierden (Ñ llega como N) y cualquier otro signo, como «?». FT8 y JS8 hacen lo mismo.</p>
+      <p>La primera trama dice quién manda, a quién y qué número de mensaje es, y le quedan 7 caracteres; cada una de las siguientes lleva 9. Con hasta 16 tramas, un mensaje llega a 142 caracteres.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Armador de tramas <span class="tag">encodeFrame()</span></div>
@@ -116,15 +116,15 @@
         </div>
       </div>
     </div>
-    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/chat/frames.ts</code> y <code>src/chat/charset6.ts</code>. Los ids de estación son números al azar del 1 al 1023; los nombres viajan aparte, en tramas de “saludo” (hello).</p>
+    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/chat/frames.ts</code> y <code>src/chat/charset6.ts</code>. Los ids de estación son números al azar (1 a 1023); los nombres viajan aparte, en tramas de saludo.</p>
   </section>
 
   <!-- 03 -->
   <section class="ch wide" id="armour">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 03</span><h2>Blindaje contra el ruido</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>El sonido en una habitación se desvanece, hace eco y choca con otros sonidos. Por eso los 77 bits reciben dos capas de protección antes de salir. Un CRC de 14 bits le permite al receptor verificar su propio trabajo. Después, un código LDPC (el mismo que usa FT8) agrega 83 bits de paridad, para una palabra de código de 174 bits. Casi la mitad de lo que sale al aire es redundancia que le permite al receptor reconstruir lo que perdió.</p>
-      <p>Los 174 bits se vuelven 58 símbolos de 3 bits cada uno. Abajo está la primera trama de tu mensaje, símbolo por símbolo. Dañala y mirá cómo el decodificador real intenta recuperarla.</p>
+      <p>El sonido se desvanece, rebota y choca con otros, así que los 77 bits salen con dos capas de protección: un CRC de 14 bits, para que el receptor verifique su trabajo, y un código LDPC (el de FT8) que suma 83 bits de paridad. De los 174 bits que salen al aire, casi la mitad es redundancia para reconstruir lo que se pierda.</p>
+      <p>Son 58 símbolos de 3 bits. Abajo está la primera trama de tu mensaje: dañala y mirá cómo el decodificador real intenta recuperarla.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Rompela <span class="tag">Gfsk8Codec.decode()</span></div>
@@ -156,7 +156,7 @@
       </div>
     </div>
     <div class="col prose" style="margin-inline:0">
-      <p>Un símbolo que el receptor sabe que perdió cuesta mucho menos que uno que escuchó mal. El decodificador sobrevive a unos 20 símbolos borrados de 58, pero solo a unos 6 equivocados. En cualquier caso, nunca devuelve un texto equivocado: cuando fallan los controles de paridad o el CRC, no devuelve nada.</p>
+      <p>Un símbolo que el receptor sabe perdido cuesta mucho menos que uno mal escuchado: el decodificador aguanta unos 20 borrados de 58, pero solo unos 6 equivocados. Y nunca devuelve texto equivocado: si fallan la paridad o el CRC, no devuelve nada.</p>
     </div>
     <p class="code-ref col" style="margin-inline:0">En el código: <code>src/protocol/gfsk8/codec.ts</code>, <code>ldpc.ts</code> (propagación de creencias, hasta 30 iteraciones) y <code>crc14.ts</code>. Las tablas LDPC vienen de ft8_lib, que las toma de WSJT-X.</p>
   </section>
@@ -165,9 +165,9 @@
   <section class="ch wide" id="tones">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 04</span><h2>Los bits se vuelven tonos</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Tres bits eligen uno de ocho tonos, así que cada símbolo es un silbido corto en una de ocho alturas. Los tonos están separados exactamente por la velocidad de símbolo (6,25 Hz en Normal), que es la separación mínima a la que un receptor todavía puede distinguirlos.</p>
-      <p>Tonos vecinos difieren en un solo bit: un código Gray. El error más común, que la energía caiga un tono al lado, cuesta entonces un bit en lugar de hasta tres.</p>
-      <p>Además, la altura se desliza de un tono al otro siguiendo una curva gaussiana en lugar de saltar. Un salto salpicaría energía en los canales vecinos; el deslizamiento mantiene toda la trama dentro del ancho de 8 tonos.</p>
+      <p>Cada símbolo de 3 bits es un silbido corto en uno de ocho tonos, separados justo la velocidad de símbolo (6,25 Hz en Normal): lo mínimo para que el receptor los distinga.</p>
+      <p>Con un código Gray, tonos vecinos difieren en un solo bit: el error más común, caer un tono al lado, cuesta un bit y no hasta tres.</p>
+      <p>Y la altura pasa de un tono al otro deslizándose en una curva gaussiana, sin saltos: un salto salpicaría los canales vecinos, y así la trama no ocupa más que 8 tonos de ancho.</p>
     </div>
     <div class="demo">
       <div class="demo-title">La trama como tonos <span class="tag">Gfsk8Modulator</span></div>
@@ -183,18 +183,18 @@
           <button class="primary" type="button" id="tone-play" aria-pressed="false"><span aria-hidden="true">▶</span> Escuchar la trama</button>
           <span class="hint" id="tone-stats"></span>
         </div>
-        <p class="hint">Los símbolos amarillos son el patrón de sincronismo; los verde agua llevan tus datos. Se reproduce a 1 kHz para que se escuche; la app manda lo mismo en la banda que elijas.</p>
+        <p class="hint">Amarillo: sincronismo; verde agua: tus datos. Suena a 1 kHz para que se oiga; la app manda lo mismo en tu banda.</p>
       </div>
     </div>
-    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/protocol/gfsk8/modulator.ts</code>. Producto ancho de banda por tiempo 2,0, la elección de FT8. Las muestras se generan sobre la marcha, de a un bloque, así el hilo de audio nunca espera.</p>
+    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/protocol/gfsk8/modulator.ts</code>. Producto ancho de banda por tiempo 2,0, como en FT8. Las muestras se generan de a un bloque, sobre la marcha, así el audio nunca espera.</p>
   </section>
 
   <!-- 05 -->
   <section class="ch wide" id="sync">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 05</span><h2>Encontrar la trama</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>El receptor no sabe exactamente cuándo empieza una trama ni en qué altura exacta llega. Los relojes no coinciden del todo y las placas de sonido difieren en unos cientos de partes por millón. Por eso cada trama lleva el mismo patrón de 7 tonos tres veces, al principio, en el medio y al final: <b>3 1 4 0 6 5 2</b>. Es un arreglo de Costas, un patrón que coincide con una copia desplazada de sí mismo en un único lugar.</p>
-      <p>El receptor desliza el patrón sobre toda la grabación y se pregunta, en cada posición: ¿qué parte de la energía de esos 21 símbolos cae en los tonos previstos? El ruido puro da alrededor de 0,23. Una trama real da 0,3 o más, normalmente mucho más.</p>
+      <p>El receptor no sabe exactamente cuándo empieza una trama ni a qué altura llega: los relojes difieren un poco y las placas de sonido, unos cientos de partes por millón. Por eso cada trama repite al principio, al medio y al final el mismo patrón de 7 tonos, <b>3 1 4 0 6 5 2</b>: un arreglo de Costas, que coincide con una copia corrida de sí mismo en un solo lugar.</p>
+      <p>El receptor desliza el patrón por toda la grabación y mide, en cada posición, qué parte de la energía de esos 21 símbolos cae en los tonos esperados. El ruido da unos 0,23; una trama real, 0,3 o (casi siempre) mucho más.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Deslizá el patrón <span class="tag">arrastrá sobre la imagen</span></div>
@@ -207,18 +207,18 @@
           <div class="ctl"><label class="ctl-label" for="sync-snr">Señal <output id="sync-snr-out">−12 dB</output></label><input type="range" id="sync-snr" min="-22" max="0" step="1" value="-12"></div>
           <div class="row" style="align-self:end"><button class="primary" type="button" id="sync-search">Buscar como el receptor</button><button type="button" id="sync-new">Nueva grabación</button><button type="button" class="link" id="sync-show">Mostrame</button></div>
         </div>
-        <p class="hint">Esta imagen usa una grilla gruesa: tonos enteros y cuartos de símbolo. El receptor real avanza de a 1/32 de símbolo y alrededor de 1 Hz, y después le pasa sus 8 mejores candidatos al decodificador.</p>
+        <p class="hint">Esta imagen usa una grilla gruesa (tonos enteros, cuartos de símbolo). El receptor real avanza de a 1/32 de símbolo y de a 1 Hz, y le pasa sus 8 mejores candidatos al decodificador.</p>
       </div>
     </div>
-    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/protocol/gfsk8/demodulator.ts</code>. Baja el canal a 0 Hz, se queda con 32 muestras por símbolo y mide los tonos con una DFT deslizante.</p>
+    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/protocol/gfsk8/demodulator.ts</code>. Baja el canal a 0 Hz, toma 32 muestras por símbolo y mide los tonos con una DFT deslizante.</p>
   </section>
 
   <!-- 06 -->
   <section class="ch wide" id="slots">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 06</span><h2>Todos llevan la hora</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Las estaciones nunca se ponen de acuerdo sobre cuándo hablar: el tiempo ya está cortado en ranuras contadas desde el 1 de enero de 1970, UTC, de 15 segundos cada una en Normal. Cualquier dispositivo con el reloj en hora sabe cuándo empieza cada ranura sin preguntarle a nadie. Una estación empieza a transmitir en el borde de una ranura.</p>
-      <p>El receptor graba un poco más que una trama, desde un poco antes del borde hasta un poco después de donde la trama debería terminar. Así, la trama de un reloj algo adelantado o atrasado igual entra. Cuando no alcanza, ayudan las herramientas de sincronización de la app.</p>
+      <p>Las estaciones no necesitan ponerse de acuerdo para hablar: el tiempo ya está cortado en ranuras (de 15 s en Normal) contadas desde el 1 de enero de 1970, UTC. Con el reloj en hora, cada dispositivo sabe cuándo empieza cada ranura y transmite justo en su borde.</p>
+      <p>El receptor graba desde un poco antes del borde hasta un poco después del final esperado de la trama, para que entre aunque el otro reloj esté algo corrido. Si no alcanza, la app tiene herramientas de sincronización.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Ranuras <span class="tag">en vivo, con el reloj de este dispositivo</span></div>
@@ -237,15 +237,15 @@
         <p class="hint" id="slot-facts"></p>
       </div>
     </div>
-    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/protocol/slot-clock.ts</code> y <code>src/audio/engine.ts</code>, que vuelve a anclar el reloj de audio al reloj del sistema en cada ranura y corre la ventana según la latencia del parlante y del micrófono.</p>
+    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/protocol/slot-clock.ts</code> y <code>src/audio/engine.ts</code>, que reancla el reloj de audio al del sistema en cada ranura y compensa la latencia del parlante y del micrófono.</p>
   </section>
 
   <!-- 07 -->
   <section class="ch wide" id="lab">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 07</span><h2>El receptor, de punta a punta</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Ahora todo junto. Elegí qué tan débil es la señal y qué tan corridos están el reloj y la placa de sonido de la otra estación, y mandá una trama. La página arma lo que escucharía un micrófono (el modulador real más ruido blanco) y se lo da al receptor real, que baja el canal, mide los ocho tonos, busca el sincronismo, decodifica los mejores candidatos y verifica el CRC.</p>
-      <p>La intensidad de la señal se mide contra el ruido en 2500 Hz, la convención de la radio de señal débil. A −18 dB el ruido en ese ancho es unas 60 veces más fuerte que la señal y la trama no se oye para nada. En Normal, igual se decodifica.</p>
+      <p>Todo junto: elegí qué tan débil es la señal y cuánto se corren el reloj y la placa de sonido de la otra estación, y mandá una trama. La página arma lo que oiría un micrófono (el modulador real más ruido blanco) y se lo pasa al receptor real: baja el canal, mide los tonos, busca el sincronismo, decodifica los mejores candidatos y verifica el CRC.</p>
+      <p>La señal se mide contra el ruido en 2500 Hz, como en la radio de señal débil. A −18 dB el ruido es unas 60 veces más fuerte y la trama no se oye; en Normal, igual se decodifica.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Laboratorio de decodificación <span class="tag">Gfsk8Demodulator.decode(), en un worker</span></div>
@@ -270,18 +270,18 @@
             <div class="row" style="justify-content:space-between"><span class="wrong-count">Textos equivocados devueltos hasta ahora: <output id="lab-wrong">0</output></span><button type="button" class="link" id="lab-clear">Borrar puntos</button></div>
           </div>
         </div>
-        <p class="hint">El laboratorio trabaja a 1 kHz con una frecuencia de muestreo de 8 kHz para ser liviano. La app hace lo mismo a 17,5–21 kHz y 48 kHz, en todos los canales de la banda, en cada ranura.</p>
+        <p class="hint">El laboratorio trabaja a 1 kHz con muestreo de 8 kHz para ser liviano; la app hace lo mismo a 17,5–21 kHz y 48 kHz, en todos los canales, en cada ranura.</p>
       </div>
     </div>
-    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/dsp/decoder.worker.ts</code> y <code>src/protocol/gfsk8/demodulator.ts</code>. Cuando la decodificación común falla pero el sincronismo parece real, el receptor insiste: otras formas de leer los tonos, y bits que puede predecir, como la forma de una confirmación que está esperando.</p>
+    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/dsp/decoder.worker.ts</code> y <code>src/protocol/gfsk8/demodulator.ts</code>. Si la decodificación falla pero el sincronismo parece real, el receptor insiste con otras formas de leer los tonos y con bits que puede prever, como los de un ACK que espera.</p>
   </section>
 
   <!-- 08 -->
   <section class="ch wide" id="acks">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 08</span><h2>¿Llegó?</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Un mensaje para una sola estación recibe respuesta. Cuando el receptor escuchó la última trama, manda una confirmación (<b>ACK</b>): un mapa de 16 bits con un bit por cada trama que tiene. El remitente reenvía entonces solo las tramas que faltan en el mapa, hasta cuatro rondas. Un mensaje para todos nunca se confirma.</p>
-      <p>Una estación que transmite no puede escuchar, así que el remitente no manda nada nuevo mientras espera. Y como decodificar lleva un momento después de cada ranura, una respuesta siempre sale dos ranuras después de la trama que contesta.</p>
+      <p>Un mensaje a una estación se confirma (uno para todos, nunca): después de la última trama, el receptor manda un <b>ACK</b>, un mapa de 16 bits con un bit por trama recibida, y el remitente reenvía solo las que faltan, hasta cuatro rondas.</p>
+      <p>Quien transmite no escucha, así que el remitente no manda nada nuevo mientras espera. Y como decodificar lleva un rato, la respuesta sale dos ranuras después de la trama que contesta.</p>
     </div>
     <div class="demo">
       <div class="demo-title">A le manda a B “NOS VEMOS EN EL PUENTE” <span class="tag">dos ChatSession reales</span></div>
@@ -294,15 +294,15 @@
         <div class="verdict" id="ack-result" aria-live="polite"></div>
       </div>
     </div>
-    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/chat/session.ts</code>. Un ACK completo sale dos veces, con dos ranuras de diferencia, porque perderlo costaría una ronda entera de reenvío.</p>
+    <p class="code-ref col" style="margin-inline:0">En el código: <code>src/chat/session.ts</code>. Un ACK completo sale dos veces, a dos ranuras de distancia: perderlo costaría una ronda entera de reenvío.</p>
   </section>
 
   <!-- 09 -->
   <section class="ch wide" id="channels">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 09</span><h2>Elegir un canal</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>No hay canal de control. Todos decodifican la banda entera, así que la pregunta es en qué canal te escucha mejor la <i>otra</i> estación. Parlantes, micrófonos y habitaciones son distintos, y qué tan bien la escuchás vos dice poco de qué tan bien te escucha ella. Por eso las estaciones se lo cuentan: cada ACK y cada baliza llevan informes como “escucho a #101 en el canal 12 a −9 dB”.</p>
-      <p>Para transmitir, una estación toma el peor caso entre todas las estaciones a las que les manda, evita los canales donde otras estuvieron transmitiendo (cada una cuesta 4 dB), se queda con los canales a menos de 3 dB del mejor y elige uno de ellos al azar, para que no se amontonen todos en el mismo canal.</p>
+      <p>No hay canal de control: todos decodifican la banda entera. La pregunta es en qué canal te escucha mejor la <i>otra</i> estación, y eso no se deduce de cómo la escuchás vos (parlantes, micrófonos y habitaciones difieren). Por eso cada ACK y cada baliza llevan informes como “escucho a #101 en el canal 12 a −9 dB”.</p>
+      <p>Para transmitir, una estación toma el peor caso entre sus destinatarios, resta 4 dB por cada otra estación que usó el canal hace poco y elige al azar entre los canales a menos de 3 dB del mejor, para que no se amontonen todos en uno.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Mandar a #201 y #202 <span class="tag">LqaTable.chooseChannel(), 400 veces</span></div>
@@ -318,7 +318,7 @@
   <section class="ch wide" id="repeaters">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 10</span><h2>Un salto más lejos</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Cuando dos estaciones no se escuchan, una que esté en el medio puede retransmitir. Un repetidor vuelve a mandar lo que escucha directamente de otras, dos o cuatro ranuras después, con una marca de 3 bits que dice quién lo repitió. Nunca repite una repetición, así que una trama viaja como mucho un salto. Tampoco repite balizas, porque una baliza mide un enlace en particular.</p>
+      <p>Si dos estaciones no se escuchan, una en el medio puede retransmitir: un repetidor reenvía lo que oye directo de otras, dos o cuatro ranuras después, con una marca de 3 bits que dice quién lo repitió. No repite repeticiones (una trama viaja un salto como mucho) ni balizas, que miden un enlace puntual.</p>
     </div>
     <div class="demo">
       <div class="demo-title">A, R y C en fila <span class="tag">tres ChatSession reales</span></div>
@@ -344,23 +344,23 @@
   <section class="ch wide" id="modes">
     <div class="col ch-head" style="margin-inline:0"><span class="ch-num">Capítulo 11</span><h2>Velocidad o alcance</h2></div>
     <div class="col prose" style="margin-inline:0">
-      <p>Todos los modos usan la misma trama, el mismo código y el mismo sincronismo. Solo cambia la velocidad de símbolo, y todo lo demás se desprende de ella. A la mitad de velocidad, las tramas duran el doble, llegan unos 3 dB más hondo en el ruido y llevan la mitad de texto por minuto. Las dos estaciones tienen que usar el mismo modo.</p>
+      <p>Todos los modos comparten trama, código y sincronismo; solo cambia la velocidad de símbolo, y el resto se desprende de ella. A mitad de velocidad, la trama dura el doble, llega unos 3 dB más hondo en el ruido y lleva la mitad de texto por minuto. Las dos estaciones tienen que usar el mismo modo.</p>
     </div>
     <div class="demo">
       <div class="demo-title">Seis modos <span class="tag">tocá uno para usarlo en esta página</span></div>
       <div class="demo-body">
         <svg class="chart" id="modes-chart" role="img" aria-label="Caracteres por minuto contra sensibilidad, para cada modo"></svg>
         <div class="table-wrap"><table class="modes" id="modes-table"></table></div>
-        <p class="hint">La sensibilidad se midió en simulación con ruido blanco, a 48 kHz y sin conocer el tiempo; nunca con una carga útil equivocada. Turbo, Fast y Normal también se usaron por el aire. Dos variantes más, Spread y Burst, cambian velocidad por tolerancia a señales que tiemblan o se desvanecen.</p>
+        <p class="hint">Sensibilidad medida en simulación (ruido blanco, 48 kHz, sin conocer el tiempo), sin ninguna carga útil equivocada; Turbo, Fast y Normal también se probaron por el aire. Dos variantes, Spread y Burst, cambian velocidad por tolerancia a señales que tiemblan o se desvanecen.</p>
       </div>
     </div>
   </section>
 
   <section class="closing wide">
     <h2>Probalo con dos dispositivos</h2>
-    <p>Abrí la app en dos teléfonos o computadoras en la misma habitación. Elegí el mismo modo y la misma banda en los dos, activá Audio y Permitir transmitir, y mandá un mensaje. Antes, fijate que los dos relojes estén en hora.</p>
+    <p>Abrí la app en dos teléfonos o computadoras de la misma habitación, con los relojes en hora. Elegí el mismo modo y la misma banda en los dos, activá Audio y Permitir transmitir, y mandá un mensaje.</p>
     <a class="cta" href="./?lang=es">Abrir audiomesh</a>
-    <p class="fineprint">audiomesh corre entero en el navegador: no hay servidor, y el audio nunca sale del dispositivo. Toma ideas de FT8 y JS8, pero no se comunica con ellos. La especificación completa del protocolo por aire está en <code>network-protocol.md</code>, en el repositorio (en inglés).</p>
+    <p class="fineprint">audiomesh corre entero en el navegador: sin servidor, y el audio nunca sale del dispositivo. Se inspira en FT8 y JS8, pero no se comunica con ellos. La especificación completa del protocolo por aire está en <code>network-protocol.md</code>, en el repositorio (en inglés).</p>
   </section>
 </main>
     <script type="module" src="/src/how-it-works/main.ts"></script>

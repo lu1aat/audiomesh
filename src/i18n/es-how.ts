@@ -7,7 +7,7 @@ export const ES_HOW: Readonly<Record<string, string>> = {
   'Stop': 'Detener',
   '{mode} · {baud} baud · {slot} s slots': '{mode} · {baud} baudios · ranuras de {slot} s',
   'One frame in {mode} mode, heard through noise: 79 tones in {time}, drawn the way the receiver measures it (energy of each tone, every quarter of a symbol). The three seven-step staircases are the sync pattern; the rest is data.':
-    'Una trama en modo {mode}, escuchada a través del ruido: 79 tonos en {time}, dibujados como los mide el receptor (la energía de cada tono, cada cuarto de símbolo). Las tres escaleras de siete escalones son el patrón de sincronismo; el resto son datos.',
+    'Una trama en {mode} en medio del ruido: 79 tonos en {time}, como los mide el receptor (la energía de cada tono, cada cuarto de símbolo). Las tres escaleras de siete escalones son el sincronismo; el resto, datos.',
   'SYNC': 'SINC',
   'Adult hearing, fading out above about 16 kHz': 'Oído adulto, se apaga por encima de unos 16 kHz',
   'usable to {khz} kHz': 'útil hasta {khz} kHz',
@@ -38,7 +38,7 @@ export const ES_HOW: Readonly<Record<string, string>> = {
   '<b>Decoded.</b> All 83 parity checks pass and the CRC matches: “{text}”.': '<b>Decodificada.</b> Pasan los 83 controles de paridad y el CRC coincide: “{text}”.',
   '<b>Wrong payload.</b> This should never happen.': '<b>Carga útil equivocada.</b> Esto no debería pasar nunca.',
   '<b>Refused.</b> No codeword fits what was heard, so the receiver drops the frame. It never guesses.':
-    '<b>Rechazada.</b> Ninguna palabra de código encaja con lo que se escuchó, así que el receptor descarta la trama. Nunca adivina.',
+    '<b>Rechazada.</b> Ninguna palabra de código encaja con lo escuchado: el receptor descarta la trama, nunca adivina.',
   '{erased} erased · {wrong} wrong · {intact} intact': '{erased} borrados · {wrong} equivocados · {intact} intactos',
   'In {mode}: {baud} symbols a second, tones {spacing} Hz apart, {bw} Hz wide in all, {time} on air.':
     'En {mode}: {baud} símbolos por segundo, tonos separados {spacing} Hz, {bw} Hz de ancho en total, {time} al aire.',
@@ -51,7 +51,7 @@ export const ES_HOW: Readonly<Record<string, string>> = {
   'Nothing here': 'Acá no hay nada',
   'start {dt} s from the slot boundary · {df} Hz': 'inicio a {dt} s del borde de la ranura · {df} Hz',
   'noise ≈ {v}': 'ruido ≈ {v}',
-  'Search to see the score at every start time (best pitch at each)': 'Buscá para ver el puntaje en cada instante de inicio (con la mejor altura en cada uno)',
+  'Search to see the score at every start time (best pitch at each)': 'Buscá para ver el puntaje en cada instante (con la mejor altura en cada uno)',
   'slot starts': 'empieza la ranura',
   'next slot': 'ranura siguiente',
   'we record {time}': 'grabamos {time}',
@@ -59,7 +59,7 @@ export const ES_HOW: Readonly<Record<string, string>> = {
   'Inside the ±{allow} s the receiver allows for: it decodes.': 'Dentro de los ±{allow} s que tolera el receptor: se decodifica.',
   'Outside ±{allow} s, but Deep decode searches {extra} s further: it decodes.': 'Fuera de ±{allow} s, pero la decodificación profunda busca {extra} s más: se decodifica.',
   'The frame falls off the edge of the window: nothing decodes, though the waterfall shows it.':
-    'La trama se sale del borde de la ventana: no se decodifica nada, aunque la cascada la muestra.',
+    'La trama se sale de la ventana: no se decodifica, aunque la cascada la muestre.',
   '{mode}: {slot} s slots, {frame} frames, clock allowance ±{allow} s': '{mode}: ranuras de {slot} s, tramas de {frame}, tolerancia de reloj ±{allow} s',
   ', Deep decode {extra} s more each side': ', decodificación profunda {extra} s más de cada lado',
   '{into} of {slot} s': '{into} de {slot} s',
@@ -86,7 +86,7 @@ export const ES_HOW: Readonly<Record<string, string>> = {
   'BEACON': 'BALIZA',
   'lost': 'perdida',
   '<b>Delivered.</b> B had the whole message after slot {got}; A knew it in slot {done} ({time} in {mode}), after {rounds} and {frames} frame transmissions.':
-    '<b>Entregado.</b> B tuvo el mensaje completo después de la ranura {got}; A lo supo en la ranura {done} ({time} en {mode}), después de {rounds} y {frames} transmisiones de tramas.',
+    '<b>Entregado.</b> B lo tuvo completo en la ranura {got}; A lo supo en la {done} ({time} en {mode}), tras {rounds} y {frames} tramas enviadas.',
   '<b>Failed</b> after {n} rounds without a complete ack.': '<b>Falló</b> después de {n} rondas sin un ACK completo.',
   '#{id} hears us': '#{id} nos escucha',
   'Worst case': 'Peor caso',
@@ -94,8 +94,8 @@ export const ES_HOW: Readonly<Record<string, string>> = {
   'channel {ch} busy: {n} other stations': 'canal {ch} ocupado: {n} otras estaciones',
   'Picked': 'Elegido',
   "<b>Delivered through R.</b> C had the message after slot {got}, and C's ack came back to A the same way: A knew in slot {done}. A's frames go out three slots apart while a repeater is around, so R can fit its repeats in between.":
-    '<b>Entregado a través de R.</b> C tuvo el mensaje después de la ranura {got}, y el ACK de C volvió a A por el mismo camino: A lo supo en la ranura {done}. Mientras hay un repetidor cerca, las tramas de A salen con tres ranuras de distancia, para que R pueda meter sus repeticiones en el medio.',
-  '<b>Failed.</b> A tried {n} rounds. C never heard a frame, so it never sent an ack.': '<b>Falló.</b> A intentó {n} rondas. C nunca escuchó una trama, así que nunca mandó un ACK.',
+    '<b>Entregado a través de R.</b> C tuvo el mensaje en la ranura {got} y su ACK volvió a A por el mismo camino, en la {done}. Con un repetidor cerca, A espacia sus tramas tres ranuras para que R meta sus repeticiones en el medio.',
+  '<b>Failed.</b> A tried {n} rounds. C never heard a frame, so it never sent an ack.': '<b>Falló.</b> A intentó {n} rondas, pero C nunca escuchó una trama, así que no mandó ningún ACK.',
   'reliable down to →': 'confiable hasta →',
   'decodes reliably down to (SNR in 2500 Hz) →': 'decodifica con confianza hasta (SNR en 2500 Hz) →',
   'characters per minute, one frame per slot': 'caracteres por minuto, una trama por ranura',
