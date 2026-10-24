@@ -17,6 +17,7 @@ import { statsRecord } from './stats/stats-record';
 import { StatsView } from './stats/stats-view';
 import { ChatPanel } from './ui/chat-panel';
 import { Notifier } from './ui/notifier';
+import { installedApp, rememberReturn, singleWindowApp } from './ui/installed';
 import { CaptureView } from './ui/capture-view';
 import { WindowCapture } from './dsp/window-capture';
 import { LinkView, type StationsView } from './ui/link-view';
@@ -146,9 +147,17 @@ const el = <T extends HTMLElement>(id: string): T => document.getElementById(id)
 
 // The static page in the chosen language, before anything takes references into it.
 translatePage();
-// How it works has one page per language.
-if (lang === 'es') {
-  for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href^="./how-it-works.html"]')) a.href = a.getAttribute('href')!.replace('./how-it-works.html', './como-funciona.html');
+// How it works has one page per language. It opens in a new tab so the station keeps running,
+// except in an installed app on a phone, where that tab would cover the app with no way back:
+// there it opens in place (the station stops until the back gesture brings the app back).
+const inPlace = singleWindowApp();
+for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href^="./how-it-works.html"]')) {
+  if (lang === 'es') a.href = a.getAttribute('href')!.replace('./how-it-works.html', './como-funciona.html');
+  if (!inPlace) continue;
+  a.removeAttribute('target');
+  a.addEventListener('click', rememberReturn);
+  if (a.title) a.title = t('How it works, step by step (the station stops until you come back)');
+  a.querySelector<HTMLElement>('.nav-ext')?.setAttribute('hidden', '');
 }
 
 const settings = loadSettings();
@@ -587,7 +596,7 @@ const notifier = new Notifier();
 void notifier.init();
 // Installed as an app: ask the browser not to evict the offline copy, or the chat, stations and
 // link stats in localStorage, under storage pressure. Chrome grants it without a prompt.
-if (matchMedia('(display-mode: standalone)').matches) void navigator.storage?.persist?.();
+if (installedApp()) void navigator.storage?.persist?.();
 chat.notifier = notifier;
 // Also notify while the page is visible but another screen (Network, Users, Settings) is showing, like the unread dot.
 notifier.attentive = () => !document.hidden && document.hasFocus() && !el('screen-chat').hidden;

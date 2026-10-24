@@ -77,6 +77,9 @@ select, input[type="text"] {
 /* The same page in the other language (how-it-works.html <-> como-funciona.html), named in that language. */
 .lang-pick { font: 500 0.75rem var(--f-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); text-decoration: none; border: 1px solid var(--line); padding: 5px 8px; }
 .lang-pick:hover { color: var(--text); border-color: var(--accent-hi); }
+/* Back to the app, shown when this tab came from it in place (an installed app on a phone; see setupBackToApp). */
+.app-back { font: 600 0.78rem var(--f-data); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); text-decoration: none; border: 1px solid var(--accent-hi); padding: 5px 9px; }
+.app-back:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 input[type="range"] { accent-color: var(--accent); width: 100%; }
 input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; }
 
@@ -327,6 +330,7 @@ table.modes { border-collapse: collapse; width: 100%; font-family: var(--f-data)
   .lab-out { grid-template-columns: 1fr; }
   .tone-layout { grid-template-columns: 1fr; }
   .bar-sub { display: none; }
+  .app-back:not([hidden]) ~ .brand { display: none; } /* the way back matters more than the name in the installed app */
   .hero { padding-top: 32px; }
   .lede { font-size: 1.08rem; }
 }

@@ -51,6 +51,7 @@ export const ES_APP: Readonly<Record<string, string>> = {
   'Settings': 'Ajustes',
   'Help': 'Ayuda',
   'How it works, step by step (opens in a new tab, so the station keeps running)': 'Cómo funciona, paso a paso (se abre en otra pestaña, así la estación sigue funcionando)',
+  'How it works, step by step (the station stops until you come back)': 'Cómo funciona, paso a paso (la estación se detiene hasta que vuelvas)',
   'How it works': 'Cómo funciona',
   'No station name set: other stations only see your random id.': 'No pusiste nombre de estación: las otras estaciones solo ven tu id al azar.',
   'Set your name': 'Poné tu nombre',

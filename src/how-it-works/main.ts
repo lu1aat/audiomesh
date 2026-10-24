@@ -2,6 +2,7 @@
 import * as AM from './am';
 import type { OutMessage } from '../chat/session';
 import { bandLabel, dec, lang, num, storeLang, t, tn } from '../i18n/i18n';
+import { canReturnToApp, returnToApp, singleWindowApp } from '../ui/installed';
 import DecodeWorker from './decode.worker.ts?worker';
 import './how-it-works.css';
 
@@ -1258,9 +1259,27 @@ function setupLangSwitch(): void {
   });
 }
 
+/**
+ * An installed app on a phone opens this page in place (singleWindowApp; a new tab there would
+ * cover the app with no way back) and has no browser bar: "Back to the app" in the top bar, and
+ * the closing link, go back to the app's own entry in the history. With no such entry they open
+ * the app, as the closing link always does.
+ */
+function setupBackToApp(): void {
+  const back = document.getElementById('app-back') as HTMLAnchorElement | null;
+  if (!back || (!canReturnToApp() && !singleWindowApp())) return;
+  back.hidden = false;
+  for (const a of [back, ...document.querySelectorAll<HTMLAnchorElement>('a.cta')]) {
+    a.addEventListener('click', (e) => {
+      if (returnToApp(() => location.assign(a.href))) e.preventDefault();
+    });
+  }
+}
+
 function start(): void {
   drawLogo();
   setupLangSwitch();
+  setupBackToApp();
   setupMode();
   void hero();
   setupBands();
