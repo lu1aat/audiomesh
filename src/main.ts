@@ -65,8 +65,8 @@ interface Settings {
   enabledModes: string[];
   /** Repeat every frame heard from others (Network screen). */
   repeater: boolean;
-  /** Search a few seconds beyond the usual timing window (Network screen). */
-  deepDecode: boolean;
+  /** Modes (protocol ids) that search a few seconds beyond the usual timing window: Deep decode, chosen per mode (Network screen). */
+  deepDecodeModes: string[];
   /** The Capture section is shown on the Network screen (Settings > Network capture). Capturing itself always starts off. */
   networkCapture: boolean;
   /** Check this clock against the page's server every 10 minutes (Sync, Network screen). */
@@ -112,7 +112,9 @@ const DEFAULT_SETTINGS: Settings = {
   protocol: DEFAULT_PROTOCOL_ID,
   enabledModes: ['gfsk8-turbo', 'gfsk8-fast', 'gfsk8-normal', 'gfsk8-long'],
   repeater: false,
-  deepDecode: false,
+  // The fast modes, where Deep decode already searches 80-90% of half a slot: measured, Fast loses nothing to the wider
+  // search and Turbo ~0.1 dB, for 10-50% more decode time per window. The slower modes' windows grow the most.
+  deepDecodeModes: ['gfsk8-turbo', 'gfsk8-fast', 'gfsk8-medium'],
   networkCapture: false,
   serverClockOff: false,
   allowTx: true,
@@ -154,7 +156,15 @@ for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href^="./how-it-
 }
 
 const settings = loadSettings();
+// Deep decode used to be one switch for every mode (`deepDecode`, off by default): turned on, it stays on in every mode.
+const legacySettings = settings as Settings & { deepDecode?: unknown };
+if (legacySettings.deepDecode !== undefined) {
+  if (legacySettings.deepDecode === true) settings.deepDecodeModes = listProtocols().map((p) => p.spec.id);
+  delete legacySettings.deepDecode;
+}
+if (!Array.isArray(settings.deepDecodeModes)) settings.deepDecodeModes = [...DEFAULT_SETTINGS.deepDecodeModes];
 const protocol = getProtocol(isProtocolId(settings.protocol) ? settings.protocol : DEFAULT_PROTOCOL_ID);
+const deepOn = (): boolean => settings.deepDecodeModes.includes(protocol.spec.id);
 const allChannels = listChannels(protocol.spec);
 const bands = bandsFor(protocol.spec);
 const engine = new AudioEngine(protocol.spec);
@@ -189,7 +199,7 @@ const clampSlotOffset = (ms: number): number => {
 };
 settings.slotOffsetMs = clampSlotOffset(Number(settings.slotOffsetMs) || 0);
 engine.setSlotOffsetMs(settings.slotOffsetMs);
-engine.setDeepDecode(settings.deepDecode);
+engine.setDeepDecode(deepOn());
 engine.setTransmitAllowed(settings.allowTx !== false);
 
 const serverClock = new ServerClock();
@@ -221,7 +231,7 @@ const link = new LinkView(
   relayInfo,
   {
     undecoded: () => chat.undecodedSyncs,
-    deepOn: () => settings.deepDecode,
+    deepOn,
     maxTimeOffsetSec: protocol.spec.maxTimeOffsetSec,
     deepExtraSec: deepExtraSec(protocol.spec),
     limitMs: protocol.spec.slotSec * 400,
@@ -243,12 +253,13 @@ const link = new LinkView(
 );
 
 const deepBox = el<HTMLInputElement>('deep-decode');
-deepBox.checked = settings.deepDecode;
+deepBox.checked = deepOn();
 deepBox.disabled = deepExtraSec(protocol.spec) === 0;
 deepBox.addEventListener('change', () => {
-  settings.deepDecode = deepBox.checked;
+  const others = settings.deepDecodeModes.filter((id) => id !== protocol.spec.id);
+  settings.deepDecodeModes = deepBox.checked ? [...others, protocol.spec.id] : others;
   saveSettings(settings);
-  engine.setDeepDecode(settings.deepDecode);
+  engine.setDeepDecode(deepOn());
   link.render();
 });
 const clockManual = el<HTMLInputElement>('clock-manual');
@@ -1400,8 +1411,11 @@ resetButton.addEventListener('click', () => {
     [autoChannel, d.autoChannel],
     [autoSound, d.autoSound],
     [repeaterBox, d.repeater],
-    [deepBox, d.deepDecode && !deepBox.disabled],
+    [deepBox, d.deepDecodeModes.includes(protocol.spec.id) && !deepBox.disabled],
   ];
+  // Deep decode is per mode: every mode goes back to its default, not only the one in use (its switch follows below).
+  settings.deepDecodeModes = [...d.deepDecodeModes];
+  saveSettings(settings);
   const selects: [HTMLSelectElement, string][] = [
     [autoSoundInterval, String(d.autoSoundIntervalMin)],
     [bandSelect, d.band],

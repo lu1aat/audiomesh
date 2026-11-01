@@ -309,7 +309,8 @@ protocols narrow enough for all of it (§4 has the per-protocol actual counts).
   frame that starts up to `maxTimeOffsetSec` early or late is still whole
   inside the window. The demodulator then searches ±that much for the actual
   frame start (§7).
-- **Deep decode** (opt-in, `deepExtraSec(spec)` further each side, §4): widens
+- **Deep decode** (`deepExtraSec(spec)` further each side, §4; a receiver setting chosen per
+  mode, on by default in Turbo, Fast and Medium, opt-in in the others): widens
   the recorded window and the search range for a station whose clock is off by
   more than the normal allowance. Tested: recovered a frame 4.9 s off at -10 dB.
 - **Clock anchoring** (`src/audio/engine.ts`): the audio clock is re-anchored to

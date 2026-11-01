@@ -182,9 +182,9 @@
                 <span class="switch"><input id="repeater" type="checkbox" title="Repeater mode: repeat every message, ack and announcement heard from other stations (marked as repeated), so stations that cannot hear each other can still talk through this one. While any repeater is about, every station sends its frames three slots apart, so messages take about three times as long." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
                 <span class="switch-state" aria-hidden="true"></span>
               </label>
-              <label class="switch-tile" title="Deep decode: also search up to 3 s beyond the usual timing window on each side (less in the fast mode), so a station whose clock is a few seconds off is still heard and its offset measured. Costs about a third more decoding time.">
+              <label class="switch-tile" title="Deep decode: also search up to 3 s beyond the usual timing window on each side (less in the fast modes), so a station whose clock is a few seconds off is still heard and its offset measured. Costs about a third more decoding time. Set per mode: on by default in Turbo, Fast and Medium.">
                 <span class="switch-label">Deep decode</span>
-                <span class="switch"><input id="deep-decode" type="checkbox" title="Deep decode: also search up to 3 s beyond the usual timing window on each side (less in the fast mode), so a station whose clock is a few seconds off is still heard and its offset measured. Costs about a third more decoding time." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                <span class="switch"><input id="deep-decode" type="checkbox" title="Deep decode: also search up to 3 s beyond the usual timing window on each side (less in the fast modes), so a station whose clock is a few seconds off is still heard and its offset measured. Costs about a third more decoding time. Set per mode: on by default in Turbo, Fast and Medium." /><span class="switch-track"><span class="switch-thumb"></span></span></span>
                 <span class="switch-state" aria-hidden="true"></span>
               </label>
             </div>
@@ -531,7 +531,7 @@
                 </div>
                 <div class="hp-opt">
                   <dt aria-hidden="true" inert><span class="switch-tile"><span class="switch-label">Deep decode</span><span class="switch"><input type="checkbox" tabindex="-1" /><span class="switch-track"><span class="switch-thumb"></span></span></span><span class="switch-state"></span></span></dt>
-                  <dd>Searches further in time, for a station whose clock is wrong: 3 seconds more each side on top of the usual 2 in Normal (less in Fast and Turbo, whose slots are short). Costs about a third more processing.</dd>
+                  <dd>Searches further in time, for a station whose clock is wrong: 3 seconds more each side on top of the usual 2 in Normal (less in Fast and Turbo, whose slots are short). Costs about a third more processing. On by default in Turbo, Fast and Medium, off in the slower modes; each mode keeps its own setting.</dd>
                 </div>
               </dl>
               <p data-i18n><b>Test</b> sends one beacon that every station hearing it answers, so you see who hears you and how well. <b>Announce</b> sends your name and icon. <b>Reset to defaults</b> (press twice) puts these options back; Audio, your name and timing stay.</p>
