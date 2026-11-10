@@ -328,8 +328,7 @@ select { background: var(--panel-alt); color: inherit; border: 1px solid var(--b
    screen, align-items: stretch makes the Map and Channels cards match height (each
    wrapper is a single-item flex row, so its card stretches to fill it); at
    900px and below they stack to one column, where matched height doesn't apply. */
-.network-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: stretch; gap: 16px; margin-bottom: 16px; }
-@media (max-width: 900px) { .network-top { grid-template-columns: minmax(0, 1fr); } }
+.network-top { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 16px; margin-bottom: 16px; }
 .network-map, .network-waterfall { display: flex; min-width: 0; }
 .network-map > .channel-block, .network-waterfall > .channel-block { flex: 1 1 auto; min-width: 0; }
 /* A collapsed card (see disclosure() in main.ts) drops out of the height match, so it
